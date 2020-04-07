@@ -12,27 +12,24 @@ from deepca.dumpr import dumpr
 
 if __name__ == '__main__':
 
-    try:
+    #
+    # Read entities from JSON
+    #
 
-        #
-        # Read entities from JSON
-        #
+    print('Read entities...', end='')
+    start = time.process_time()
 
-        print('Read entities...', end='')
-        start = time.process_time()
+    with open('entity2wikidata.json', 'r') as file:
+        entities_dict = json.load(file)
 
-        with open('entity2wikidata.json', 'r') as file:
-            entities_dict = json.load(file)
+    stop = time.process_time()
+    print(' Done. Took %.2fs' % (stop - start))
 
-        stop = time.process_time()
-        print(' Done. Took %.2fs' % (stop - start))
+    #
+    # Create/open database and create occurrences table if not existing
+    #
 
-        #
-        # Create/open database and create occurrences table if not existing
-        #
-
-        conn = sqlite3.connect('occurrences.db')
-        cursor = conn.cursor()
+    with sqlite3.connect('occurrences.db') as conn:
 
         sql_create_occurrences_table = '''
             CREATE TABLE IF NOT EXISTS occurrences (
@@ -46,6 +43,7 @@ if __name__ == '__main__':
             );
         '''
 
+        cursor = conn.cursor()
         cursor.execute(sql_create_occurrences_table)
         cursor.close()
 
@@ -55,6 +53,7 @@ if __name__ == '__main__':
 
         with dumpr.BatchReader('enwiki-2018-09.full.xml') as reader:
             for counter, doc in enumerate(reader.docs):
+
                 if doc.content is None:
                     continue
 
@@ -102,9 +101,3 @@ if __name__ == '__main__':
 
                 stop = time.process_time()
                 print(' (%dms)' % ((stop - start) * 1000))
-
-    except Exception as e:
-        print(e)
-    finally:
-        if conn:
-            conn.close()
