@@ -100,7 +100,8 @@ if __name__ == '__main__':
                 # Persist database commits at end of doc (takes much time)
                 #
 
-                conn.commit()
+                if counter % 1000 == 0:
+                    conn.commit()
 
                 stop = time.process_time()
                 print(' (%dms)' % ((stop - start) * 1000))
