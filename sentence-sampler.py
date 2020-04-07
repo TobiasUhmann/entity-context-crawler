@@ -25,9 +25,8 @@ if __name__ == '__main__':
     entities = {}
     for mid in wikidata:
         entity = wikidata[mid]['label']
-        entity = entity.lower()
-        entity = tuple(re.findall(r'\w+', entity))
-        entities[entity] = mid
+        entity_tokens = tuple(re.findall(r'\w+', entity.lower()))
+        entities[entity_tokens] = (mid, entity)
 
     stop = time.process_time()
     print(' Done. Took %.2fs' % (stop - start))
@@ -93,15 +92,33 @@ if __name__ == '__main__':
                         context_start = max(pos - 20, 0)
                         context_end = min(pos + 30, len(doc.content))
 
-                        occurrence = (entities[one_gram], doc_token, doc_title, pos, doc.content[context_start:context_end])
+                        occurrence = (entities[one_gram][0], entities[one_gram][1], doc_title, pos, doc.content[context_start:context_end])
+                        conn.cursor().execute(sql, occurrence)
+
+                for i in range(len(doc_tokens) - 1):
+                    two_doc_tokens = doc_tokens[i:i+2]
+                    pos = doc_token_positions[i]
+
+                    two_gram = tuple(two_doc_tokens)
+
+                    if two_gram in entities:
+                        sql = '''
+                            INSERT INTO occurrences(mid, entity, doc, pos, context)
+                            VALUES(?, ?, ?, ?, ?)
+                        '''
+
+                        context_start = max(pos - 20, 0)
+                        context_end = min(pos + 30, len(doc.content))
+
+                        occurrence = (entities[two_gram][0], entities[two_gram][1], doc_title, pos, doc.content[context_start:context_end])
                         conn.cursor().execute(sql, occurrence)
 
                 #
                 # Persist database commits at end of doc (takes much time)
                 #
 
-                if counter % 1000 == 0:
-                    conn.commit()
+                # if counter % 1000 == 0:
+                conn.commit()
 
                 stop = time.process_time()
                 print(' (%dms)' % ((stop - start) * 1000))
