@@ -6,8 +6,6 @@ import re
 import sqlite3
 import time
 
-from collections import defaultdict
-
 from deepca.dumpr import dumpr
 
 if __name__ == '__main__':
@@ -80,87 +78,33 @@ if __name__ == '__main__':
                     doc_tokens.append(match.group())
                     doc_token_positions.append(match.start())
 
-                for doc_token, pos in zip(doc_tokens, doc_token_positions):
-                    one_gram = (doc_token,)
+                for n in range(1, 5):
+                    for i in range(len(doc_tokens) - n + 1):
+                        n_gram = tuple(doc_tokens[i:i + n])
+                        pos = doc_token_positions[i]
 
-                    if one_gram in entities:
-                        sql = '''
-                            INSERT INTO occurrences(mid, entity, doc, pos, context)
-                            VALUES(?, ?, ?, ?, ?)
-                        '''
+                        if n_gram in entities:
+                            sql = '''
+                                INSERT INTO occurrences(mid, entity, doc, pos, context)
+                                VALUES(?, ?, ?, ?, ?)
+                            '''
 
-                        context_start = max(pos - 20, 0)
-                        context_end = min(pos + 30, len(doc.content))
+                            mid = entities[n_gram][0]
+                            entity = entities[n_gram][1]
 
-                        occurrence = (entities[one_gram][0], entities[one_gram][1], doc_title, pos, doc.content[context_start:context_end])
-                        conn.cursor().execute(sql, occurrence)
+                            context_start = max(pos - 20, 0)
+                            context_end = min(pos + 30, len(doc.content))
+                            context = doc.content[context_start:context_end]
 
-                for i in range(len(doc_tokens) - 1):
-                    two_doc_tokens = doc_tokens[i:i+2]
-                    pos = doc_token_positions[i]
-
-                    two_gram = tuple(two_doc_tokens)
-
-                    if two_gram in entities:
-                        sql = '''
-                            INSERT INTO occurrences(mid, entity, doc, pos, context)
-                            VALUES(?, ?, ?, ?, ?)
-                        '''
-
-                        context_start = max(pos - 20, 0)
-                        context_end = min(pos + 30, len(doc.content))
-
-                        occurrence = (entities[two_gram][0], entities[two_gram][1], doc_title, pos, doc.content[context_start:context_end])
-                        conn.cursor().execute(sql, occurrence)
+                            occurrence = (mid, entity, doc_title, pos, context)
+                            conn.cursor().execute(sql, occurrence)
 
                 #
                 # Persist database commits at end of doc (takes much time)
                 #
 
-                # if counter % 1000 == 0:
-                conn.commit()
+                if counter % 1000 == 0:
+                    conn.commit()
 
                 stop = time.process_time()
                 print(' (%dms)' % ((stop - start) * 1000))
-
-
-
-
-
-
-
-    #
-    # For each doc: Transform doc to lowercase token sequence. Then, for each token that is a
-    #               Freebase entity, add its position tuple (doc, pos) to the global index
-    #
-
-    print('Build index...', end='')
-    start = time.process_time()
-
-    with dumpr.BatchReader('enwiki-2018-09.full.xml') as reader:
-        for counter, doc in enumerate(reader.docs):
-            if doc.content is None:
-                continue
-
-            doc_title = doc.meta['title']
-            content = doc.content.lower()
-
-            # start = time.process_time()
-            # print('%d: %s' % (counter, doc_title), end='')
-
-            doc_tokens = []
-            doc_token_positions = []
-            for match in re.finditer(r'\w+', content):
-                doc_tokens.append(match.group())
-                doc_token_positions.append(match.start())
-
-            for doc_token, doc_token_position in zip(doc_tokens, doc_token_positions):
-                one_gram = (doc_token,)
-                if one_gram in entities:
-                    entities[one_gram].add((doc_title, doc_token_position))
-
-            # stop = time.process_time()
-            # print(' (%dms)' % ((stop - start) * 1000))
-
-    stop = time.process_time()
-    print(' Done. Took %.2fs' % (stop - start))
