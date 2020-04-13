@@ -3,6 +3,8 @@
 
 import json
 import re
+from random import random
+
 import spacy
 import sqlite3
 import time
@@ -45,14 +47,6 @@ if __name__ == '__main__':
     patterns = [nlp.make_doc(text) for text in terms]
     matcher.add("Entities", None, *patterns)
 
-    doc = nlp("German Chancellor Angela Merkel and US President Barack Obama "
-              "converse in the Oval Office inside the White House in Washington, D.C.")
-    
-    matches = matcher(doc)
-    for match_id, start, end in matches:
-        span = doc[start:end]
-        print(span.text, span.start_char, span.end_char)
-
     #
     # Create/open database and create occurrences table if not existing
     #
@@ -80,48 +74,80 @@ if __name__ == '__main__':
         #
 
         with dumpr.BatchReader('enwiki-2018-09.full.xml') as reader:
-            for counter, doc in enumerate(reader.docs):
+            for counter, dumprDoc in enumerate(reader.docs):
 
-                if doc.content is None:
+                if dumprDoc.content is None:
                     continue
 
-                doc_title = doc.meta['title']
-                content = doc.content.lower()
+                doc_title = dumprDoc.meta['title']
 
-                start = time.process_time()
+                #
+                #
+                #
+
+                start_time = time.process_time()
                 print('%d: %s' % (counter, doc_title), end='')
+
+                doc = nlp.make_doc(dumprDoc.content)
+                matches = matcher(doc)
+
+                for match_id, start, end in matches:
+                    span = doc[start:end]
+                    # print(span.text, span.start_char, span.end_char)
+
+                    sql = '''
+                        INSERT INTO occurrences(mid, entity, doc, pos, context)
+                        VALUES(?, ?, ?, ?, ?)
+                    '''
+
+                    # mid = entities[n_gram][0]
+                    # entity = entities[n_gram][1]
+
+                    context_start = max(span.start_char - 20, 0)
+                    context_end = min(span.end_char + 20, len(dumprDoc.content))
+                    context = dumprDoc.content[context_start:context_end]
+
+                    occurrence = (str(random()), span.text, doc_title, span.start_char, context)
+                    conn.cursor().execute(sql, occurrence)
+
+                #
+                #
+                #
+
+                # doc_title = dumprDoc.meta['title']
+                # content = dumprDoc.content.lower()
 
                 #
                 # For each doc: Transform doc to lowercase token sequence. Then, for each token that is a
                 #               Freebase entity, add its position tuple (doc, pos) to the global index
                 #
 
-                doc_tokens = []
-                doc_token_positions = []
-                for match in re.finditer(r'\w+', content):
-                    doc_tokens.append(match.group())
-                    doc_token_positions.append(match.start())
+                # doc_tokens = []
+                # doc_token_positions = []
+                # for match in re.finditer(r'\w+', content):
+                #     doc_tokens.append(match.group())
+                #     doc_token_positions.append(match.start())
 
-                for n in range(1, 5):
-                    for i in range(len(doc_tokens) - n + 1):
-                        n_gram = tuple(doc_tokens[i:i + n])
-                        pos = doc_token_positions[i]
-
-                        if n_gram in entities:
-                            sql = '''
-                                INSERT INTO occurrences(mid, entity, doc, pos, context)
-                                VALUES(?, ?, ?, ?, ?)
-                            '''
-
-                            mid = entities[n_gram][0]
-                            entity = entities[n_gram][1]
-
-                            context_start = max(pos - 20, 0)
-                            context_end = min(pos + 30, len(doc.content))
-                            context = doc.content[context_start:context_end]
-
-                            occurrence = (mid, entity, doc_title, pos, context)
-                            conn.cursor().execute(sql, occurrence)
+                # for n in range(1, 5):
+                #     for i in range(len(doc_tokens) - n + 1):
+                #         n_gram = tuple(doc_tokens[i:i + n])
+                #         pos = doc_token_positions[i]
+                #
+                #         if n_gram in entities:
+                #             sql = '''
+                #                 INSERT INTO occurrences(mid, entity, doc, pos, context)
+                #                 VALUES(?, ?, ?, ?, ?)
+                #             '''
+                #
+                #             mid = entities[n_gram][0]
+                #             entity = entities[n_gram][1]
+                #
+                #             context_start = max(pos - 20, 0)
+                #             context_end = min(pos + 30, len(dumprDoc.content))
+                #             context = dumprDoc.content[context_start:context_end]
+                #
+                #             occurrence = (mid, entity, doc_title, pos, context)
+                #             conn.cursor().execute(sql, occurrence)
 
                 #
                 # Persist database commits at end of doc (takes much time)
@@ -130,5 +156,5 @@ if __name__ == '__main__':
                 if counter % 1000 == 0:
                     conn.commit()
 
-                stop = time.process_time()
-                print(' (%dms)' % ((stop - start) * 1000))
+                stop_time = time.process_time()
+                print(' (%dms)' % ((stop_time - start_time) * 1000))
