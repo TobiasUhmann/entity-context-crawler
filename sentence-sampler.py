@@ -20,6 +20,7 @@ if __name__ == '__main__':
     start = time.process_time()
 
     nlp = English()
+    nlp.vocab.lex_attr_getters = {}
     matcher = PhraseMatcher(nlp.vocab)
 
     with open('entity2wikidata.json', 'r') as file:
@@ -56,7 +57,7 @@ if __name__ == '__main__':
         cursor.close()
 
         #
-        # For each doc: Search for all entities and commit occurrences to database
+        # For each doc: Search for all entities and save occurrences to database
         #
 
         with dumpr.BatchReader('enwiki-2018-09.full.xml') as reader:
@@ -68,7 +69,7 @@ if __name__ == '__main__':
                 doc_title = dumprDoc.meta['title']
 
                 #
-                #
+                # Search for entities and save occurrences to database (in memory)
                 #
 
                 start_time = time.process_time()
@@ -93,7 +94,7 @@ if __name__ == '__main__':
                     conn.cursor().execute(sql, occurrence)
 
                 #
-                # Persist database commits at end of doc (takes much time)
+                # Persist database at end of doc (takes much time)
                 #
 
                 if counter % 1000 == 0:
