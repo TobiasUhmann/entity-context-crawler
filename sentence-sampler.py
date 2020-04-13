@@ -3,12 +3,31 @@
 
 import json
 import re
+import spacy
 import sqlite3
 import time
 
 from deepca.dumpr import dumpr
+from spacy.matcher import PhraseMatcher
 
 if __name__ == '__main__':
+
+    #
+    # spaCy example
+    #
+
+    nlp = spacy.load('en_core_web_sm')
+    matcher = PhraseMatcher(nlp.vocab)
+    terms = ["Barack", "Angela Merkel", "Washington, D.C."]
+    patterns = [nlp.make_doc(text) for text in terms]
+    matcher.add("TerminologyList", None, *patterns)
+
+    doc = nlp("German Chancellor Angela Merkel and US President Barack Obama "
+              "converse in the Oval Office inside the White House in Washington, D.C.")
+    matches = matcher(doc)
+    for match_id, start, end in matches:
+        span = doc[start:end]
+        print(span.text, span.start_char, span.end_char)
 
     #
     # Read Wikidata JSON and create entities dict
