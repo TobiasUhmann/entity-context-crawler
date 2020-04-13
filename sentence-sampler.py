@@ -13,25 +13,6 @@ from spacy.matcher import PhraseMatcher
 if __name__ == '__main__':
 
     #
-    # Read Wikidata JSON and create entities dict
-    #
-
-    # print('Read entities...', end='')
-    # start = time.process_time()
-    #
-    # with open('entity2wikidata.json', 'r') as file:
-    #     wikidata = json.load(file)
-    #
-    # entities = {}
-    # for mid in wikidata:
-    #     entity = wikidata[mid]['label']
-    #     entity_tokens = tuple(re.findall(r'\w+', entity.lower()))
-    #     entities[entity_tokens] = (mid, entity)
-    #
-    # stop = time.process_time()
-    # print(' Done. Took %.2fs' % (stop - start))
-
-    #
     # Init spaCy
     #
 
@@ -46,7 +27,6 @@ if __name__ == '__main__':
 
     terms = [wikidata[mid]['label'] for mid in wikidata]
 
-    print(nlp.pipeline)
     patterns = list(nlp.pipe(terms))
     matcher.add("Entities", None, *patterns)
 
@@ -99,15 +79,11 @@ if __name__ == '__main__':
 
                 for match_id, start, end in matches:
                     span = doc[start:end]
-                    # print(span.text, span.start_char, span.end_char)
 
                     sql = '''
                         INSERT INTO occurrences(mid, entity, doc, pos, context)
                         VALUES(?, ?, ?, ?, ?)
                     '''
-
-                    # mid = entities[n_gram][0]
-                    # entity = entities[n_gram][1]
 
                     context_start = max(span.start_char - 20, 0)
                     context_end = min(span.end_char + 20, len(dumprDoc.content))
@@ -115,45 +91,6 @@ if __name__ == '__main__':
 
                     occurrence = (str(random()), span.text, doc_title, span.start_char, context)
                     conn.cursor().execute(sql, occurrence)
-
-                #
-                #
-                #
-
-                # doc_title = dumprDoc.meta['title']
-                # content = dumprDoc.content.lower()
-
-                #
-                # For each doc: Transform doc to lowercase token sequence. Then, for each token that is a
-                #               Freebase entity, add its position tuple (doc, pos) to the global index
-                #
-
-                # doc_tokens = []
-                # doc_token_positions = []
-                # for match in re.finditer(r'\w+', content):
-                #     doc_tokens.append(match.group())
-                #     doc_token_positions.append(match.start())
-
-                # for n in range(1, 5):
-                #     for i in range(len(doc_tokens) - n + 1):
-                #         n_gram = tuple(doc_tokens[i:i + n])
-                #         pos = doc_token_positions[i]
-                #
-                #         if n_gram in entities:
-                #             sql = '''
-                #                 INSERT INTO occurrences(mid, entity, doc, pos, context)
-                #                 VALUES(?, ?, ?, ?, ?)
-                #             '''
-                #
-                #             mid = entities[n_gram][0]
-                #             entity = entities[n_gram][1]
-                #
-                #             context_start = max(pos - 20, 0)
-                #             context_end = min(pos + 30, len(dumprDoc.content))
-                #             context = dumprDoc.content[context_start:context_end]
-                #
-                #             occurrence = (mid, entity, doc_title, pos, context)
-                #             conn.cursor().execute(sql, occurrence)
 
                 #
                 # Persist database commits at end of doc (takes much time)
