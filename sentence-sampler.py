@@ -26,9 +26,9 @@ if __name__ == '__main__':
     with open('entity2wikidata.json', 'r') as file:
         wikidata = json.load(file)
 
-    terms = [wikidata[mid]['label'] for mid in wikidata]
+    entities = {wikidata[mid]['label']: mid for mid in wikidata}
 
-    patterns = list(nlp.pipe(terms))
+    patterns = list(nlp.pipe(entities.keys()))
     matcher.add("Entities", None, *patterns)
 
     stop = time.process_time()
@@ -42,13 +42,14 @@ if __name__ == '__main__':
 
         sql_create_occurrences_table = '''
             CREATE TABLE IF NOT EXISTS occurrences (
-                mid text,       -- MID = Freebase ID, e.g. '/m/012s1d'
-                entity text,    -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
-                doc text,       -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-                pos integer,    -- Entity occurrence within document
-                context text,   -- Document text around occurrence, e.g. 'Spider-Man is a 2002 Americ', for debugging
+                mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
+                entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
+                doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
+                start_char integer, -- Start char position of entity occurrence within document
+                end_char integer,   -- End char position (exclusive) of entity occurrence within document
+                context text,       -- Text around occurrence, e.g. 'Spider-Man is a 2002 American...', for debugging
     
-                PRIMARY KEY (mid, doc, pos)
+                PRIMARY KEY (mid, doc, start_char)
             );
         '''
 
@@ -82,15 +83,15 @@ if __name__ == '__main__':
                     span = doc[start:end]
 
                     sql = '''
-                        INSERT INTO occurrences(mid, entity, doc, pos, context)
-                        VALUES(?, ?, ?, ?, ?)
+                        INSERT INTO occurrences(mid, entity, doc, start_char, end_char, context)
+                        VALUES(?, ?, ?, ?, ?, ?)
                     '''
 
                     context_start = max(span.start_char - 20, 0)
                     context_end = min(span.end_char + 20, len(dumprDoc.content))
                     context = dumprDoc.content[context_start:context_end]
 
-                    occurrence = (str(random()), span.text, doc_title, span.start_char, context)
+                    occurrence = (entities[span.text], span.text, doc_title, span.start_char, span.end_char, context)
                     conn.cursor().execute(sql, occurrence)
 
                 #
