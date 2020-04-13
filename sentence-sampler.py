@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import json
-import re
-from random import random
-
-import spacy
 import sqlite3
 import time
+from random import random
 
 from deepca.dumpr import dumpr
+from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
 
 if __name__ == '__main__':
@@ -18,34 +16,42 @@ if __name__ == '__main__':
     # Read Wikidata JSON and create entities dict
     #
 
-    print('Read entities...', end='')
-    start = time.process_time()
-
-    with open('entity2wikidata.json', 'r') as file:
-        wikidata = json.load(file)
-
-    entities = {}
-    for mid in wikidata:
-        entity = wikidata[mid]['label']
-        entity_tokens = tuple(re.findall(r'\w+', entity.lower()))
-        entities[entity_tokens] = (mid, entity)
-
-    stop = time.process_time()
-    print(' Done. Took %.2fs' % (stop - start))
+    # print('Read entities...', end='')
+    # start = time.process_time()
+    #
+    # with open('entity2wikidata.json', 'r') as file:
+    #     wikidata = json.load(file)
+    #
+    # entities = {}
+    # for mid in wikidata:
+    #     entity = wikidata[mid]['label']
+    #     entity_tokens = tuple(re.findall(r'\w+', entity.lower()))
+    #     entities[entity_tokens] = (mid, entity)
+    #
+    # stop = time.process_time()
+    # print(' Done. Took %.2fs' % (stop - start))
 
     #
     # Init spaCy
     #
 
-    nlp = spacy.load('en_core_web_sm')
+    print('Init spaCy...', end='')
+    start = time.process_time()
+
+    nlp = English()
     matcher = PhraseMatcher(nlp.vocab)
 
-    terms = []
-    for mid in wikidata:
-        terms.append(wikidata[mid]['label'])
+    with open('entity2wikidata.json', 'r') as file:
+        wikidata = json.load(file)
 
-    patterns = [nlp.make_doc(text) for text in terms]
+    terms = [wikidata[mid]['label'] for mid in wikidata]
+
+    print(nlp.pipeline)
+    patterns = list(nlp.pipe(terms))
     matcher.add("Entities", None, *patterns)
+
+    stop = time.process_time()
+    print(' Done. Took %.2fs' % (stop - start))
 
     #
     # Create/open database and create occurrences table if not existing
