@@ -14,27 +14,6 @@ from spacy.matcher import PhraseMatcher
 
 if __name__ == '__main__':
 
-    fig, ax = plt.subplots()
-
-    xs = [x for x in range(100)]
-    ys = [y for y in range(100)]
-
-    l = plt.bar(xs[5:15], ys[5:15])
-
-    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03])
-    sfreq = Slider(axfreq, 'Freq', 0.1, 30.0, valinit=10)
-
-    def update(val):
-        freq = int(sfreq.val)
-        ax.clear()
-        ax.bar(xs[freq - 5: freq + 5], ys[freq - 5 : freq + 5])
-        # l.set_ydata(np.sin(2 * np.pi * freq * t))
-        fig.canvas.draw_idle()
-
-    sfreq.on_changed(update)
-
-    plt.show()
-
     #
     # Init spaCy
     #
@@ -50,6 +29,7 @@ if __name__ == '__main__':
         wikidata = json.load(file)
 
     entities = {wikidata[mid]['label']: mid for mid in wikidata}
+    statistics = {entity: 0 for entity in entities}
 
     patterns = list(nlp.pipe(entities.keys()))
     matcher.add("Entities", None, *patterns)
@@ -117,12 +97,40 @@ if __name__ == '__main__':
                     occurrence = (entities[span.text], span.text, doc_title, span.start_char, span.end_char, context)
                     conn.cursor().execute(sql, occurrence)
 
+                    statistics[span.text] += 1
+
                 #
                 # Persist database at end of doc (takes much time)
                 #
 
                 if counter % 1000 == 0:
                     conn.commit()
+
+                    top_statistics = sorted(list(statistics.items()), key=lambda tup: tup[1], reverse=True)[:100]
+                    print(top_statistics)
+
+                    fig, ax = plt.subplots()
+
+                    xs = [x for x in range(100)]
+                    ys = [y for y in range(100)]
+
+                    l = plt.bar(xs[5:15], ys[5:15])
+
+                    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03])
+                    sfreq = Slider(axfreq, 'Freq', 0.1, 30.0, valinit=10)
+
+
+                    def update(val):
+                        freq = int(sfreq.val)
+                        ax.clear()
+                        ax.bar(xs[freq - 5: freq + 5], ys[freq - 5: freq + 5])
+                        # l.set_ydata(np.sin(2 * np.pi * freq * t))
+                        fig.canvas.draw_idle()
+
+
+                    sfreq.on_changed(update)
+
+                    plt.show()
 
                 stop_time = time.process_time()
                 print(' (%dms)' % ((stop_time - start_time) * 1000))
