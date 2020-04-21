@@ -111,8 +111,8 @@ if __name__ == '__main__':
 
                     fig, ax = plt.subplots()
 
-                    xs = [x for x in range(100)]
-                    ys = [y for y in range(100)]
+                    xs = [stat[0] for stat in top_statistics]
+                    ys = [stat[1] for stat in top_statistics]
 
                     l = plt.bar(xs[5:15], ys[5:15])
 
@@ -123,13 +123,16 @@ if __name__ == '__main__':
                     def update(val):
                         freq = int(sfreq.val)
                         ax.clear()
+                        plt.sca(ax)
+                        plt.xticks(rotation=45)
                         ax.bar(xs[freq - 5: freq + 5], ys[freq - 5: freq + 5])
-                        # l.set_ydata(np.sin(2 * np.pi * freq * t))
                         fig.canvas.draw_idle()
 
 
                     sfreq.on_changed(update)
 
+                    plt.sca(ax)
+                    plt.xticks(rotation=45)
                     plt.show()
 
                 stop_time = time.process_time()
