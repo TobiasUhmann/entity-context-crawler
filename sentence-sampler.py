@@ -5,11 +5,35 @@ import json
 import sqlite3
 import time
 
+import matplotlib.pyplot as plt
+import numpy as np
 from deepca.dumpr import dumpr
+from matplotlib.widgets import Slider
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
 
 if __name__ == '__main__':
+
+    fig, ax = plt.subplots()
+
+    xs = [x for x in range(100)]
+    ys = [y for y in range(100)]
+
+    l = plt.bar(xs[5:15], ys[5:15])
+
+    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03])
+    sfreq = Slider(axfreq, 'Freq', 0.1, 30.0, valinit=10)
+
+    def update(val):
+        freq = int(sfreq.val)
+        ax.clear()
+        ax.bar(xs[freq - 5: freq + 5], ys[freq - 5 : freq + 5])
+        # l.set_ydata(np.sin(2 * np.pi * freq * t))
+        fig.canvas.draw_idle()
+
+    sfreq.on_changed(update)
+
+    plt.show()
 
     #
     # Init spaCy
