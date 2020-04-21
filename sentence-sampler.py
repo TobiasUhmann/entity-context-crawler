@@ -100,36 +100,35 @@ if __name__ == '__main__':
                     statistics[span.text] += 1
 
                 #
-                # Persist database at end of doc (takes much time)
+                # Persist database at end of doc (takes much time) and draw statistics
                 #
 
                 if counter % 1000 == 0:
                     conn.commit()
 
                     top_statistics = sorted(list(statistics.items()), key=lambda tup: tup[1], reverse=True)[:100]
-                    print(top_statistics)
 
                     fig, ax = plt.subplots()
 
                     xs = [stat[0] for stat in top_statistics]
                     ys = [stat[1] for stat in top_statistics]
 
-                    l = plt.bar(xs[5:15], ys[5:15])
-
-                    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03])
-                    sfreq = Slider(axfreq, 'Freq', 0.1, 30.0, valinit=10)
-
+                    span = 10
+                    plt.bar(xs[:span], ys[:span])
 
                     def update(val):
-                        freq = int(sfreq.val)
+                        scroll_pos = int(val)
+
                         ax.clear()
                         plt.sca(ax)
                         plt.xticks(rotation=45)
-                        ax.bar(xs[freq - 5: freq + 5], ys[freq - 5: freq + 5])
+
+                        ax.bar(xs[scroll_pos: scroll_pos + span], ys[scroll_pos: scroll_pos + span])
                         fig.canvas.draw_idle()
 
-
-                    sfreq.on_changed(update)
+                    ax_scroll = plt.axes([0.1, 0.9, 0.8, 0.03])
+                    slider = Slider(ax_scroll, '', 0, len(xs) - span, valfmt='%d')
+                    slider.on_changed(update)
 
                     plt.sca(ax)
                     plt.xticks(rotation=45)
