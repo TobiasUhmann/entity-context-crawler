@@ -2,18 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import json
+import matplotlib.pyplot as plt
 import sqlite3
 import time
 
-import matplotlib.pyplot as plt
-import numpy as np
 from deepca.dumpr import dumpr
 from matplotlib.widgets import Slider
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
 
-if __name__ == '__main__':
 
+def main():
     #
     # Init spaCy
     #
@@ -105,34 +104,62 @@ if __name__ == '__main__':
 
                 if counter % 1000 == 0:
                     conn.commit()
-
-                    top_statistics = sorted(list(statistics.items()), key=lambda tup: tup[1], reverse=True)[:100]
-
-                    fig, ax = plt.subplots()
-
-                    xs = [stat[0] for stat in top_statistics]
-                    ys = [stat[1] for stat in top_statistics]
-
-                    span = 10
-                    plt.bar(xs[:span], ys[:span])
-
-                    def update(val):
-                        scroll_pos = int(val)
-
-                        ax.clear()
-                        plt.sca(ax)
-                        plt.xticks(rotation=45)
-
-                        ax.bar(xs[scroll_pos: scroll_pos + span], ys[scroll_pos: scroll_pos + span])
-                        fig.canvas.draw_idle()
-
-                    ax_scroll = plt.axes([0.1, 0.9, 0.8, 0.03])
-                    slider = Slider(ax_scroll, '', 0, len(xs) - span, valfmt='%d')
-                    slider.on_changed(update)
-
-                    plt.sca(ax)
-                    plt.xticks(rotation=45)
-                    plt.show()
+                    plot_statistics(statistics)
 
                 stop_time = time.process_time()
                 print(' (%dms)' % ((stop_time - start_time) * 1000))
+
+
+def plot_statistics(statistics):
+    """
+    Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
+    the 100 most frequent entities.
+
+    :param statistics: Dict containing (entity -> absolute frequency) entries.
+                       Example: {'Spanish': 25, 'anarchism': 85, 'philosophy': 15', ...}
+    """
+
+    top_statistics = sorted(list(statistics.items()), key=lambda item: item[1], reverse=True)[:100]
+    entities = [item[0] for item in top_statistics]
+    frequencies = [item[1] for item in top_statistics]
+
+    visible_bars = 10
+
+    ax_bar_chart = plt.axes([0.1, 0.2, 0.8, 0.6])
+    plt.bar(entities[:visible_bars], frequencies[:visible_bars])
+
+    #
+    # Sliders for scrolling through entities and showing more/less entities at a time. Update
+    # chart on slider change.
+    #
+
+    def update(val):
+        scroll = int(scroll_slider.val)  # new scroll position
+        bars = int(visible_bars_slider.val)  # new visible bars
+
+        ax_bar_chart.clear()
+        plt.sca(ax_bar_chart)
+        plt.xticks(rotation=90)
+
+        ax_bar_chart.bar(entities[scroll:(scroll + bars)],
+                         frequencies[scroll:(scroll + bars)])
+
+    ax_scroll = plt.axes([0.1, 0.9, 0.8, 0.03])
+    scroll_slider = Slider(ax_scroll, '', 0, len(entities), valfmt='%d')
+    scroll_slider.on_changed(update)
+
+    ax_span = plt.axes([0.1, 0.85, 0.8, 0.03])
+    visible_bars_slider = Slider(ax_span, '', 10, 100, valinit=visible_bars, valfmt='%d')
+    visible_bars_slider.on_changed(update)
+
+    #
+    # Initial plotting. Updated on slider change.
+    #
+
+    plt.sca(ax_bar_chart)
+    plt.xticks(rotation=90)
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
