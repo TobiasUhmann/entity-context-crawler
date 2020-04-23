@@ -19,5 +19,5 @@ pip-selfcheck.json
 
 entity2wikidata.json
 enwiki-2018-09.full.xml
-occurrences.db
-occurrences.db-journal
+matches.db
+matches.db-journal
