@@ -43,7 +43,7 @@ class SentenceSampler:
     nlp: Language
     matcher: PhraseMatcher
 
-    entities: dict  # {entity: freenode_mid}, e.g. {'anarchism': '/m/012s1d', 'foo': '/m/0123456', ...}
+    mids: dict  # {entity: freenode_mid}, e.g. {'anarchism': '/m/012s1d', 'foo': '/m/0123456', ...}
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
 
     def __init__(self, freenode_labels_json, wikipedia_docs_xml, matches_db):
@@ -64,10 +64,10 @@ class SentenceSampler:
         with open(self.freenode_labels_json, 'r') as file:
             wikidata = json.load(file)
 
-        self.entities = {wikidata[mid]['label']: mid for mid in wikidata}
-        self.statistics = {entity: 0 for entity in self.entities}
+        self.mids = {wikidata[mid]['label']: mid for mid in wikidata}
+        self.statistics = {entity: 0 for entity in self.mids}
 
-        patterns = list(self.nlp.pipe(self.entities.keys()))
+        patterns = list(self.nlp.pipe(self.mids.keys()))
         self.matcher.add('Entities', None, *patterns)
 
     def run(self):
@@ -75,7 +75,7 @@ class SentenceSampler:
         Find and persist entity matches in Wikipedia documents.
         """
 
-        with sqlite3.connect(MATCHES_DB) as conn:
+        with sqlite3.connect(self.matches_db) as conn:
             create_db(conn)
 
             with dumpr.BatchReader(self.wikipedia_docs_xml) as reader:
@@ -105,6 +105,7 @@ class SentenceSampler:
 
         for match_id, start, end in matches:
             span = doc[start:end]
+            entity = span.text
 
             sql = '''
                 INSERT INTO matches(mid, entity, doc, start_char, end_char, context)
@@ -115,10 +116,13 @@ class SentenceSampler:
             context_end = min(span.end_char + 20, len(dumpr_doc.content))
             context = dumpr_doc.content[context_start:context_end]
 
-            match = (self.entities[span.text], span.text, doc_title, span.start_char, span.end_char, context)
-            conn.cursor().execute(sql, match)
+            match = (self.mids[entity], entity, doc_title, span.start_char, span.end_char, context)
 
-            self.statistics[span.text] += 1
+            cursor = conn.cursor()
+            cursor.execute(sql, match)
+            cursor.close()
+
+            self.statistics[entity] += 1
 
     def plot_statistics(self):
         """
@@ -172,7 +176,7 @@ class SentenceSampler:
 
 
 if __name__ == '__main__':
-    # TODO Pass file names from command line
+    # TODO Pass file names on command line
     sentence_sampler = SentenceSampler(FREENODE_LABELS_JSON, WIKIPEDIA_DOCS_XML, MATCHES_DB)
 
     sentence_sampler.init()
