@@ -4,7 +4,6 @@
 import json
 import matplotlib.pyplot as plt
 import sqlite3
-import time
 
 from deepca.dumpr import dumpr
 from matplotlib.widgets import Slider
@@ -17,25 +16,52 @@ WIKIPEDIA_DOCS_XML = 'enwiki-2018-09.full.xml'
 MATCHES_DB = 'matches.db'
 
 
+def create_db(conn):
+    sql_create_matches_table = '''
+        CREATE TABLE matches (
+            mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
+            entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
+            doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
+            start_char integer, -- Start char position of entity match within document
+            end_char integer,   -- End char position (exclusive) of entity match within document
+            context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
+    
+            PRIMARY KEY (mid, doc, start_char)
+        );
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql_create_matches_table)
+    cursor.close()
+
+
 class SentenceSampler:
+    freenode_labels_json: str  # path/to/freenode_labels.json
+    wikipedia_docs_xml: str  # path/to/wikipedia_docs.xml
+    matches_db: str  # path/to/matches.db
+
     nlp: Language
     matcher: PhraseMatcher
-    entities: dict
-    statistics: dict
 
-    def main(self):
-        #
-        # Init spaCy
-        #
+    entities: dict  # {entity: freenode_mid}, e.g. {'anarchism': '/m/012s1d', 'foo': '/m/0123456', ...}
+    statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
 
-        print('Init spaCy...', end='')
-        start = time.process_time()
+    def __init__(self, freenode_labels_json, wikipedia_docs_xml, matches_db):
+        self.freenode_labels_json = freenode_labels_json
+        self.wikipedia_docs_xml = wikipedia_docs_xml
+        self.matches_db = matches_db
+
+    def init(self):
+        """
+        Create English spaCy object and matcher. Furthermore, load entity labels to create entities dict and
+        initialize statistics.
+        """
 
         self.nlp = English()
         self.nlp.vocab.lex_attr_getters = {}
         self.matcher = PhraseMatcher(self.nlp.vocab)
 
-        with open(FREENODE_LABELS_JSON, 'r') as file:
+        with open(self.freenode_labels_json, 'r') as file:
             wikidata = json.load(file)
 
         self.entities = {wikidata[mid]['label']: mid for mid in wikidata}
@@ -44,63 +70,37 @@ class SentenceSampler:
         patterns = list(self.nlp.pipe(self.entities.keys()))
         self.matcher.add('Entities', None, *patterns)
 
-        stop = time.process_time()
-        print(' Done. Took %.2fs' % (stop - start))
-
-        #
-        # For each Wikipedia document: Search for all entities and save matches to database
-        #
+    def run(self):
+        """
+        Find and persist entity matches in Wikipedia documents.
+        """
 
         with sqlite3.connect(MATCHES_DB) as conn:
-            self.create_db(conn)
+            create_db(conn)
 
-            with dumpr.BatchReader(WIKIPEDIA_DOCS_XML) as reader:
-                for counter, dumprDoc in enumerate(reader.docs):
+            with dumpr.BatchReader(self.wikipedia_docs_xml) as reader:
+                for counter, dumpr_doc in enumerate(reader.docs):
 
-                    if dumprDoc.content is None:
+                    if dumpr_doc.content is None:
                         continue
 
-                    doc_title = dumprDoc.meta['title']
-                    print('%d: %s' % (counter, doc_title), end='')
+                    doc_title = dumpr_doc.meta['title']
+                    print('%d: %s' % (counter, doc_title))
 
-                    self.process_doc(dumprDoc, conn)
+                    self.process_doc(dumpr_doc, conn)
 
                     #
-                    # Persist database at end of doc (takes much time) and draw statistics
+                    # Persist database rarely (takes much time) and plot statistics
                     #
 
                     if counter % 1000 == 0:
                         conn.commit()
-                        self.plot_statistics(self.statistics)
+                        self.plot_statistics()
 
-                    start_time = time.process_time()
-                    stop_time = time.process_time()
-                    print(' (%dms)' % ((stop_time - start_time) * 1000))
+    def process_doc(self, dumpr_doc, conn):
+        doc_title = dumpr_doc.meta['title']
 
-
-    def create_db(self, conn):
-        sql_create_matches_table = '''
-            CREATE TABLE matches (
-                mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
-                entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
-                doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-                start_char integer, -- Start char position of entity match within document
-                end_char integer,   -- End char position (exclusive) of entity match within document
-                context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
-        
-                PRIMARY KEY (mid, doc, start_char)
-            );
-        '''
-
-        cursor = conn.cursor()
-        cursor.execute(sql_create_matches_table)
-        cursor.close()
-
-
-    def process_doc(self, dumprDoc, conn):
-        doc_title = dumprDoc.meta['title']
-
-        doc = self.nlp.make_doc(dumprDoc.content)
+        doc = self.nlp.make_doc(dumpr_doc.content)
         matches = self.matcher(doc)
 
         for match_id, start, end in matches:
@@ -112,16 +112,15 @@ class SentenceSampler:
             '''
 
             context_start = max(span.start_char - 20, 0)
-            context_end = min(span.end_char + 20, len(dumprDoc.content))
-            context = dumprDoc.content[context_start:context_end]
+            context_end = min(span.end_char + 20, len(dumpr_doc.content))
+            context = dumpr_doc.content[context_start:context_end]
 
             match = (self.entities[span.text], span.text, doc_title, span.start_char, span.end_char, context)
             conn.cursor().execute(sql, match)
 
             self.statistics[span.text] += 1
 
-
-    def plot_statistics(self, statistics):
+    def plot_statistics(self):
         """
         Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
         the 100 most frequent entities. Interrupts the program.
@@ -130,7 +129,7 @@ class SentenceSampler:
                            Example: {'Spanish': 25, 'anarchism': 85, 'philosophy': 15', ...}
         """
 
-        top_statistics = sorted(list(statistics.items()), key=lambda item: item[1], reverse=True)[:100]
+        top_statistics = sorted(list(self.statistics.items()), key=lambda item: item[1], reverse=True)[:100]
         entities = [item[0] for item in top_statistics]
         frequencies = [item[1] for item in top_statistics]
 
@@ -173,5 +172,8 @@ class SentenceSampler:
 
 
 if __name__ == '__main__':
-    sentence_sampler = SentenceSampler()
-    sentence_sampler.main()
+    # TODO Pass file names from command line
+    sentence_sampler = SentenceSampler(FREENODE_LABELS_JSON, WIKIPEDIA_DOCS_XML, MATCHES_DB)
+
+    sentence_sampler.init()
+    sentence_sampler.run()
