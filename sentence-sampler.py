@@ -64,7 +64,63 @@ class SentenceSampler:
         with open(self.freenode_labels_json, 'r') as file:
             wikidata = json.load(file)
 
-        self.mids = {wikidata[mid]['label']: mid for mid in wikidata}
+        languages = {
+            'Arabic',
+            'Chinese',
+            'Japanese',
+            'Dutch',
+            'English',
+            'French',
+            'German',
+            'Greek',
+            'Italian',
+            'Latin',
+            'Persian',
+            'Spanish',
+            'Russian',
+        }
+        movies = {
+            '2012',
+            '24',
+            'Alexander',
+            'It',
+            'North',
+        }
+        months = {
+            'January',
+            'February',
+            'March',
+            'April',
+            'May',
+            'June',
+            'July',
+            'August',
+            'September',
+            'October',
+            'November',
+            'December',
+        }
+        other = {
+            'Arab',
+            'Christian'
+            'House',
+            'Jackson',
+            'Lincoln',
+            'Mary',
+            'Paul',
+            'Union',
+            'Western',
+            'York',
+        }
+
+        blacklist = languages | movies | months | other
+        print(blacklist)
+        self.mids = {}
+        for mid in wikidata:
+            entity = wikidata[mid]['label']
+            if not (entity.islower() or entity in blacklist):
+                self.mids[entity] = mid
+
         self.statistics = {entity: 0 for entity in self.mids}
 
         patterns = list(self.nlp.pipe(self.mids.keys()))
@@ -95,6 +151,7 @@ class SentenceSampler:
 
                     if counter % 1000 == 0:
                         conn.commit()
+                        # TODO command line param
                         self.plot_statistics()
 
     def process_doc(self, dumpr_doc, conn):
@@ -128,12 +185,9 @@ class SentenceSampler:
         """
         Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
         the 100 most frequent entities. Interrupts the program.
-
-        :param statistics: Dict containing (entity -> absolute frequency) entries.
-                           Example: {'Spanish': 25, 'anarchism': 85, 'philosophy': 15', ...}
         """
 
-        top_statistics = sorted(list(self.statistics.items()), key=lambda item: item[1], reverse=True)[:100]
+        top_statistics = sorted(list(self.statistics.items()), key=lambda item: item[1], reverse=True)[:200]
         entities = [item[0] for item in top_statistics]
         frequencies = [item[1] for item in top_statistics]
 
