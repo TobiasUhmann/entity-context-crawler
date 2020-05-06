@@ -22,3 +22,4 @@ enwiki-2018-09.full.xml
 matches.db
 matches.db-journal
 enwiki-latest-pages-articles.xml
+__pycache__/
