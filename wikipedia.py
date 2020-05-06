@@ -2,6 +2,7 @@
 
 from lxml import etree
 
+
 class Wikipedia:
     def __init__(self, fh, tag):
         """
@@ -37,8 +38,10 @@ class Wikipedia:
             entity = {}
 
             # Assign the 'elem.namespace' to the 'xpath'
-            entity['revision'] = elem.xpath('./xmlns:revision/xmlns:text/text( )',
-                                   namespaces={'xmlns':etree.QName(elem).namespace})
+            namespaces = {'xmlns': etree.QName(elem).namespace}
+            entity['title'] = elem.xpath('./xmlns:title/text( )', namespaces=namespaces)
+            entity['redirect'] = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
+            entity['text'] = elem.xpath('./xmlns:revision/xmlns:text/text( )', namespaces=namespaces)
 
             yield entity
 

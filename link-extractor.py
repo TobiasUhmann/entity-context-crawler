@@ -27,7 +27,11 @@ class LinkExtractor:
 if __name__ == '__main__':
     with open('enwiki-latest-pages-articles.xml', 'rb') as in_xml:
         for page in Wikipedia(in_xml, tag='page'):
-            parsed = wtp.parse(page['revision'][0])
+            print(page['title'][0])
+            redirect = page['redirect']
+            if redirect:
+                print(page['redirect'][0])
+            parsed = wtp.parse(page['text'][0])
             print(parsed.wikilinks)
 
     # TODO Pass file names on command line
