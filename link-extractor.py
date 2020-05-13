@@ -1,3 +1,6 @@
+import pickle
+from collections import defaultdict
+
 from deepca.dumpr import dumpr
 import wikitextparser as wtp
 
@@ -24,15 +27,45 @@ class LinkExtractor:
                 print()
 
 
+def dd():
+    return defaultdict(set)
+
+
+nodes = defaultdict(dd)
+
 if __name__ == '__main__':
     with open('enwiki-latest-pages-articles.xml', 'rb') as in_xml:
-        for page in Wikipedia(in_xml, tag='page'):
-            print(page['title'][0])
-            redirect = page['redirect']
-            if redirect:
-                print(page['redirect'][0])
-            parsed = wtp.parse(page['text'][0])
-            print(parsed.wikilinks)
+
+        #
+        # Build graph
+        #
+
+        for counter, page in enumerate(Wikipedia(in_xml, tag='page')):
+            print(counter)
+            if counter == 1000:
+                break
+
+            title = page['title'][0]
+            if page['redirect']:
+                redirect = page['redirect'][0]
+                nodes[title]['redirect'].add(redirect)
+
+            wikilinks = wtp.parse(page['text'][0]).wikilinks
+            for wikilink in wikilinks:
+                nodes[title]['links_to'].add(wikilink.title)
+                nodes[wikilink.title]['linked_by'].add(title)
+
+        #
+        # Remove redirects from graph
+        #
+
+
+
+        #
+        # Persist graph
+        #
+
+        pickle.dump(nodes, open('links.p', 'wb'))
 
     # TODO Pass file names on command line
     # linkExtractor = LinkExtractor(FULL_WIKIPEDIA_DOCS_XML)
