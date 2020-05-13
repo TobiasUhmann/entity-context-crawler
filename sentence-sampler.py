@@ -38,6 +38,10 @@ def create_db(conn):
     cursor.close()
 
 
+def dd():
+    return defaultdict(set)
+
+
 class SentenceSampler:
     freenode_labels_json: str  # path/to/freenode_labels.json
     wikipedia_docs_xml: str  # path/to/wikipedia_docs.xml
@@ -48,7 +52,7 @@ class SentenceSampler:
 
     entities = defaultdict(set)  # TODO
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
-    todo_list = defaultdict(set)
+    links: defaultdict[dd]
 
     def __init__(self, freenode_labels_json, wikipedia_docs_xml, matches_db):
         self.freenode_labels_json = freenode_labels_json
@@ -60,6 +64,8 @@ class SentenceSampler:
         Create English spaCy object and matcher. Furthermore, load entity labels to create entities dict and
         initialize statistics.
         """
+
+        self.links = pickle.load(open('links.p', 'rb'))
 
         self.nlp = English()
         self.nlp.vocab.lex_attr_getters = {}
@@ -188,15 +194,16 @@ class SentenceSampler:
         doc_title = dumpr_doc.meta['title']
 
         doc = self.nlp.make_doc(dumpr_doc.content)
-        # matches = self.matcher(doc)
-        matcher = PhraseMatcher(self.nlp.vocab)
-        patterns = list(self.nlp.pipe(list(self.todo_list[doc_title])))
-        matcher.add('Entities', None, *patterns)
-        matches = matcher(doc)
+        matches = self.matcher(doc)
 
         for match_id, start, end in matches:
             span = doc[start:end]
             entity = span.text
+
+            entity_doc_title = list(self.entities[entity])[0][1]
+            neighbor_docs = {doc_title} | self.links[doc_title]['linked_by'] | self.links[doc_title]['links_to']
+            if entity_doc_title not in neighbor_docs:
+                continue
 
             sql = '''
                 INSERT INTO matches(mid, entity, doc, start_char, end_char, context)
@@ -264,46 +271,9 @@ class SentenceSampler:
         plt.show()
 
 
-def dd():
-    return defaultdict(set)
-
-
 if __name__ == '__main__':
     # TODO Pass file names on command line
     sentence_sampler = SentenceSampler(FREENODE_LABELS_JSON, WIKIPEDIA_DOCS_XML, MATCHES_DB)
-
-    #
-    #
-    #
-
-    nodes = pickle.load(open('links.p', 'rb'))
-
-    for node in nodes:
-        if nodes[node]['redirect']:
-            print(node)
-            print(nodes[node])
-
-    #
-    #
-    #
-
-    with open(FREENODE_LABELS_JSON, 'r') as file:
-        wikidata = json.load(file)
-
-        for mid in wikidata:
-            url = wikidata[mid]['wikipedia']
-            entity = wikidata[mid]['label']
-            if url:
-                doc_title = url.rsplit('/', 1)[-1].replace('_', ' ')
-                print(doc_title)
-                if doc_title in nodes:
-                    sentence_sampler.todo_list[doc_title].add(entity)
-                    for doc in nodes[doc_title]['linked_by']:
-                        sentence_sampler.todo_list[doc].add(entity)
-                    for doc in nodes[doc_title]['links_to']:
-                        sentence_sampler.todo_list[doc].add(entity)
-
-    print(sentence_sampler.todo_list)
 
     sentence_sampler.init()
     sentence_sampler.run()
