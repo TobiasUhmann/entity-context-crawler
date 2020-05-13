@@ -46,7 +46,7 @@ class SentenceSampler:
     nlp: Language
     matcher: PhraseMatcher
 
-    mids: dict  # {entity: freenode_mid}, e.g. {'anarchism': '/m/012s1d', 'foo': '/m/0123456', ...}
+    entities = defaultdict(set)  # TODO
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
     todo_list = defaultdict(set)
 
@@ -119,15 +119,41 @@ class SentenceSampler:
 
         blacklist = languages | movies | months | other
         print(blacklist)
-        self.mids = {}
+
+        # Create dict mapping entity -> {(MID, Wikipedia doc title)...}
+        # Homonyms map to multiple Freenode nodes.
+        # Includes alternative names.
+        #
+        # {
+        #     ...
+        #     'Spider-Man': {('/m/06ys2', 'Spider-Man'), ('/m/012s1d', 'Spider-Man (2002 film)')}
+        #     'Spidey': {('/m/06ys2', 'Spider-Man')}
+        #     ...
+        # }
+
+        missing_urls = 0
         for mid in wikidata:
-            entity = wikidata[mid]['label']
-            # if not (entity.islower() or entity in blacklist):
-            self.mids[entity] = mid
+            labels = {wikidata[mid]['label']}
+            # labels.update(wikidata[mid]['alternatives'])
 
-        self.statistics = {entity: 0 for entity in self.mids}
+            wikipedia_url = wikidata[mid]['wikipedia']
+            if wikipedia_url:
+                doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ')
 
-        patterns = list(self.nlp.pipe(self.mids.keys()))
+                for label in labels:
+                    self.entities[label].add((mid, doc_title))
+            else:
+                missing_urls += 1
+
+        print('Missing URLs: %d' % missing_urls)
+
+        #
+        #
+        #
+
+        self.statistics = {entity: 0 for entity in self.entities}
+
+        patterns = list(self.nlp.pipe(self.entities.keys()))
         self.matcher.add('Entities', None, *patterns)
 
     def run(self):
@@ -181,7 +207,8 @@ class SentenceSampler:
             context_end = min(span.end_char + 20, len(dumpr_doc.content))
             context = dumpr_doc.content[context_start:context_end]
 
-            match = (self.mids[entity], entity, doc_title, span.start_char, span.end_char, context)
+            mid = list(self.entities[entity])[0][0]
+            match = (mid, entity, doc_title, span.start_char, span.end_char, context)
 
             cursor = conn.cursor()
             cursor.execute(sql, match)
