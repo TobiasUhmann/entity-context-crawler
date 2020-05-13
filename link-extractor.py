@@ -45,15 +45,16 @@ if __name__ == '__main__':
             if counter == 1000:
                 break
 
-            title = page['title'][0]
+            title = page['title'][0].lower()
             if page['redirect']:
-                redirect = page['redirect'][0]
+                redirect = page['redirect'][0].lower()
                 nodes[title]['redirect'].add(redirect)
 
             wikilinks = wtp.parse(page['text'][0]).wikilinks
             for wikilink in wikilinks:
-                nodes[title]['links_to'].add(wikilink.title)
-                nodes[wikilink.title]['linked_by'].add(title)
+                link_title = wikilink.title.lower()
+                nodes[title]['links_to'].add(link_title)
+                nodes[link_title]['linked_by'].add(title)
 
         #
         # Remove redirects from graph

@@ -52,7 +52,7 @@ class SentenceSampler:
 
     entities = defaultdict(set)  # TODO
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
-    links: defaultdict[dd]
+    links = defaultdict(dd)
 
     def __init__(self, freenode_labels_json, wikipedia_docs_xml, matches_db):
         self.freenode_labels_json = freenode_labels_json
@@ -144,7 +144,7 @@ class SentenceSampler:
 
             wikipedia_url = wikidata[mid]['wikipedia']
             if wikipedia_url:
-                doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ')
+                doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ').lower()
 
                 for label in labels:
                     self.entities[label].add((mid, doc_title))
@@ -191,7 +191,7 @@ class SentenceSampler:
                         self.plot_statistics()
 
     def process_doc(self, dumpr_doc, conn):
-        doc_title = dumpr_doc.meta['title']
+        doc_title = dumpr_doc.meta['title'].lower()
 
         doc = self.nlp.make_doc(dumpr_doc.content)
         matches = self.matcher(doc)
