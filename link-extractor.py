@@ -1,7 +1,6 @@
 import pickle
 from collections import defaultdict
 
-from deepca.dumpr import dumpr
 import wikitextparser as wtp
 
 from wikipedia import Wikipedia
@@ -9,36 +8,18 @@ from wikipedia import Wikipedia
 FULL_WIKIPEDIA_DOCS_XML = 'enwiki-latest-pages-articles.xml'
 
 
-class LinkExtractor:
-    full_wikipedia_docs_xml: str  # path/to/full_wikipedia_docs.xml
-
-    def __init__(self, full_wikipedia_docs):
-        self.full_wikipedia_docs_xml = full_wikipedia_docs
-
-    def run(self):
-        print('Link Extractor...')
-
-        with dumpr.BatchReader(self.full_wikipedia_docs_xml) as reader:
-            for counter, dumpr_doc in enumerate(reader.docs):
-
-                print('test')
-                print(counter)
-                print(dumpr_doc)
-                print()
-
-
 def dd():
     return defaultdict(set)
 
 
-nodes = defaultdict(dd)
-
 if __name__ == '__main__':
-    with open('enwiki-latest-pages-articles.xml', 'rb') as in_xml:
+    with open(FULL_WIKIPEDIA_DOCS_XML, 'rb') as in_xml:
 
         #
         # Build graph
         #
+
+        nodes = defaultdict(dd)
 
         for counter, page in enumerate(Wikipedia(in_xml, tag='page')):
             print(counter)
@@ -67,7 +48,3 @@ if __name__ == '__main__':
         #
 
         pickle.dump(nodes, open('links.p', 'wb'))
-
-    # TODO Pass file names on command line
-    # linkExtractor = LinkExtractor(FULL_WIKIPEDIA_DOCS_XML)
-    # linkExtractor.run()
