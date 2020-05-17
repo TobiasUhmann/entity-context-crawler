@@ -1,4 +1,5 @@
 import sqlite3
+from collections import defaultdict
 from datetime import datetime
 
 import wikitextparser as wtp
@@ -45,7 +46,10 @@ def insert_link(conn, from_doc, to_doc):
 
 def main():
     link_count = 0
-    missing_text = 0
+    missing_text_count = 0
+
+    redirects = defaultdict(set)
+    redirect_count = 0
 
     with open(WIKIPEDIA_XML, 'rb') as xml, sqlite3.connect(LINKS_SQLITE_DB) as conn:
         create_links_db(conn)
@@ -53,22 +57,25 @@ def main():
         for page_count, page in enumerate(Wikipedia(xml, tag='page')):
             if page_count % 1000 == 0:
                 conn.commit()
-                print('{} | {:,} <page>s | {:,} links | {:,} missing text'.format(
-                    datetime.now().strftime("%H:%M:%S"), page_count, link_count, missing_text))
+                print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
+                    datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count, missing_text_count))
 
             from_doc = page['title'][0].lower()
 
-            # if page['redirect']:
-            #     target_doc = hash(page['redirect'][0].lower())
+            if page['redirect']:
+                to_doc = page['redirect'][0].lower()
+                redirects[from_doc].add(to_doc)
+                redirect_count += 1
 
-            if page['text']:
+            elif page['text']:
                 links = wtp.parse(page['text'][0]).wikilinks
                 for link in links:
                     to_doc = link.title.lower()
                     insert_link(conn, from_doc, to_doc)
                     link_count += 1
+
             else:
-                missing_text += 1
+                missing_text_count += 1
 
 
 if __name__ == '__main__':
