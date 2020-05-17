@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import json
-import sqlite3
-from collections import defaultdict
+from datetime import datetime
 
 import matplotlib.pyplot as plt
+import sqlite3
+
+from collections import defaultdict
 from deepca.dumpr import dumpr
 from matplotlib.widgets import Slider
 from spacy.lang.en import English
@@ -130,28 +132,22 @@ class SentenceSampler:
 
             create_matches_db(matches_conn)
 
-            for counter, dumpr_doc in enumerate(reader.docs):
+            for doc_count, dumpr_doc in enumerate(reader.docs):
                 if dumpr_doc.content is None:
                     continue
 
-                doc_title = dumpr_doc.meta['title']
-                print('%d: %s' % (counter, doc_title))
-
-                self.process_doc(dumpr_doc, matches_conn, links_conn)
+                self.process_doc(dumpr_doc, matches_conn, links_conn, doc_count)
 
                 #
                 # Persist database rarely (takes much time) and plot statistics
                 #
 
-                # if counter % 1000 == 0:
-                #     matches_conn.commit()
-                #     # TODO command line param
-                #     self.plot_statistics()
+                if doc_count % 1000 == 0:
+                    matches_conn.commit()
+                    # TODO command line param
+                    # self.plot_statistics()
 
-                if counter == 1500:
-                    break
-
-    def process_doc(self, dumpr_doc, matches_conn, links_conn):
+    def process_doc(self, dumpr_doc, matches_conn, links_conn, doc_count):
         doc_title = dumpr_doc.meta['title'].lower()
 
         doc = self.nlp.make_doc(dumpr_doc.content)
@@ -172,12 +168,12 @@ class SentenceSampler:
         cursor.close()
 
         neighbor_docs = {doc_title} | links_to | linked_from
-        print(len(neighbor_docs))
 
         #
         # Process all Freenode entities & save if in neighbor docs
         #
 
+        match_count = 0
         for match_id, start, end in matches:
             entity_span = doc[start:end]
             entity = entity_span.text
@@ -204,9 +200,13 @@ class SentenceSampler:
 
             cursor = matches_conn.cursor()
             cursor.execute(sql, match)
+            match_count += 1
             cursor.close()
 
             self.statistics[entity] += 1
+
+        print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
+            datetime.now().strftime("%H:%M:%S"), doc_count, doc_title, len(neighbor_docs), match_count))
 
     def plot_statistics(self):
         """

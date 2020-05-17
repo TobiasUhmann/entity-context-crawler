@@ -17,13 +17,13 @@ pip-selfcheck.json
 
 # End of https://www.gitignore.io/api/venv
 
+enwiki-latest-pages-articles.xml
+enwiki-latest-pages-articles.zip
+links.db
+links.db-journal
+
 entity2wikidata.json
 enwiki-2018-09.full.xml
 matches.db
 matches.db-journal
-enwiki-latest-pages-articles.xml
-enwiki-latest-pages-articles.zip
 __pycache__/
-links.p
-links.db
-
