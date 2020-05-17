@@ -2,25 +2,26 @@
 # -*- coding: utf-8 -*-
 
 import json
-import pickle
+import sqlite3
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
-import sqlite3
-
 from deepca.dumpr import dumpr
 from matplotlib.widgets import Slider
 from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
-FREENODE_LABELS_JSON = 'entity2wikidata.json'
-WIKIPEDIA_DOCS_XML = 'enwiki-2018-09.full.xml'
+FREENODE_TO_WIKIDATA_JSON = 'entity2wikidata.json'
+WIKIPEDIA_XML = 'enwiki-2018-09.full.xml'
+LINKS_DB = 'links.db'
 MATCHES_DB = 'matches.db'
 
 
-def create_db(conn):
-    sql_create_matches_table = '''
+def create_matches_db(conn):
+    cursor = conn.cursor()
+
+    cursor.execute('''
         CREATE TABLE matches (
             mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
             entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
@@ -30,33 +31,28 @@ def create_db(conn):
             context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
     
             PRIMARY KEY (mid, doc, start_char)
-        );
-    '''
+        )
+    ''')
 
-    cursor = conn.cursor()
-    cursor.execute(sql_create_matches_table)
     cursor.close()
 
 
-def dd():
-    return defaultdict(set)
-
-
 class SentenceSampler:
-    freenode_labels_json: str  # path/to/freenode_labels.json
-    wikipedia_docs_xml: str  # path/to/wikipedia_docs.xml
+    freenode_to_wikidata_json: str  # path/to/freenode_to_wikidata.json
+    wikipedia_xml: str  # path/to/wikipedia.xml
+    links_db: str  # path/to/links.db
     matches_db: str  # path/to/matches.db
 
     nlp: Language
     matcher: PhraseMatcher
 
-    entities = defaultdict(set)  # TODO
+    entities = defaultdict(set)  # TODO example
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
-    links = defaultdict(dd)
 
-    def __init__(self, freenode_labels_json, wikipedia_docs_xml, matches_db):
-        self.freenode_labels_json = freenode_labels_json
-        self.wikipedia_docs_xml = wikipedia_docs_xml
+    def __init__(self, freenode_labels_json, wikipedia_docs_xml, links_db, matches_db):
+        self.freenode_to_wikidata_json = freenode_labels_json
+        self.wikipedia_xml = wikipedia_docs_xml
+        self.links_db = links_db
         self.matches_db = matches_db
 
     def init(self):
@@ -65,70 +61,27 @@ class SentenceSampler:
         initialize statistics.
         """
 
-        self.links = pickle.load(open('links.p', 'rb'))
-
         self.nlp = English()
         self.nlp.vocab.lex_attr_getters = {}
         self.matcher = PhraseMatcher(self.nlp.vocab)
 
-        with open(self.freenode_labels_json, 'r') as file:
+        with open(self.freenode_to_wikidata_json, 'r') as file:
             wikidata = json.load(file)
 
         languages = {
-            'Arabic',
-            'Chinese',
-            'Japanese',
-            'Dutch',
-            'English',
-            'French',
-            'German',
-            'Greek',
-            'Italian',
-            'Latin',
-            'Persian',
-            'Spanish',
-            'Russian',
+            'Arabic', 'Chinese', 'Japanese', 'Dutch', 'English', 'French', 'German', 'Greek', 'Italian',
+            'Latin', 'Persian', 'Spanish', 'Russian',
         }
-        movies = {
-            '2012',
-            '24',
-            'Alexander',
-            'It',
-            'North',
-        }
+
         months = {
-            'January',
-            'February',
-            'March',
-            'April',
-            'May',
-            'June',
-            'July',
-            'August',
-            'September',
-            'October',
-            'November',
-            'December',
-        }
-        other = {
-            'Arab',
-            'Christian'
-            'House',
-            'Jackson',
-            'Lincoln',
-            'Mary',
-            'Paul',
-            'Union',
-            'Western',
-            'York',
+            'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+            'October', 'November', 'December',
         }
 
-        blacklist = languages | movies | months | other
-        print(blacklist)
+        blacklist = languages | months
 
-        # Create dict mapping entity -> {(MID, Wikipedia doc title)...}
-        # Homonyms map to multiple Freenode nodes.
-        # Includes alternative names.
+        #
+        # self.entities: entity -> {(MID, Wikipedia doc title)...}
         #
         # {
         #     ...
@@ -136,6 +89,10 @@ class SentenceSampler:
         #     'Spidey': {('/m/06ys2', 'Spider-Man')}
         #     ...
         # }
+        #
+        # Homonyms map to multiple Freenode nodes.
+        # Includes alternative names.
+        #
 
         missing_urls = 0
         for mid in wikidata:
@@ -167,56 +124,68 @@ class SentenceSampler:
         Find and persist entity matches in Wikipedia documents.
         """
 
-        with sqlite3.connect(self.matches_db) as conn, sqlite3.connect('links.db') as conn2:
-            create_db(conn)
+        with sqlite3.connect(self.matches_db) as matches_conn, \
+                sqlite3.connect(self.links_db) as links_conn, \
+                dumpr.BatchReader(self.wikipedia_xml) as reader:
 
-            with dumpr.BatchReader(self.wikipedia_docs_xml) as reader:
-                for counter, dumpr_doc in enumerate(reader.docs):
+            create_matches_db(matches_conn)
 
-                    if dumpr_doc.content is None:
-                        continue
+            for counter, dumpr_doc in enumerate(reader.docs):
+                if dumpr_doc.content is None:
+                    continue
 
-                    doc_title = dumpr_doc.meta['title']
-                    print('%d: %s' % (counter, doc_title))
+                doc_title = dumpr_doc.meta['title']
+                print('%d: %s' % (counter, doc_title))
 
-                    self.process_doc(dumpr_doc, conn, conn2)
+                self.process_doc(dumpr_doc, matches_conn, links_conn)
 
-                    #
-                    # Persist database rarely (takes much time) and plot statistics
-                    #
+                #
+                # Persist database rarely (takes much time) and plot statistics
+                #
 
-                    if counter % 1000 == 0:
-                        conn.commit()
-                        # TODO command line param
-                        self.plot_statistics()
+                # if counter % 1000 == 0:
+                #     matches_conn.commit()
+                #     # TODO command line param
+                #     self.plot_statistics()
 
-    def process_doc(self, dumpr_doc, conn, conn2):
+                if counter == 1500:
+                    break
+
+    def process_doc(self, dumpr_doc, matches_conn, links_conn):
         doc_title = dumpr_doc.meta['title'].lower()
 
         doc = self.nlp.make_doc(dumpr_doc.content)
         matches = self.matcher(doc)
 
-        cur = conn2.cursor()
-        cur.execute("SELECT doc1, doc2 FROM links WHERE doc1 = ?", (doc_title,))
-        rows1 = {fetch[1] for fetch in cur.fetchall()}
-        cur.close()
+        #
+        # Query neighbor docs
+        #
 
-        cur = conn2.cursor()
-        cur.execute("SELECT doc1, doc2 FROM links WHERE doc2 = ?", (doc_title,))
-        rows2 = {fetch[0] for fetch in cur.fetchall()}
-        cur.close()
+        cursor = links_conn.cursor()
+        cursor.execute('SELECT from_doc, to_doc FROM links WHERE from_doc = ?', (doc_title,))
+        links_to = {link[1] for link in cursor.fetchall()}
+        cursor.close()
 
-        neighbor_docs = {doc_title} | rows1 | rows2
+        cursor = links_conn.cursor()
+        cursor.execute('SELECT from_doc, to_doc FROM links WHERE to_doc = ?', (doc_title,))
+        linked_from = {link[0] for link in cursor.fetchall()}
+        cursor.close()
+
+        neighbor_docs = {doc_title} | links_to | linked_from
+        print(len(neighbor_docs))
+
+        #
+        # Process all Freenode entities & save if in neighbor docs
+        #
 
         for match_id, start, end in matches:
-            span = doc[start:end]
-            entity = span.text
+            entity_span = doc[start:end]
+            entity = entity_span.text
 
             if not self.entities[entity]:
                 continue
 
             entity_doc_title = list(self.entities[entity])[0][1]
-            # neighbor_docs = {doc_title} | self.links[doc_title]['linked_by'] | self.links[doc_title]['links_to']
             if entity_doc_title not in neighbor_docs:
                 continue
 
@@ -225,14 +194,15 @@ class SentenceSampler:
                 VALUES(?, ?, ?, ?, ?, ?)
             '''
 
-            context_start = max(span.start_char - 20, 0)
-            context_end = min(span.end_char + 20, len(dumpr_doc.content))
+            mid = list(self.entities[entity])[0][0]
+
+            context_start = max(entity_span.start_char - 20, 0)
+            context_end = min(entity_span.end_char + 20, len(dumpr_doc.content))
             context = dumpr_doc.content[context_start:context_end]
 
-            mid = list(self.entities[entity])[0][0]
-            match = (mid, entity, doc_title, span.start_char, span.end_char, context)
+            match = (mid, entity, doc_title, entity_span.start_char, entity_span.end_char, context)
 
-            cursor = conn.cursor()
+            cursor = matches_conn.cursor()
             cursor.execute(sql, match)
             cursor.close()
 
@@ -286,9 +256,13 @@ class SentenceSampler:
         plt.show()
 
 
-if __name__ == '__main__':
+def main():
     # TODO Pass file names on command line
-    sentence_sampler = SentenceSampler(FREENODE_LABELS_JSON, WIKIPEDIA_DOCS_XML, MATCHES_DB)
+    sentence_sampler = SentenceSampler(FREENODE_TO_WIKIDATA_JSON, WIKIPEDIA_XML, LINKS_DB, MATCHES_DB)
 
     sentence_sampler.init()
     sentence_sampler.run()
+
+
+if __name__ == '__main__':
+    main()
