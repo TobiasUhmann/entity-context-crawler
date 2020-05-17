@@ -22,5 +22,8 @@ enwiki-2018-09.full.xml
 matches.db
 matches.db-journal
 enwiki-latest-pages-articles.xml
+enwiki-latest-pages-articles.zip
 __pycache__/
 links.p
+links.db
+

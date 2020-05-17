@@ -167,7 +167,7 @@ class SentenceSampler:
         Find and persist entity matches in Wikipedia documents.
         """
 
-        with sqlite3.connect(self.matches_db) as conn:
+        with sqlite3.connect(self.matches_db) as conn, sqlite3.connect('links.db') as conn2:
             create_db(conn)
 
             with dumpr.BatchReader(self.wikipedia_docs_xml) as reader:
@@ -179,7 +179,7 @@ class SentenceSampler:
                     doc_title = dumpr_doc.meta['title']
                     print('%d: %s' % (counter, doc_title))
 
-                    self.process_doc(dumpr_doc, conn)
+                    self.process_doc(dumpr_doc, conn, conn2)
 
                     #
                     # Persist database rarely (takes much time) and plot statistics
@@ -190,18 +190,33 @@ class SentenceSampler:
                         # TODO command line param
                         self.plot_statistics()
 
-    def process_doc(self, dumpr_doc, conn):
+    def process_doc(self, dumpr_doc, conn, conn2):
         doc_title = dumpr_doc.meta['title'].lower()
 
         doc = self.nlp.make_doc(dumpr_doc.content)
         matches = self.matcher(doc)
 
+        cur = conn2.cursor()
+        cur.execute("SELECT doc1, doc2 FROM links WHERE doc1 = ?", (doc_title,))
+        rows1 = {fetch[1] for fetch in cur.fetchall()}
+        cur.close()
+
+        cur = conn2.cursor()
+        cur.execute("SELECT doc1, doc2 FROM links WHERE doc2 = ?", (doc_title,))
+        rows2 = {fetch[0] for fetch in cur.fetchall()}
+        cur.close()
+
+        neighbor_docs = {doc_title} | rows1 | rows2
+
         for match_id, start, end in matches:
             span = doc[start:end]
             entity = span.text
 
+            if not self.entities[entity]:
+                continue
+
             entity_doc_title = list(self.entities[entity])[0][1]
-            neighbor_docs = {doc_title} | self.links[doc_title]['linked_by'] | self.links[doc_title]['links_to']
+            # neighbor_docs = {doc_title} | self.links[doc_title]['linked_by'] | self.links[doc_title]['links_to']
             if entity_doc_title not in neighbor_docs:
                 continue
 
