@@ -15,8 +15,8 @@ def create_links_db(conn):
 
     cursor.execute('''
         CREATE TABLE links (
-            from_doc text,      -- lowercase Wikipedia doc title
-            to_doc text         -- lowercase Wikipedia doc title
+            from_doc int,      -- lowercase Wikipedia doc title
+            to_doc int         -- lowercase Wikipedia doc title
         );
     ''')
 
@@ -33,14 +33,14 @@ def create_links_db(conn):
     cursor.close()
 
 
-def insert_link(conn, from_doc, to_doc):
-    cursor = conn.cursor()
-
-    cursor.execute('''
+def insert_links(conn, links):
+    sql = '''
         INSERT INTO links (from_doc, to_doc)
         VALUES(?, ?)
-    ''', (from_doc, to_doc))
+    '''
 
+    cursor = conn.cursor()
+    cursor.executemany(sql, links)
     cursor.close()
 
 
@@ -60,19 +60,18 @@ def main():
                 print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
                     datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count, missing_text_count))
 
-            from_doc = page['title'][0].lower()
+            from_doc = hash(page['title'][0].lower())
 
             if page['redirect']:
-                to_doc = page['redirect'][0].lower()
+                to_doc = hash(page['redirect'][0].lower())
                 redirects[from_doc].add(to_doc)
                 redirect_count += 1
 
             elif page['text']:
                 links = wtp.parse(page['text'][0]).wikilinks
-                for link in links:
-                    to_doc = link.title.lower()
-                    insert_link(conn, from_doc, to_doc)
-                    link_count += 1
+                inserts = [(from_doc, hash(link.title.lower())) for link in links]
+                insert_links(conn, inserts)
+                link_count += len(inserts)
 
             else:
                 missing_text_count += 1
