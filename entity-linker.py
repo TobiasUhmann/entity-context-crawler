@@ -1,7 +1,9 @@
+import matplotlib.pyplot as plt
 import sqlite3
-from collections import Counter
 
+from collections import Counter
 from elasticsearch import Elasticsearch
+from matplotlib.widgets import Slider
 
 MATCHES_DB = 'matches.db'
 
@@ -35,6 +37,54 @@ def select_contexts(conn, entity, limit):
     cursor.close()
 
     return [row[0] for row in rows]
+
+
+def plot_statistics(statistics):
+    """
+    Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
+    the 100 most frequent entities. Interrupts the program.
+    """
+
+    top_statistics = sorted(list(statistics.items()), key=lambda item: item[1], reverse=True)[:200]
+    entities = [item[0] for item in top_statistics]
+    frequencies = [item[1] for item in top_statistics]
+
+    visible_bars = 10
+
+    ax_bar_chart = plt.axes([0.1, 0.2, 0.8, 0.6])
+    plt.bar(entities[:visible_bars], frequencies[:visible_bars])
+
+    #
+    # Sliders for scrolling through entities and showing more/less entities at a time. Update
+    # chart on slider change.
+    #
+
+    def update(val):
+        scroll = int(scroll_slider.val)  # new scroll position
+        bars = int(visible_bars_slider.val)  # new visible bars
+
+        ax_bar_chart.clear()
+        plt.sca(ax_bar_chart)
+        plt.xticks(rotation=90)
+
+        ax_bar_chart.bar(entities[scroll:(scroll + bars)],
+                         frequencies[scroll:(scroll + bars)])
+
+    ax_scroll = plt.axes([0.1, 0.9, 0.8, 0.03])
+    scroll_slider = Slider(ax_scroll, '', 0, len(entities), valfmt='%d')
+    scroll_slider.on_changed(update)
+
+    ax_span = plt.axes([0.1, 0.85, 0.8, 0.03])
+    visible_bars_slider = Slider(ax_span, '', 10, 100, valinit=visible_bars, valfmt='%d')
+    visible_bars_slider.on_changed(update)
+
+    #
+    # Initial plotting. Updated on slider change.
+    #
+
+    plt.sca(ax_bar_chart)
+    plt.xticks(rotation=90)
+    plt.show()
 
 
 class EntityLinker:
@@ -87,6 +137,10 @@ class EntityLinker:
 
             for entity in entities:
                 print('{0:30}{1:2} / {2:2}'.format(entity, hit_counter_right[entity], hit_counter[entity]))
+
+            statistics = {'{0} ({1})'.format(entity, hit_counter[entity]): hit_counter_right[entity] / hit_counter[entity]
+                          for entity in entities if hit_counter[entity] > 0}
+            plot_statistics(statistics)
 
 
 
