@@ -1,0 +1,4 @@
+lxml
+matplotlib
+spacy
+wikitextparser
