@@ -45,31 +45,31 @@ class EntityLinker:
     def test(self):
         es = Elasticsearch()
         with sqlite3.connect(self.matches_db) as matches_conn:
+            all_test_contexts = {}
 
-            entities = select_entities(matches_conn, 10)
+            entities = select_entities(matches_conn, 100)
             for id, entity in enumerate(entities):
-                contexts = select_contexts(matches_conn, entity, 10)
+                contexts = select_contexts(matches_conn, entity, 100)
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
                 train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
                 test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
+                all_test_contexts[entity] = test_contexts
 
                 doc = {'entity': entity, 'context': ' '.join(train_contexts)}
-                res = es.index(index="sentence-sampler-index", id=id, body=doc)
-                print(res['result'])
-
-                res = es.get(index="sentence-sampler-index", id=id)
-                print(res['_source'])
-
+                es.index(index="sentence-sampler-index", id=id, body=doc)
                 es.indices.refresh(index="sentence-sampler-index")
 
-                res = es.search(index="sentence-sampler-index", body={"query": {"match": {'context': 'state'}}})
-                print("Got %d Hits:" % res['hits']['total']['value'])
-                for hit in res['hits']['hits']:
-                    print(hit['_source'])
+            for entity in all_test_contexts:
+                for test_context in all_test_contexts[entity]:
+                    print(entity, '#', test_context)
 
-                print()
+                    res = es.search(index="sentence-sampler-index", body={"query": {"match": {'context': test_context}}})
+                    print("Got %d Hits:" % res['hits']['total']['value'])
+                    for hit in res['hits']['hits']:
+                        print(hit['_score'], hit['_source'])
+                    print()
 
 
 def main():
