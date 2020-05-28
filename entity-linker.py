@@ -39,13 +39,14 @@ def select_contexts(conn, entity, limit):
     return [row[0] for row in rows]
 
 
-def plot_statistics(statistics):
+def plot_statistics(statistics, sort=False):
     """
     Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
     the 100 most frequent entities. Interrupts the program.
     """
 
-    top_statistics = sorted(list(statistics.items()), key=lambda item: item[1], reverse=True)[:200]
+    statistics_list = list(statistics.items())
+    top_statistics = sorted(statistics_list, key=lambda item: item[1], reverse=True)[:200] if sort else statistics_list[:200]
     entities = [item[0] for item in top_statistics]
     frequencies = [item[1] for item in top_statistics]
 
@@ -53,6 +54,7 @@ def plot_statistics(statistics):
 
     ax_bar_chart = plt.axes([0.1, 0.2, 0.8, 0.6])
     plt.bar(entities[:visible_bars], frequencies[:visible_bars])
+    plt.gca().set_ylim([0, 1])
 
     #
     # Sliders for scrolling through entities and showing more/less entities at a time. Update
@@ -66,6 +68,7 @@ def plot_statistics(statistics):
         ax_bar_chart.clear()
         plt.sca(ax_bar_chart)
         plt.xticks(rotation=90)
+        plt.gca().set_ylim([0, 1])
 
         ax_bar_chart.bar(entities[scroll:(scroll + bars)],
                          frequencies[scroll:(scroll + bars)])
@@ -141,6 +144,7 @@ class EntityLinker:
             statistics = {'{0} ({1})'.format(entity, hit_counter[entity]): hit_counter_right[entity] / hit_counter[entity]
                           for entity in entities if hit_counter[entity] > 0}
             plot_statistics(statistics)
+            plot_statistics(statistics, sort=True)
 
 
 
