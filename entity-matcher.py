@@ -39,7 +39,7 @@ def create_matches_db(conn):
     cursor.close()
 
 
-class SentenceSampler:
+class EntityMatcher:
     freenode_to_wikidata_json: str  # path/to/freenode_to_wikidata.json
     wikipedia_xml: str  # path/to/wikipedia.xml
     links_db: str  # path/to/links.db
@@ -258,10 +258,10 @@ class SentenceSampler:
 
 def main():
     # TODO Pass file names on command line
-    sentence_sampler = SentenceSampler(FREENODE_TO_WIKIDATA_JSON, WIKIPEDIA_XML, LINKS_DB, MATCHES_DB)
+    entity_matcher = EntityMatcher(FREENODE_TO_WIKIDATA_JSON, WIKIPEDIA_XML, LINKS_DB, MATCHES_DB)
 
-    sentence_sampler.init()
-    sentence_sampler.run()
+    entity_matcher.init()
+    entity_matcher.run()
 
 
 if __name__ == '__main__':
