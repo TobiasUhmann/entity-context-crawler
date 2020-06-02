@@ -1,9 +1,8 @@
 import sqlite3
-from collections import defaultdict
-from datetime import datetime
-
 import wikitextparser as wtp
 
+from collections import defaultdict
+from datetime import datetime
 from wikipedia import Wikipedia
 
 WIKIPEDIA_XML = 'enwiki-latest-pages-articles.xml'
@@ -11,25 +10,27 @@ LINKS_SQLITE_DB = 'links.db'
 
 
 def create_links_db(conn):
-    cursor = conn.cursor()
-
-    cursor.execute('''
+    sql_create_table = '''
         CREATE TABLE links (
             from_doc int,      -- lowercase Wikipedia doc title
             to_doc int         -- lowercase Wikipedia doc title
-        );
-    ''')
+        )
+    '''
 
-    cursor.execute('''
+    sql_create_index_1 = '''
         CREATE INDEX idx_from_doc 
-        ON links (from_doc);
-    ''')
+        ON links (from_doc)
+    '''
 
-    cursor.execute('''
+    sql_create_index_2 = '''
         CREATE INDEX idx_to_doc
-        ON links (to_doc);
-    ''')
+        ON links (to_doc)
+    '''
 
+    cursor = conn.cursor()
+    cursor.execute(sql_create_table)
+    cursor.execute(sql_create_index_1)
+    cursor.execute(sql_create_index_2)
     cursor.close()
 
 
@@ -51,7 +52,9 @@ def main():
     redirects = defaultdict(set)
     redirect_count = 0
 
-    with open(WIKIPEDIA_XML, 'rb') as xml, sqlite3.connect(LINKS_SQLITE_DB) as conn:
+    with open(WIKIPEDIA_XML, 'rb') as xml, \
+            sqlite3.connect(LINKS_SQLITE_DB) as conn:
+        
         create_links_db(conn)
 
         for page_count, page in enumerate(Wikipedia(xml, tag='page')):
