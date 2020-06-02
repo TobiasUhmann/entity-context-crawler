@@ -59,9 +59,12 @@ def main():
 
         for page_count, page in enumerate(Wikipedia(xml, tag='page')):
             if page_count % 1000 == 0:
-                conn.commit()
                 print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
                     datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count, missing_text_count))
+
+            if page_count % 1000000 == 0:
+                conn.commit()
+                print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
 
             from_doc = hash(page['title'][0].lower())
 
@@ -78,6 +81,9 @@ def main():
 
             else:
                 missing_text_count += 1
+
+        conn.commit()
+        print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
 
 
 if __name__ == '__main__':
