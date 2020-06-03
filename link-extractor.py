@@ -12,8 +12,8 @@ LINKS_SQLITE_DB = 'links.db'
 def create_links_db(conn):
     sql_create_table = '''
         CREATE TABLE links (
-            from_doc int,      -- lowercase Wikipedia doc title
-            to_doc int         -- lowercase Wikipedia doc title
+            from_doc int,      -- hashed lowercase Wikipedia doc title
+            to_doc int         -- hashed lowercase Wikipedia doc title
         )
     '''
 
@@ -59,9 +59,9 @@ def main():
 
         for page_count, page in enumerate(Wikipedia(xml, tag='page')):
             if page_count % 1000000 == 0:
-                conn.commit()
                 print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
-                
+                conn.commit()
+
             if page_count % 1000 == 0:
                 print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
                     datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count, missing_text_count))

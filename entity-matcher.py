@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import json
-from datetime import datetime
-
 import matplotlib.pyplot as plt
 import sqlite3
 
 from collections import defaultdict
+from datetime import datetime
 from deepca.dumpr import dumpr
 from matplotlib.widgets import Slider
 from spacy.lang.en import English
@@ -21,9 +20,7 @@ MATCHES_DB = 'matches.db'
 
 
 def create_matches_db(conn):
-    cursor = conn.cursor()
-
-    cursor.execute('''
+    sql = '''
         CREATE TABLE matches (
             mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
             entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
@@ -34,8 +31,10 @@ def create_matches_db(conn):
     
             PRIMARY KEY (mid, doc, start_char)
         )
-    ''')
+    '''
 
+    cursor = conn.cursor()
+    cursor.execute(sql)
     cursor.close()
 
 
@@ -148,7 +147,8 @@ class EntityMatcher:
                     # self.plot_statistics()
 
     def process_doc(self, dumpr_doc, matches_conn, links_conn, doc_count):
-        doc_title = dumpr_doc.meta['title'].lower()
+        current_doc_title = dumpr_doc.meta['title'].lower()
+        current_doc_hash = hash(current_doc_title)
 
         doc = self.nlp.make_doc(dumpr_doc.content)
         matches = self.matcher(doc)
@@ -158,16 +158,16 @@ class EntityMatcher:
         #
 
         cursor = links_conn.cursor()
-        cursor.execute('SELECT from_doc, to_doc FROM links WHERE from_doc = ?', (doc_title,))
-        links_to = {link[1] for link in cursor.fetchall()}
+        cursor.execute('SELECT from_doc, to_doc FROM links WHERE from_doc = ?', (current_doc_hash,))
+        links_to_hashes = {row[1] for row in cursor.fetchall()}
         cursor.close()
 
         cursor = links_conn.cursor()
-        cursor.execute('SELECT from_doc, to_doc FROM links WHERE to_doc = ?', (doc_title,))
-        linked_from = {link[0] for link in cursor.fetchall()}
+        cursor.execute('SELECT from_doc, to_doc FROM links WHERE to_doc = ?', (current_doc_hash,))
+        linked_from_hashes = {row[0] for row in cursor.fetchall()}
         cursor.close()
 
-        neighbor_docs = {doc_title} | links_to | linked_from
+        neighbor_docs = {current_doc_hash} | links_to_hashes | linked_from_hashes
 
         #
         # Process all Freenode entities & save if in neighbor docs
@@ -182,7 +182,8 @@ class EntityMatcher:
                 continue
 
             entity_doc_title = list(self.entities[entity])[0][1]
-            if entity_doc_title not in neighbor_docs:
+            entity_doc = hash(entity_doc_title)
+            if entity_doc not in neighbor_docs:
                 continue
 
             sql = '''
@@ -196,7 +197,7 @@ class EntityMatcher:
             context_end = min(entity_span.end_char + 20, len(dumpr_doc.content))
             context = dumpr_doc.content[context_start:context_end]
 
-            match = (mid, entity, doc_title, entity_span.start_char, entity_span.end_char, context)
+            match = (mid, entity, current_doc_title, entity_span.start_char, entity_span.end_char, context)
 
             cursor = matches_conn.cursor()
             cursor.execute(sql, match)
@@ -206,7 +207,7 @@ class EntityMatcher:
             self.statistics[entity] += 1
 
         print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
-            datetime.now().strftime("%H:%M:%S"), doc_count, doc_title, len(neighbor_docs), match_count))
+            datetime.now().strftime("%H:%M:%S"), doc_count, current_doc_title, len(neighbor_docs), match_count))
 
     def plot_statistics(self):
         """
