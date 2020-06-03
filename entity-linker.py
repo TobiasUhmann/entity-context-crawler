@@ -23,16 +23,20 @@ def select_entities(conn, limit):
     return [row[0] for row in rows]
 
 
-def select_contexts(conn, entity, limit):
+def select_contexts(conn, entity, size, limit):
     sql = '''
-        SELECT context
-        FROM matches
+        -- SELECT context = [max <size> chars] + [entity] + [max <size> chars]
+        
+        SELECT substr(content,
+                      MAX(start_char + 1 - ?, 1), 
+                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(content)))
+        FROM docs INNER JOIN matches ON docs.title = matches.doc
         WHERE entity = ?
         LIMIT ?
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (entity, limit))
+    cursor.execute(sql, (size, size, size, entity, limit))
     rows = cursor.fetchall()
     cursor.close()
 
@@ -101,9 +105,10 @@ class EntityLinker:
         with sqlite3.connect(self.matches_db) as matches_conn:
             all_test_contexts = {}
 
-            entities = select_entities(matches_conn, 100)
+            entities = select_entities(matches_conn, limit=100)
             for id, entity in enumerate(entities):
-                contexts = select_contexts(matches_conn, entity, 100)
+                contexts = select_contexts(matches_conn, entity, size=100, limit=100)
+                print(contexts)
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
