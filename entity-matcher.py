@@ -44,6 +44,7 @@ def create_matches_table(matches_conn):
             end_char integer,   -- End char position (exclusive) of entity match within document
             context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
     
+            FOREIGN KEY (doc) REFERENCES docs (title),
             PRIMARY KEY (mid, doc, start_char)
         )
     '''
@@ -206,12 +207,12 @@ class EntityMatcher:
         #
 
         cursor = links_conn.cursor()
-        cursor.execute('SELECT from_doc, to_doc FROM links WHERE from_doc = ?', (current_doc_hash,))
-        links_to_hashes = {row[1] for row in cursor.fetchall()}
+        cursor.execute('SELECT to_doc FROM links WHERE from_doc = ?', (current_doc_hash,))
+        links_to_hashes = {row[0] for row in cursor.fetchall()}
         cursor.close()
 
         cursor = links_conn.cursor()
-        cursor.execute('SELECT from_doc, to_doc FROM links WHERE to_doc = ?', (current_doc_hash,))
+        cursor.execute('SELECT from_doc FROM links WHERE to_doc = ?', (current_doc_hash,))
         linked_from_hashes = {row[0] for row in cursor.fetchall()}
         cursor.close()
 
