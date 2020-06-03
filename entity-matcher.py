@@ -19,7 +19,22 @@ LINKS_DB = 'links.db'
 MATCHES_DB = 'matches.db'
 
 
-def create_matches_db(conn):
+def create_docs_table(matches_conn):
+    sql = '''
+        CREATE TABLE docs (
+            title text,         -- Lowercase Wikipedia title
+            content text,       -- Truecase article content
+            
+            PRIMARY KEY (title)
+        )
+    '''
+
+    cursor = matches_conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
+
+def create_matches_table(matches_conn):
     sql = '''
         CREATE TABLE matches (
             mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
@@ -33,8 +48,19 @@ def create_matches_db(conn):
         )
     '''
 
-    cursor = conn.cursor()
+    cursor = matches_conn.cursor()
     cursor.execute(sql)
+    cursor.close()
+
+
+def insert_doc(matches_conn, title, content):
+    sql = '''
+        INSERT INTO docs(title, content)
+        VALUES(?, ?)
+    '''
+
+    cursor = matches_conn.cursor()
+    cursor.execute(sql, (title, content))
     cursor.close()
 
 
@@ -129,7 +155,8 @@ class EntityMatcher:
                 sqlite3.connect(self.links_db) as links_conn, \
                 dumpr.BatchReader(self.wikipedia_xml) as reader:
 
-            create_matches_db(matches_conn)
+            create_docs_table(matches_conn)
+            create_matches_table(matches_conn)
 
             for doc_count, dumpr_doc in enumerate(reader.docs):
                 if dumpr_doc.content is None:
@@ -149,6 +176,16 @@ class EntityMatcher:
     def process_doc(self, dumpr_doc, matches_conn, links_conn, doc_count):
         current_doc_title = dumpr_doc.meta['title'].lower()
         current_doc_hash = hash(current_doc_title)
+
+        #
+        # Store doc in docs table
+        #
+
+        insert_doc(matches_conn, current_doc_title, dumpr_doc.content)
+
+        #
+        # spaCy
+        #
 
         doc = self.nlp.make_doc(dumpr_doc.content)
         matches = self.matcher(doc)
