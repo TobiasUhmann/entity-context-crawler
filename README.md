@@ -32,6 +32,6 @@ The following command executes the link extractor in the background
 and shows the current progress:
 
 ```bash
-$ PYTHONUNBUFFERED=1 python link-extractor.py > link-extractor.stdout &
+$ PYTHONUNBUFFERED=1;PYTHONHASHSEED=0 python link-extractor.py > link-extractor.stdout &
 $ tail -f link-extractor.stdout
 ```
