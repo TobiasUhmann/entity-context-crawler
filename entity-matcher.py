@@ -64,6 +64,17 @@ def insert_doc(matches_conn, title, content):
     cursor.close()
 
 
+def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, context):
+    sql = '''
+        INSERT INTO matches(mid, entity, doc, start_char, end_char, context)
+        VALUES(?, ?, ?, ?, ?, ?)
+    '''
+
+    cursor = matches_conn.cursor()
+    cursor.execute(sql, (mid, entity, doc_title, start_char, end_char, context))
+    cursor.close()
+
+
 class EntityMatcher:
     freenode_to_wikidata_json: str  # path/to/freenode_to_wikidata.json
     wikipedia_xml: str  # path/to/wikipedia.xml
@@ -174,14 +185,14 @@ class EntityMatcher:
                     # self.plot_statistics()
 
     def process_doc(self, dumpr_doc, matches_conn, links_conn, doc_count):
-        current_doc_title = dumpr_doc.meta['title'].lower()
-        current_doc_hash = hash(current_doc_title)
+        current_doc_title = dumpr_doc.meta['title']
+        current_doc_hash = hash(current_doc_title.lower())
 
         #
         # Store doc in docs table
         #
 
-        insert_doc(matches_conn, current_doc_title, dumpr_doc.content)
+        insert_doc(matches_conn, dumpr_doc.meta['title'], dumpr_doc.content)
 
         #
         # spaCy
@@ -223,24 +234,16 @@ class EntityMatcher:
             if entity_doc not in neighbor_docs:
                 continue
 
-            sql = '''
-                INSERT INTO matches(mid, entity, doc, start_char, end_char, context)
-                VALUES(?, ?, ?, ?, ?, ?)
-            '''
-
             mid = list(self.entities[entity])[0][0]
 
             context_start = max(entity_span.start_char - 20, 0)
             context_end = min(entity_span.end_char + 20, len(dumpr_doc.content))
             context = dumpr_doc.content[context_start:context_end]
 
-            match = (mid, entity, current_doc_title, entity_span.start_char, entity_span.end_char, context)
+            insert_match(matches_conn, mid, entity, current_doc_title,
+                         entity_span.start_char, entity_span.end_char, context)
 
-            cursor = matches_conn.cursor()
-            cursor.execute(sql, match)
             match_count += 1
-            cursor.close()
-
             self.statistics[entity] += 1
 
         print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
