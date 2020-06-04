@@ -48,6 +48,6 @@ class Wikipedia:
 
 if __name__ == "__main__":
 
-    with open('enwiki-latest-pages-articles.xml', 'rb') as in_xml:
+    with open('../data/enwiki-latest-pages-articles.xml', 'rb') as in_xml:
         for record in Wikipedia(in_xml, tag='page'):
             print("record:{}".format(record))

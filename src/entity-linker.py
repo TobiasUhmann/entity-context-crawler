@@ -5,7 +5,7 @@ from collections import Counter
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
 
-MATCHES_DB = 'matches.db'
+MATCHES_DB = 'data/matches.db'
 
 
 def select_entities(conn, limit):

@@ -13,10 +13,10 @@ from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
-FREENODE_TO_WIKIDATA_JSON = 'entity2wikidata.json'
-WIKIPEDIA_XML = 'enwiki-2018-09.full.xml'
-LINKS_DB = 'links.db'
-MATCHES_DB = 'matches.db'
+FREENODE_TO_WIKIDATA_JSON = 'data/entity2wikidata.json'
+WIKIPEDIA_XML = 'data/enwiki-2018-09.full.xml'
+LINKS_DB = 'data/links.db'
+MATCHES_DB = 'data/matches.db'
 
 
 def create_docs_table(matches_conn):

@@ -3,10 +3,10 @@ import wikitextparser as wtp
 
 from collections import defaultdict
 from datetime import datetime
-from wikipedia import Wikipedia
+from src.wikipedia import Wikipedia
 
-WIKIPEDIA_XML = 'enwiki-latest-pages-articles.xml'
-LINKS_SQLITE_DB = 'links.db'
+WIKIPEDIA_XML = 'data/enwiki-latest-pages-articles.xml'
+LINKS_SQLITE_DB = 'data/links.db'
 
 
 def create_links_db(conn):
@@ -58,7 +58,7 @@ def main():
         create_links_db(conn)
 
         for page_count, page in enumerate(Wikipedia(xml, tag='page')):
-            if page_count % 1000000 == 0:
+            if page_count % 1000 == 0:
                 print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
                 conn.commit()
 
