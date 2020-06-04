@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import sqlite3
 
-from collections import Counter
+from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
 
@@ -105,10 +105,9 @@ class EntityLinker:
         with sqlite3.connect(self.matches_db) as matches_conn:
             all_test_contexts = {}
 
-            entities = select_entities(matches_conn, limit=100)
+            entities = select_entities(matches_conn, limit=10)
             for id, entity in enumerate(entities):
-                contexts = select_contexts(matches_conn, entity, size=100, limit=100)
-                print(contexts)
+                contexts = select_contexts(matches_conn, entity, size=1000, limit=1000)
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
@@ -123,6 +122,8 @@ class EntityLinker:
             hit_counter = Counter()
             hit_counter_right = Counter()
 
+            stats = defaultdict(Counter)
+
             for entity in all_test_contexts:
                 for test_context in all_test_contexts[entity]:
                     print(entity, '#', test_context)
@@ -132,6 +133,8 @@ class EntityLinker:
                     hits = res['hits']['hits']
                     for hit in hits:
                         print(hit['_score'], hit['_source'])
+                        found_entity = hit['_source']['entity']
+                        stats[entity][found_entity] += 1
                         break
 
                     if len(hits) > 0:
@@ -145,6 +148,9 @@ class EntityLinker:
 
             for entity in entities:
                 print('{0:30}{1:2} / {2:2}'.format(entity, hit_counter_right[entity], hit_counter[entity]))
+
+            for stat in stats:
+                print(stat, stats[stat])
 
             statistics = {'{0} ({1})'.format(entity, hit_counter[entity]): hit_counter_right[entity] / hit_counter[entity]
                           for entity in entities if hit_counter[entity] > 0}
