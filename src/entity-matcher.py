@@ -1,22 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+#
+import argparse
 import json
 import matplotlib.pyplot as plt
 import sqlite3
 
 from collections import defaultdict
 from datetime import datetime
-from deepca.dumpr import dumpr
 from matplotlib.widgets import Slider
 from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
-FREENODE_TO_WIKIDATA_JSON = 'data/entity2wikidata.json'
+from deepca.dumpr import dumpr
+
+
+#
+# DEFAULT CONFIG
+#
+
+
+FREENODE_JSON = 'data/entity2wikidata.json'
 WIKIPEDIA_XML = 'data/enwiki-2018-09.full.xml'
 LINKS_DB = 'data/links.db'
 MATCHES_DB = 'data/matches.db'
+
+IN_MEMORY = False
+COMMIT_FREQUENCY = 1000
+LIMIT = None
+
+
+#
+# DATABASE FUNCTIONS
+#
 
 
 def create_docs_table(matches_conn):
@@ -56,8 +73,8 @@ def create_matches_table(matches_conn):
 
 def insert_doc(matches_conn, title, content):
     sql = '''
-        INSERT INTO docs(title, content)
-        VALUES(?, ?)
+        INSERT INTO docs (title, content)
+        VALUES (?, ?)
     '''
 
     cursor = matches_conn.cursor()
@@ -67,8 +84,8 @@ def insert_doc(matches_conn, title, content):
 
 def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, context):
     sql = '''
-        INSERT INTO matches(mid, entity, doc, start_char, end_char, context)
-        VALUES(?, ?, ?, ?, ?, ?)
+        INSERT INTO matches (mid, entity, doc, start_char, end_char, context)
+        VALUES (?, ?, ?, ?, ?, ?)
     '''
 
     cursor = matches_conn.cursor()
@@ -76,11 +93,20 @@ def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, con
     cursor.close()
 
 
+#
+# ENTITY MATCHER
+#
+
+
 class EntityMatcher:
-    freenode_to_wikidata_json: str  # path/to/freenode_to_wikidata.json
-    wikipedia_xml: str  # path/to/wikipedia.xml
-    links_db: str  # path/to/links.db
-    matches_db: str  # path/to/matches.db
+    freenode_to_wikidata_json: str
+    wikipedia_xml: str
+    links_db: str
+    matches_db: str
+
+    in_memory: bool
+    commit_frequency: int
+    limit: int
 
     nlp: Language
     matcher: PhraseMatcher
@@ -88,11 +114,16 @@ class EntityMatcher:
     entities = defaultdict(set)  # TODO example
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
 
-    def __init__(self, freenode_labels_json, wikipedia_docs_xml, links_db, matches_db):
+    def __init__(self, freenode_labels_json, wikipedia_docs_xml, links_db, matches_db,
+                 in_memory, commit_frequency, limit):
         self.freenode_to_wikidata_json = freenode_labels_json
         self.wikipedia_xml = wikipedia_docs_xml
         self.links_db = links_db
         self.matches_db = matches_db
+
+        self.in_memory = in_memory
+        self.commit_frequency = commit_frequency
+        self.limit = limit
 
     def init(self):
         """
@@ -163,27 +194,49 @@ class EntityMatcher:
         Find and persist entity matches in Wikipedia documents.
         """
 
-        with sqlite3.connect(self.matches_db) as matches_conn, \
-                sqlite3.connect(self.links_db) as links_conn, \
-                dumpr.BatchReader(self.wikipedia_xml) as reader:
+        if self.in_memory:
+            self.__run_in_memory()
+        else:
+            self.__run_on_disk()
 
+    def __run_on_disk(self):
+        with sqlite3.connect(self.matches_db) as matches_conn:
             create_docs_table(matches_conn)
             create_matches_table(matches_conn)
+            self.__process_wikipedia(matches_conn)
+            print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
+
+    def __run_in_memory(self):
+        with sqlite3.connect(':memory:') as memory_conn:
+            create_docs_table(memory_conn)
+            create_matches_table(memory_conn)
+            self.__process_wikipedia(memory_conn)
+
+            print('{} | PERSIST'.format(datetime.now().strftime('%H:%M:%S')))
+            with sqlite3.connect(self.matches_db) as matches_conn:
+                for line in memory_conn.iterdump():
+                    if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
+                        matches_conn.execute(line)
+
+            print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
+
+    def __process_wikipedia(self, matches_conn):
+        with sqlite3.connect(self.links_db) as links_conn, \
+                dumpr.BatchReader(self.wikipedia_xml) as reader:
 
             for doc_count, dumpr_doc in enumerate(reader.docs):
+                if self.limit and doc_count > self.limit:
+                    break
+
+                if doc_count % self.commit_frequency == 0:
+                    print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
+                    matches_conn.commit()
+                    # self.plot_statistics()
+
                 if dumpr_doc.content is None:
                     continue
 
                 self.process_doc(dumpr_doc, matches_conn, links_conn, doc_count)
-
-                #
-                # Persist database rarely (takes much time) and plot statistics
-                #
-
-                if doc_count % 1000 == 0:
-                    matches_conn.commit()
-                    # TODO command line param
-                    # self.plot_statistics()
 
     def process_doc(self, dumpr_doc, matches_conn, links_conn, doc_count):
         current_doc_title = dumpr_doc.meta['title']
@@ -298,13 +351,41 @@ class EntityMatcher:
         plt.show()
 
 
-def main():
-    # TODO Pass file names on command line
-    entity_matcher = EntityMatcher(FREENODE_TO_WIKIDATA_JSON, WIKIPEDIA_XML, LINKS_DB, MATCHES_DB)
-
-    entity_matcher.init()
-    entity_matcher.run()
+#
+# MAIN
+#
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(
+        description='Match the Freenode entities (considering the Wikipedia link graph)',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+
+    parser.add_argument('--freenode-json', dest='freenode_json', default=FREENODE_JSON,
+                        help='path to Freenode JSON (default: "{}")'.format(FREENODE_JSON))
+
+    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
+                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
+
+    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
+                        help='path to links DB (default: "{}")'.format(LINKS_DB))
+
+    parser.add_argument('--matches-db', dest='matches_db', default=MATCHES_DB,
+                        help='path to matches DB (default: "{}")'.format(MATCHES_DB))
+
+    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
+                        help='build complete matches DB in memory before persisting it (default: {})'.format(IN_MEMORY))
+
+    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
+                        help='commit to database every ... docs (default: {})'.format(COMMIT_FREQUENCY))
+
+    parser.add_argument('--limit', dest='limit', default=LIMIT, type=int,
+                        help='terminate after ... docs (default: {})'.format(LIMIT))
+
+    args = parser.parse_args()
+
+    entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
+                                   args.in_memory, args.commit_frequency, args.limit)
+
+    entity_matcher.init()
+    entity_matcher.run()

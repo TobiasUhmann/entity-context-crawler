@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import argparse
 import sqlite3
 import wikitextparser as wtp
@@ -9,12 +12,13 @@ from wikipedia import Wikipedia
 
 
 #
-# DEFAULT CONFIGURATION
+# DEFAULT CONFIG
 #
 
 
 WIKIPEDIA_XML = 'data/enwiki-latest-pages-articles.xml'
 LINKS_DB = 'data/links.db'
+
 IN_MEMORY = False
 COMMIT_FREQUENCY = 10000
 LIMIT = None
@@ -69,6 +73,7 @@ def insert_links(conn, links):
 class LinkExtractor:
     wikipedia_xml: str
     links_db: str
+
     in_memory: bool
     commit_frequency: int
     limit: int
@@ -76,6 +81,7 @@ class LinkExtractor:
     def __init__(self, wikipedia_xml, links_db, in_memory, commit_frequency, limit):
         self.wikipedia_xml = wikipedia_xml
         self.links_db = links_db
+
         self.in_memory = in_memory
         self.commit_frequency = commit_frequency
         self.limit = limit
@@ -87,25 +93,25 @@ class LinkExtractor:
             self.__run_on_disk()
 
     def __run_on_disk(self):
-        with sqlite3.connect(self.links_db) as conn_links:
-            create_links_table(conn_links)
-            self.__process_wikipedia(conn_links)
+        with sqlite3.connect(self.links_db) as links_conn:
+            create_links_table(links_conn)
+            self.__process_wikipedia(links_conn)
             print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
 
     def __run_in_memory(self):
-        with sqlite3.connect(':memory:') as conn_memory:
-            create_links_table(conn_memory)
-            self.__process_wikipedia(conn_memory)
+        with sqlite3.connect(':memory:') as memory_conn:
+            create_links_table(memory_conn)
+            self.__process_wikipedia(memory_conn)
 
             print('{} | PERSIST'.format(datetime.now().strftime('%H:%M:%S')))
             with sqlite3.connect(self.links_db) as conn_links:
-                for line in conn_memory.iterdump():
+                for line in memory_conn.iterdump():
                     if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
                         conn_links.execute(line)
 
             print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
 
-    def __process_wikipedia(self, conn):
+    def __process_wikipedia(self, links_conn):
         link_count = 0
         missing_text_count = 0
 
@@ -120,15 +126,12 @@ class LinkExtractor:
 
                 if page_count % self.commit_frequency == 0:
                     print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
-                    conn.commit()
+                    links_conn.commit()
 
                 if page_count % 1000 == 0:
                     print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
                         datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count,
                         missing_text_count))
-
-                if (page_count + 1) % 100001 == 0:
-                    break
 
                 from_doc = hash(page['title'][0].lower())
 
@@ -140,13 +143,13 @@ class LinkExtractor:
                 elif page['text']:
                     links = wtp.parse(page['text'][0]).wikilinks
                     inserts = [(from_doc, hash(link.title.lower())) for link in links]
-                    insert_links(conn, inserts)
+                    insert_links(links_conn, inserts)
                     link_count += len(inserts)
 
                 else:
                     missing_text_count += 1
 
-            conn.commit()
+            links_conn.commit()
             print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
 
 
