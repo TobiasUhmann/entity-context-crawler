@@ -105,7 +105,7 @@ class EntityLinker:
         with sqlite3.connect(self.matches_db) as matches_conn:
             all_test_contexts = {}
 
-            entities = select_entities(matches_conn, limit=10)
+            entities = select_entities(matches_conn, limit=100)
             for id, entity in enumerate(entities):
                 contexts = select_contexts(matches_conn, entity, size=1000, limit=1000)
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
@@ -119,9 +119,6 @@ class EntityLinker:
                 es.index(index="sentence-sampler-index", id=id, body=doc)
                 es.indices.refresh(index="sentence-sampler-index")
 
-            hit_counter = Counter()
-            hit_counter_right = Counter()
-
             stats = defaultdict(Counter)
 
             for entity in all_test_contexts:
@@ -132,28 +129,29 @@ class EntityLinker:
                     print("Got %d Hits:" % res['hits']['total']['value'])
                     hits = res['hits']['hits']
                     for hit in hits:
-                        print(hit['_score'], hit['_source'])
+                        # print(hit['_score'], hit['_source'])
                         found_entity = hit['_source']['entity']
                         stats[entity][found_entity] += 1
                         break
 
                     if len(hits) > 0:
                         top_hit = res['hits']['hits'][0]
-                        hit_counter[entity] += 1
                         if top_hit['_source']['entity'] == entity:
                             print('+++')
-                            hit_counter_right[entity] += 1
 
                     print()
 
-            for entity in entities:
-                print('{0:30}{1:2} / {2:2}'.format(entity, hit_counter_right[entity], hit_counter[entity]))
+            for entity, stat in stats.items():
+                top_stat = stat.most_common(4)
+                top_stat_count = sum(stat.values())
 
-            for stat in stats:
-                print(stat, stats[stat])
+                print('{:3} / {:3} {:30} #   '.format(stat[entity], top_stat_count, entity), end='')
+                for t in top_stat:
+                    print('{:3} {:30}'.format(t[1], t[0]), end='')
+                print()
 
-            statistics = {'{0} ({1})'.format(entity, hit_counter[entity]): hit_counter_right[entity] / hit_counter[entity]
-                          for entity in entities if hit_counter[entity] > 0}
+            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(stats[entity].values())
+                          for entity in entities if sum(stats[entity].values()) > 0}
             plot_statistics(statistics)
             plot_statistics(statistics, sort=True)
 
