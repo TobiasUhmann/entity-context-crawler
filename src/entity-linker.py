@@ -3,6 +3,7 @@
 
 import argparse
 import matplotlib.pyplot as plt
+import random
 import sqlite3
 
 from collections import Counter, defaultdict
@@ -155,6 +156,7 @@ class EntityLinker:
             entities = select_entities(matches_conn, limit=self.limit_entities)
             for id, entity in enumerate(entities):
                 contexts = select_contexts(matches_conn, entity, size=self.context_size, limit=self.limit_contexts)
+                random.shuffle(contexts)
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
@@ -170,21 +172,19 @@ class EntityLinker:
 
             for entity in all_test_contexts:
                 for test_context in all_test_contexts[entity]:
-                    print(entity, '#', test_context)
+                    print('{:5}  {:20}  {}'.format('QUERY', entity, repr(test_context[:100])))
 
                     res = es.search(index="sentence-sampler-index", body={"query": {"match": {'context': test_context}}})
-                    print("Got %d Hits:" % res['hits']['total']['value'])
+                    # print('=> {} Hits:'.format(res['hits']['total']['value']))
+                    print('-------------------------------------------------------------------')
+
                     hits = res['hits']['hits']
                     for hit in hits:
-                        # print(hit['_score'], hit['_source'])
-                        found_entity = hit['_source']['entity']
-                        stats[entity][found_entity] += 1
-                        break
-
-                    if len(hits) > 0:
-                        top_hit = res['hits']['hits'][0]
-                        if top_hit['_source']['entity'] == entity:
-                            print('+++')
+                        score = hit['_score']
+                        hit_entity = hit['_source']['entity']
+                        concat = repr(hit['_source']['context'][:100])
+                        print('{:5.1f}  {:20}  {}'.format(score, hit_entity, concat))
+                        stats[entity][hit_entity] += 1
 
                     print()
 
