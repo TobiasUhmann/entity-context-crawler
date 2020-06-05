@@ -90,10 +90,6 @@ def main():
     entity_matcher.run()
 
 
-if __name__ == '__main__':
-    main()
-
-
 #
 # ENTITY MATCHER
 #
@@ -410,3 +406,11 @@ def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, con
     cursor = matches_conn.cursor()
     cursor.execute(sql, (mid, entity, doc_title, start_char, end_char, context))
     cursor.close()
+
+
+#
+#
+#
+
+if __name__ == '__main__':
+    main()

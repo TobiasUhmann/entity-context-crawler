@@ -73,10 +73,6 @@ def main():
     link_extractor.run()
 
 
-if __name__ == '__main__':
-    main()
-
-
 #
 # LINK EXTRACTOR
 #
@@ -202,3 +198,11 @@ def insert_links(conn, links):
     cursor = conn.cursor()
     cursor.executemany(sql, links)
     cursor.close()
+
+
+#
+#
+#
+
+if __name__ == '__main__':
+    main()

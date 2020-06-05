@@ -67,10 +67,6 @@ def main():
     entity_linker.run()
 
 
-if __name__ == '__main__':
-    main()
-
-
 #
 # ENTITY LINKER
 #
@@ -249,3 +245,11 @@ def plot_statistics(statistics, sort=False):
     plt.sca(ax_bar_chart)
     plt.xticks(rotation=90)
     plt.show()
+
+
+#
+#
+#
+
+if __name__ == '__main__':
+    main()
