@@ -22,31 +22,31 @@ Currently, the sentence sampler consists of the following components:
 
 1. Make sure that you have at least 150GB of free disk space.
 2. Clone the repository and mark the scripts as executable: <br>
-   ```bash
+   ```
    ~$ git clone https://gitlab.cs.hs-rm.de/tuhma001/sentence-sampler.git
    ~$ chmod +x sentence-sampler/bin/*.sh
    ```
 3. Put `deepca` next to the `sentence-sampler` clone.
-   ```batch
+   ```
    ~$ ls
    deepca/
    sentence-sampler/
    ```
 4. Optionally, set up a local Python environment. Run the following
    commands to set up a local Anaconda environment: <br>
-   ```bash
+   ```
    ~/sentence-sampler$ conda create -p ./envs python=3.7
    ~/sentence-sampler$ conda activate ./envs
    ```
 5. Install the dependencies, including `deepca` from its editable
    source: <br>
-   ```batch
+   ```
    ~/sentence-sampler$ pip install -r requirements.txt
    ~/sentence-sampler$ pip install -e ../deepca
    ```
 6. By default the data files are expected to be in a `data/`
    subdirectory:
-   ```batch
+   ```
    ~/sentence-sampler$ ls data/
    entity2wikidata.json
    enwiki-2018-09.full.xml
@@ -57,7 +57,7 @@ Currently, the sentence sampler consists of the following components:
 # Usage
 
 1. Create the link graph.
-   ```batch
+   ```
    ~/sentence-sampler/bin$ ./link-extractor --page-limit 1000
    Applied config:
        Wikipedia XML        ../data/enwiki-latest-pages-articles.xml
@@ -73,7 +73,7 @@ Currently, the sentence sampler consists of the following components:
    20:08:27 | DONE
    ```
 2. Match the Freenode entities.
-   ```batch
+   ```
    ~/sentence-sampler/bin$ ./entity-matcher --doc-limit 1000
    Applied config:
       Freenode JSON        ../data/entity2wikidata.json
@@ -96,7 +96,7 @@ Currently, the sentence sampler consists of the following components:
    20:11:48 | DONE
    ```
 3. Analyse how closely the entity matches' contexts are linked:
-   ```batch
+   ```
    ~/sentence-sampler/bin$ ./entity-linker --limit-entities 10
    Applied config:
        Matches DB           ../data/matches.db
