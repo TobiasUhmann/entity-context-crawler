@@ -15,11 +15,9 @@ from spacy.matcher import PhraseMatcher
 
 from deepca.dumpr import dumpr
 
-
 #
 # DEFAULT CONFIG
 #
-
 
 FREENODE_JSON = '../data/entity2wikidata.json'
 WIKIPEDIA_XML = '../data/enwiki-2018-09.full.xml'
@@ -32,71 +30,73 @@ DOC_LIMIT = None
 
 
 #
-# DATABASE FUNCTIONS
+# MAIN
 #
 
+def main():
+    #
+    # Parse args
+    #
 
-def create_docs_table(matches_conn):
-    sql = '''
-        CREATE TABLE docs (
-            title text,         -- Lowercase Wikipedia title
-            content text,       -- Truecase article content
-            
-            PRIMARY KEY (title)
-        )
-    '''
+    parser = argparse.ArgumentParser(
+        description='Match the Freenode entities (considering the Wikipedia link graph)',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
 
-    cursor = matches_conn.cursor()
-    cursor.execute(sql)
-    cursor.close()
+    parser.add_argument('--freenode-json', dest='freenode_json', default=FREENODE_JSON,
+                        help='path to Freenode JSON (default: "{}")'.format(FREENODE_JSON))
+
+    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
+                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
+
+    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
+                        help='path to links DB (default: "{}")'.format(LINKS_DB))
+
+    parser.add_argument('--matches-db', dest='matches_db', default=MATCHES_DB,
+                        help='path to matches DB (default: "{}")'.format(MATCHES_DB))
+
+    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
+                        help='build complete matches DB in memory before persisting it (default: {})'.format(IN_MEMORY))
+
+    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
+                        help='commit to database every ... docs (default: {})'.format(COMMIT_FREQUENCY))
+
+    parser.add_argument('--doc-limit', dest='doc_limit', default=DOC_LIMIT, type=int,
+                        help='terminate after ... docs (default: {})'.format(DOC_LIMIT))
+
+    args = parser.parse_args()
+
+    #
+    # Print applied config
+    #
+
+    print('Applied config:')
+    print('    {:20} {}'.format('Freenode JSON', args.freenode_json))
+    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Links DB', args.links_db))
+    print('    {:20} {}'.format('Matches DB', args.matches_db))
+    print('    {:20} {}'.format('In memory', args.in_memory))
+    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
+    print('    {:20} {}'.format('Doc limit', args.doc_limit))
+    print()
+
+    #
+    # Run entity matcher
+    #
+
+    entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
+                                   args.in_memory, args.commit_frequency, args.doc_limit)
+
+    entity_matcher.init()
+    entity_matcher.run()
 
 
-def create_matches_table(matches_conn):
-    sql = '''
-        CREATE TABLE matches (
-            mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
-            entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
-            doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-            start_char integer, -- Start char position of entity match within document
-            end_char integer,   -- End char position (exclusive) of entity match within document
-            context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
-    
-            FOREIGN KEY (doc) REFERENCES docs (title),
-            PRIMARY KEY (mid, doc, start_char)
-        )
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql)
-    cursor.close()
-
-
-def insert_doc(matches_conn, title, content):
-    sql = '''
-        INSERT INTO docs (title, content)
-        VALUES (?, ?)
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql, (title, content))
-    cursor.close()
-
-
-def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, context):
-    sql = '''
-        INSERT INTO matches (mid, entity, doc, start_char, end_char, context)
-        VALUES (?, ?, ?, ?, ?, ?)
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql, (mid, entity, doc_title, start_char, end_char, context))
-    cursor.close()
+if __name__ == '__main__':
+    main()
 
 
 #
 # ENTITY MATCHER
 #
-
 
 class EntityMatcher:
     freenode_to_wikidata_json: str
@@ -352,62 +352,61 @@ class EntityMatcher:
 
 
 #
-# MAIN
+# DATABASE FUNCTIONS
 #
 
+def create_docs_table(matches_conn):
+    sql = '''
+        CREATE TABLE docs (
+            title text,         -- Lowercase Wikipedia title
+            content text,       -- Truecase article content
 
-if __name__ == '__main__':
-    #
-    # Parse args
-    #
+            PRIMARY KEY (title)
+        )
+    '''
 
-    parser = argparse.ArgumentParser(
-        description='Match the Freenode entities (considering the Wikipedia link graph)',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+    cursor = matches_conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
 
-    parser.add_argument('--freenode-json', dest='freenode_json', default=FREENODE_JSON,
-                        help='path to Freenode JSON (default: "{}")'.format(FREENODE_JSON))
 
-    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
-                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
+def create_matches_table(matches_conn):
+    sql = '''
+        CREATE TABLE matches (
+            mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
+            entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
+            doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
+            start_char integer, -- Start char position of entity match within document
+            end_char integer,   -- End char position (exclusive) of entity match within document
+            context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
 
-    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
-                        help='path to links DB (default: "{}")'.format(LINKS_DB))
+            FOREIGN KEY (doc) REFERENCES docs (title),
+            PRIMARY KEY (mid, doc, start_char)
+        )
+    '''
 
-    parser.add_argument('--matches-db', dest='matches_db', default=MATCHES_DB,
-                        help='path to matches DB (default: "{}")'.format(MATCHES_DB))
+    cursor = matches_conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
 
-    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
-                        help='build complete matches DB in memory before persisting it (default: {})'.format(IN_MEMORY))
 
-    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
-                        help='commit to database every ... docs (default: {})'.format(COMMIT_FREQUENCY))
+def insert_doc(matches_conn, title, content):
+    sql = '''
+        INSERT INTO docs (title, content)
+        VALUES (?, ?)
+    '''
 
-    parser.add_argument('--doc-limit', dest='doc_limit', default=DOC_LIMIT, type=int,
-                        help='terminate after ... docs (default: {})'.format(DOC_LIMIT))
+    cursor = matches_conn.cursor()
+    cursor.execute(sql, (title, content))
+    cursor.close()
 
-    args = parser.parse_args()
 
-    #
-    # Print applied config
-    #
+def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, context):
+    sql = '''
+        INSERT INTO matches (mid, entity, doc, start_char, end_char, context)
+        VALUES (?, ?, ?, ?, ?, ?)
+    '''
 
-    print('Applied config:')
-    print('    {:20} {}'.format('Freenode JSON', args.freenode_json))
-    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
-    print('    {:20} {}'.format('Links DB', args.links_db))
-    print('    {:20} {}'.format('Matches DB', args.matches_db))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('Doc limit', args.doc_limit))
-    print()
-
-    #
-    # Run entity matcher
-    #
-
-    entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
-                                   args.in_memory, args.commit_frequency, args.doc_limit)
-
-    entity_matcher.init()
-    entity_matcher.run()
+    cursor = matches_conn.cursor()
+    cursor.execute(sql, (mid, entity, doc_title, start_char, end_char, context))
+    cursor.close()

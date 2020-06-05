@@ -23,43 +23,58 @@ PAGE_LIMIT = None
 
 
 #
-# DATABASE FUNCTIONS
+# MAIN
 #
 
-def create_links_table(conn):
-    sql_create_table = '''
-        CREATE TABLE links (
-            from_doc int,      -- hashed lowercase Wikipedia doc title
-            to_doc int         -- hashed lowercase Wikipedia doc title
-        )
-    '''
+def main():
+    #
+    # Parse args
+    #
 
-    sql_create_index_1 = '''
-        CREATE INDEX idx_from_doc 
-        ON links (from_doc)
-    '''
+    parser = argparse.ArgumentParser(
+        description='Create the link graph',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
 
-    sql_create_index_2 = '''
-        CREATE INDEX idx_to_doc
-        ON links (to_doc)
-    '''
+    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
+                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
 
-    cursor = conn.cursor()
-    cursor.execute(sql_create_table)
-    cursor.execute(sql_create_index_1)
-    cursor.execute(sql_create_index_2)
-    cursor.close()
+    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
+                        help='path to links DB (default: "{}")'.format(LINKS_DB))
+
+    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
+                        help='build complete links DB in memory before persisting it (default: {})'.format(IN_MEMORY))
+
+    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
+                        help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
+
+    parser.add_argument('--page-limit', dest='page_limit', default=PAGE_LIMIT, type=int,
+                        help='terminate after ... pages (default: {})'.format(PAGE_LIMIT))
+
+    args = parser.parse_args()
+
+    #
+    # Print applied config
+    #
+
+    print('Applied config:')
+    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Links DB', args.links_db))
+    print('    {:20} {}'.format('In memory', args.in_memory))
+    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
+    print('    {:20} {}'.format('Page limit', args.page_limit))
+    print()
+
+    #
+    # Run link extractor
+    #
+
+    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.in_memory, args.commit_frequency,
+                                   args.page_limit)
+    link_extractor.run()
 
 
-def insert_links(conn, links):
-    sql = '''
-        INSERT INTO links (from_doc, to_doc)
-        VALUES(?, ?)
-    '''
-
-    cursor = conn.cursor()
-    cursor.executemany(sql, links)
-    cursor.close()
+if __name__ == '__main__':
+    main()
 
 
 #
@@ -150,50 +165,40 @@ class LinkExtractor:
 
 
 #
-# MAIN
+# DATABASE FUNCTIONS
 #
 
-if __name__ == '__main__':
-    #
-    # Parse args
-    #
+def create_links_table(conn):
+    sql_create_table = '''
+        CREATE TABLE links (
+            from_doc int,      -- hashed lowercase Wikipedia doc title
+            to_doc int         -- hashed lowercase Wikipedia doc title
+        )
+    '''
 
-    parser = argparse.ArgumentParser(
-        description='Create the link graph',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+    sql_create_index_1 = '''
+        CREATE INDEX idx_from_doc 
+        ON links (from_doc)
+    '''
 
-    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
-                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
+    sql_create_index_2 = '''
+        CREATE INDEX idx_to_doc
+        ON links (to_doc)
+    '''
 
-    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
-                        help='path to links DB (default: "{}")'.format(LINKS_DB))
+    cursor = conn.cursor()
+    cursor.execute(sql_create_table)
+    cursor.execute(sql_create_index_1)
+    cursor.execute(sql_create_index_2)
+    cursor.close()
 
-    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
-                        help='build complete links DB in memory before persisting it (default: {})'.format(IN_MEMORY))
 
-    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
-                        help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
+def insert_links(conn, links):
+    sql = '''
+        INSERT INTO links (from_doc, to_doc)
+        VALUES(?, ?)
+    '''
 
-    parser.add_argument('--page-limit', dest='page_limit', default=PAGE_LIMIT, type=int,
-                        help='terminate after ... pages (default: {})'.format(PAGE_LIMIT))
-
-    args = parser.parse_args()
-
-    #
-    # Print applied config
-    #
-
-    print('Applied config:')
-    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
-    print('    {:20} {}'.format('Links DB', args.links_db))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('Page limit', args.page_limit))
-    print()
-
-    #
-    # Run link extractor
-    #
-
-    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.in_memory, args.commit_frequency, args.page_limit)
-    link_extractor.run()
+    cursor = conn.cursor()
+    cursor.executemany(sql, links)
+    cursor.close()
