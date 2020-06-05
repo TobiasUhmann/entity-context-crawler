@@ -10,13 +10,11 @@ from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
 
-
 #
 # DEFAULT CONFIG
 #
 
-
-MATCHES_DB = 'data/matches.db'
+MATCHES_DB = '../data/matches.db'
 
 LIMIT_ENTITIES = None
 CONTEXT_SIZE = 1000
@@ -26,7 +24,6 @@ LIMIT_CONTEXTS = None
 #
 # DATABASE FUNCTIONS
 #
-
 
 def select_entities(conn, limit):
     sql = '''
@@ -77,7 +74,6 @@ def select_contexts(conn, entity, size, limit):
 # HELPER
 #
 
-
 def plot_statistics(statistics, sort=False):
     """
     Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
@@ -85,7 +81,8 @@ def plot_statistics(statistics, sort=False):
     """
 
     statistics_list = list(statistics.items())
-    top_statistics = sorted(statistics_list, key=lambda item: item[1], reverse=True)[:200] if sort else statistics_list[:200]
+    top_statistics = sorted(statistics_list, key=lambda item: item[1], reverse=True)[:200] if sort else statistics_list[
+                                                                                                        :200]
     entities = [item[0] for item in top_statistics]
     frequencies = [item[1] for item in top_statistics]
 
@@ -133,7 +130,6 @@ def plot_statistics(statistics, sort=False):
 # ENTITY LINKER
 #
 
-
 class EntityLinker:
     matches_db: str
 
@@ -172,9 +168,10 @@ class EntityLinker:
 
             for entity in all_test_contexts:
                 for test_context in all_test_contexts[entity]:
-                    print('{:5}  {:20}  {}'.format('QUERY', entity, repr(test_context[:100])))
+                    print(' {:5}  {:20}  {}'.format('QUERY', entity, repr(test_context[:100])))
 
-                    res = es.search(index="sentence-sampler-index", body={"query": {"match": {'context': test_context}}})
+                    res = es.search(index="sentence-sampler-index",
+                                    body={"query": {"match": {'context': test_context}}})
                     # print('=> {} Hits:'.format(res['hits']['total']['value']))
                     print('-------------------------------------------------------------------')
 
@@ -183,7 +180,7 @@ class EntityLinker:
                         score = hit['_score']
                         hit_entity = hit['_source']['entity']
                         concat = repr(hit['_source']['context'][:100])
-                        print('{:5.1f}  {:20}  {}'.format(score, hit_entity, concat))
+                        print(' {:5.1f}  {:20}  {}'.format(score, hit_entity, concat))
                         stats[entity][hit_entity] += 1
 
                     print()
@@ -197,7 +194,8 @@ class EntityLinker:
                     print('{:3} {:30}'.format(t[1], t[0]), end='')
                 print()
 
-            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(stats[entity].values())
+            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(
+                stats[entity].values())
                           for entity in entities if sum(stats[entity].values()) > 0}
             plot_statistics(statistics)
             plot_statistics(statistics, sort=True)
@@ -207,8 +205,11 @@ class EntityLinker:
 # MAIN
 #
 
-
 if __name__ == '__main__':
+    #
+    # Parse args
+    #
+
     parser = argparse.ArgumentParser(
         description='Determine how closely linked contexts of different entities are',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
@@ -226,6 +227,21 @@ if __name__ == '__main__':
                         help='only process the first ... contexts for each entity (default: {})'.format(LIMIT_CONTEXTS))
 
     args = parser.parse_args()
+
+    #
+    # Print applied config
+    #
+
+    print('Applied config:')
+    print('    {:20} {}'.format('Matches DB', args.matches_db))
+    print('    {:20} {}'.format('Limit entities', args.limit_entities))
+    print('    {:20} {}'.format('Context size', args.context_size))
+    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
+    print()
+
+    #
+    # Run entity linker
+    #
 
     entity_linker = EntityLinker(args.matches_db, args.limit_entities, args.context_size, args.limit_contexts)
     entity_linker.run()
