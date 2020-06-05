@@ -1,3 +1,23 @@
+# Overview
+
+Currently, the sentence sampler consists of the following components:
+
+- The `LinkExtractor` creates a link graph from a full Wikipedia dump
+  and stores it in the links database.
+- The `EntityMatcher` searches a pre-processed Wikipedia dump for
+  Freenode entities. To minimize false positives (e.g. find the movie
+  "2012" in many unrelated articles), entities are only searched in
+  articles linked to their main article. The entitie's occurrences
+  are stored in the matches database.
+- The `EntityLinker` determines how closely entities are linked to each
+  other by comparing their contexts. In particular, it splits the
+  entity matches' contexts into training and test contexts, stores
+  the training contexts in Elasticsearch and subsequently queries 
+  Elasticsearch for the contexts that best match the outheld test 
+  contexts.
+
+![Architecture](doc/architecture.png)
+
 ### Link Extractor
 
 Creates a directed link graph from the original Wikipedia dump. Every 
