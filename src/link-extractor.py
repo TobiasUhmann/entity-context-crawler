@@ -172,7 +172,7 @@ if __name__ == '__main__':
     parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
                         help='build complete links DB in memory before persisting it (default: {})'.format(IN_MEMORY))
 
-    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
+    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
                         help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
 
     parser.add_argument('--limit', dest='limit', default=LIMIT, type=int,

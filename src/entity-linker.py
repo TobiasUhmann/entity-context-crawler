@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import argparse
 import matplotlib.pyplot as plt
 import sqlite3
 
@@ -5,18 +9,38 @@ from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
 
+
+#
+# DEFAULT CONFIG
+#
+
+
 MATCHES_DB = 'data/matches.db'
+
+LIMIT_ENTITIES = None
+CONTEXT_SIZE = 1000
+LIMIT_CONTEXTS = None
+
+
+#
+# DATABASE FUNCTIONS
+#
 
 
 def select_entities(conn, limit):
     sql = '''
         SELECT DISTINCT entity
         FROM matches
-        LIMIT ?
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (limit,))
+
+    if limit:
+        sql += 'LIMIT ?'
+        cursor.execute(sql, (limit,))
+    else:
+        cursor.execute(sql)
+
     rows = cursor.fetchall()
     cursor.close()
 
@@ -32,15 +56,25 @@ def select_contexts(conn, entity, size, limit):
                       MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(content)))
         FROM docs INNER JOIN matches ON docs.title = matches.doc
         WHERE entity = ?
-        LIMIT ?
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (size, size, size, entity, limit))
+
+    if limit:
+        sql += 'LIMIT ?'
+        cursor.execute(sql, (size, size, size, entity, limit))
+    else:
+        cursor.execute(sql, (size, size, size, entity))
+
     rows = cursor.fetchall()
     cursor.close()
 
     return [row[0] for row in rows]
+
+
+#
+# HELPER
+#
 
 
 def plot_statistics(statistics, sort=False):
@@ -94,20 +128,33 @@ def plot_statistics(statistics, sort=False):
     plt.show()
 
 
-class EntityLinker:
-    matches_db: str  # path/to/matches.db
+#
+# ENTITY LINKER
+#
 
-    def __init__(self, matches_db):
+
+class EntityLinker:
+    matches_db: str
+
+    limit_entities: int
+    context_size: int
+    limit_contexts: int
+
+    def __init__(self, matches_db, limit_entities, context_size, limit_contexts):
         self.matches_db = matches_db
 
-    def test(self):
+        self.limit_entities = limit_entities
+        self.context_size = context_size
+        self.limit_contexts = limit_contexts
+
+    def run(self):
         es = Elasticsearch()
         with sqlite3.connect(self.matches_db) as matches_conn:
             all_test_contexts = {}
 
-            entities = select_entities(matches_conn, limit=100)
+            entities = select_entities(matches_conn, limit=self.limit_entities)
             for id, entity in enumerate(entities):
-                contexts = select_contexts(matches_conn, entity, size=1000, limit=1000)
+                contexts = select_contexts(matches_conn, entity, size=self.context_size, limit=self.limit_contexts)
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
@@ -115,8 +162,8 @@ class EntityLinker:
                 test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
                 all_test_contexts[entity] = test_contexts
 
-                doc = {'entity': entity, 'context': ' '.join(train_contexts)}
-                es.index(index="sentence-sampler-index", id=id, body=doc)
+                es_doc = {'entity': entity, 'context': ' '.join(train_contexts)}
+                es.index(index="sentence-sampler-index", id=id, body=es_doc)
                 es.indices.refresh(index="sentence-sampler-index")
 
             stats = defaultdict(Counter)
@@ -156,11 +203,29 @@ class EntityLinker:
             plot_statistics(statistics, sort=True)
 
 
-
-def main():
-    entity_linker = EntityLinker(MATCHES_DB)
-    entity_linker.test()
+#
+# MAIN
+#
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(
+        description='Determine how closely linked contexts of different entities are',
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+
+    parser.add_argument('--matches-db', dest='matches_db', default=MATCHES_DB,
+                        help='path to links DB (default: "{}")'.format(MATCHES_DB))
+
+    parser.add_argument('--limit-entities', dest='limit_entities', default=LIMIT_ENTITIES, type=int,
+                        help='only process the first ... entities (default: {})'.format(LIMIT_ENTITIES))
+
+    parser.add_argument('--context-size', dest='context_size', default=CONTEXT_SIZE, type=int,
+                        help='consider ... chars on each side of the entity mention (default: {})'.format(CONTEXT_SIZE))
+
+    parser.add_argument('--limit-contexts', dest='limit_contexts', default=LIMIT_CONTEXTS, type=int,
+                        help='only process the first ... contexts for each entity (default: {})'.format(LIMIT_CONTEXTS))
+
+    args = parser.parse_args()
+
+    entity_linker = EntityLinker(args.matches_db, args.limit_entities, args.context_size, args.limit_contexts)
+    entity_linker.run()
