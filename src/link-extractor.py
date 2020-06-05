@@ -16,8 +16,8 @@ from wikipedia import Wikipedia
 #
 
 
-WIKIPEDIA_XML = 'data/enwiki-latest-pages-articles.xml'
-LINKS_DB = 'data/links.db'
+WIKIPEDIA_XML = '../data/enwiki-latest-pages-articles.xml'
+LINKS_DB = '../data/links.db'
 
 IN_MEMORY = False
 COMMIT_FREQUENCY = 10000
@@ -159,6 +159,11 @@ class LinkExtractor:
 
 
 if __name__ == '__main__':
+
+    #
+    # Parse args
+    #
+
     parser = argparse.ArgumentParser(
         description='Create the link graph',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
@@ -179,6 +184,22 @@ if __name__ == '__main__':
                         help='terminate after ... pages (default: {})'.format(LIMIT))
 
     args = parser.parse_args()
+
+    #
+    # Print applied config
+    #
+
+    print('Applied config:')
+    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Links DB', args.links_db))
+    print('    {:20} {}'.format('In memory', args.in_memory))
+    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
+    print('    {:20} {}'.format('Limit', args.limit))
+    print()
+
+    #
+    # Run link extractor
+    #
 
     link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.in_memory, args.commit_frequency, args.limit)
     link_extractor.run()
