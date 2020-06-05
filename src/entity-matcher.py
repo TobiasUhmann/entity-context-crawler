@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#
+
 import argparse
 import json
 import matplotlib.pyplot as plt
@@ -21,14 +21,14 @@ from deepca.dumpr import dumpr
 #
 
 
-FREENODE_JSON = 'data/entity2wikidata.json'
-WIKIPEDIA_XML = 'data/enwiki-2018-09.full.xml'
-LINKS_DB = 'data/links.db'
-MATCHES_DB = 'data/matches.db'
+FREENODE_JSON = '../data/entity2wikidata.json'
+WIKIPEDIA_XML = '../data/enwiki-2018-09.full.xml'
+LINKS_DB = '../data/links.db'
+MATCHES_DB = '../data/matches.db'
 
 IN_MEMORY = False
 COMMIT_FREQUENCY = 1000
-LIMIT = None
+DOC_LIMIT = None
 
 
 #
@@ -357,6 +357,10 @@ class EntityMatcher:
 
 
 if __name__ == '__main__':
+    #
+    # Parse args
+    #
+
     parser = argparse.ArgumentParser(
         description='Match the Freenode entities (considering the Wikipedia link graph)',
         formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
@@ -379,13 +383,31 @@ if __name__ == '__main__':
     parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
                         help='commit to database every ... docs (default: {})'.format(COMMIT_FREQUENCY))
 
-    parser.add_argument('--limit', dest='limit', default=LIMIT, type=int,
-                        help='terminate after ... docs (default: {})'.format(LIMIT))
+    parser.add_argument('--doc-limit', dest='doc_limit', default=DOC_LIMIT, type=int,
+                        help='terminate after ... docs (default: {})'.format(DOC_LIMIT))
 
     args = parser.parse_args()
 
+    #
+    # Print applied config
+    #
+
+    print('Applied config:')
+    print('    {:20} {}'.format('Freenode JSON', args.freenode_json))
+    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Links DB', args.links_db))
+    print('    {:20} {}'.format('Matches DB', args.matches_db))
+    print('    {:20} {}'.format('In memory', args.in_memory))
+    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
+    print('    {:20} {}'.format('Doc limit', args.doc_limit))
+    print()
+
+    #
+    # Run entity matcher
+    #
+
     entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
-                                   args.in_memory, args.commit_frequency, args.limit)
+                                   args.in_memory, args.commit_frequency, args.doc_limit)
 
     entity_matcher.init()
     entity_matcher.run()

@@ -10,24 +10,21 @@ from datetime import datetime
 
 from wikipedia import Wikipedia
 
-
 #
 # DEFAULT CONFIG
 #
-
 
 WIKIPEDIA_XML = '../data/enwiki-latest-pages-articles.xml'
 LINKS_DB = '../data/links.db'
 
 IN_MEMORY = False
 COMMIT_FREQUENCY = 10000
-LIMIT = None
+PAGE_LIMIT = None
 
 
 #
 # DATABASE FUNCTIONS
 #
-
 
 def create_links_table(conn):
     sql_create_table = '''
@@ -68,7 +65,6 @@ def insert_links(conn, links):
 #
 # LINK EXTRACTOR
 #
-
 
 class LinkExtractor:
     wikipedia_xml: str
@@ -157,9 +153,7 @@ class LinkExtractor:
 # MAIN
 #
 
-
 if __name__ == '__main__':
-
     #
     # Parse args
     #
@@ -180,8 +174,8 @@ if __name__ == '__main__':
     parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
                         help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
 
-    parser.add_argument('--limit', dest='limit', default=LIMIT, type=int,
-                        help='terminate after ... pages (default: {})'.format(LIMIT))
+    parser.add_argument('--page-limit', dest='page_limit', default=PAGE_LIMIT, type=int,
+                        help='terminate after ... pages (default: {})'.format(PAGE_LIMIT))
 
     args = parser.parse_args()
 
@@ -194,12 +188,12 @@ if __name__ == '__main__':
     print('    {:20} {}'.format('Links DB', args.links_db))
     print('    {:20} {}'.format('In memory', args.in_memory))
     print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('Limit', args.limit))
+    print('    {:20} {}'.format('Page limit', args.page_limit))
     print()
 
     #
     # Run link extractor
     #
 
-    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.in_memory, args.commit_frequency, args.limit)
+    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.in_memory, args.commit_frequency, args.page_limit)
     link_extractor.run()
