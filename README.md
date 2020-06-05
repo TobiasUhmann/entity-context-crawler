@@ -21,29 +21,34 @@ Currently, the sentence sampler consists of the following components:
 # Setup
 
 1. Make sure that you have at least 150GB of free disk space.
+
 2. Clone the repository and mark the scripts as executable: <br>
    ```
    ~$ git clone https://gitlab.cs.hs-rm.de/tuhma001/sentence-sampler.git
    ~$ chmod +x sentence-sampler/bin/*.sh
    ```
+
 3. Put `deepca` next to the `sentence-sampler` clone.
    ```
    ~$ ls
    deepca/
    sentence-sampler/
    ```
+
 4. Optionally, set up a local Python environment. Run the following
    commands to set up a local Anaconda environment: <br>
    ```
    ~/sentence-sampler$ conda create -p ./envs python=3.7
    ~/sentence-sampler$ conda activate ./envs
    ```
+
 5. Install the dependencies, including `deepca` from its editable
    source: <br>
    ```
    ~/sentence-sampler$ pip install -r requirements.txt
    ~/sentence-sampler$ pip install -e ../deepca
    ```
+
 6. By default the data files are expected to be in a `data/`
    subdirectory:
    ```
@@ -52,6 +57,7 @@ Currently, the sentence sampler consists of the following components:
    enwiki-2018-09.full.xml
    enwiki-latest-pages-articles.xml
    ```
+
 7. Set up Elasticsearch.
 
 # Usage
@@ -72,7 +78,8 @@ Currently, the sentence sampler consists of the following components:
    20:08:27 | COMMIT
    20:08:27 | DONE
    ```
-2. Match the Freenode entities.
+
+2. Match the Freenode entities. <br>
    ```
    ~/sentence-sampler/bin$ ./entity-matcher --doc-limit 1000
    Applied config:
@@ -95,6 +102,7 @@ Currently, the sentence sampler consists of the following components:
    20:11:48 | 1,000 Docs | AW | 1 neighbors | 0 matches
    20:11:48 | DONE
    ```
+
 3. Analyse how closely the entity matches' contexts are linked:
    ```
    ~/sentence-sampler/bin$ ./entity-linker --limit-entities 10
@@ -131,40 +139,194 @@ Currently, the sentence sampler consists of the following components:
      1 /  20 Karl Marx                      #     2 economics                       2 Europe                          2 German                          1 Karl Marx                     
    ```
 
-### Link Extractor
+# Scripts
 
-Creates a directed link graph from the original Wikipedia dump. Every 
-Wikipedia page is represented as a node that has directed edges to
-all linked pages. The graph is represented as a simple SQLite database
-with a single table that stores a `(from_doc, to_doc)` tuple for each
-link where `from_doc` and `to_doc` are the hashed titles of the pages.
-The titles are hashed to keep the database including its indexes below
-32GB.
+## Link Extractor
 
-#### Input
+```
+usage: link-extractor.py [-h] [--wikipedia-xml WIKIPEDIA_XML] [--links-db LINKS_DB] [--in-memory]
+                         [--commit-frequency COMMIT_FREQUENCY] [--page-limit PAGE_LIMIT]
 
-By default, the link extractor expects the 
-`enwiki-latest-pages-articles.xml` Wikipedia XML dump in the
-current directory.
+Create the link graph
 
-#### Output
+optional arguments:
+  -h, --help                           show this help message and exit
+  --wikipedia-xml WIKIPEDIA_XML        path to Wikipedia XML (default: "../data/enwiki-latest-pages-articles.xml")
+  --links-db LINKS_DB                  path to links DB (default: "../data/links.db")
+  --in-memory                          build complete links DB in memory before persisting it (default: False)
+  --commit-frequency COMMIT_FREQUENCY  commit to database every ... pages (default: 10000)
+  --page-limit PAGE_LIMIT              terminate after ... pages (default: None)
+```
 
-The link extractor creates the `links.db` SQLite database with the
-following structure:
+## Entity Matcher
 
-```sql
+```
+usage: entity-matcher.py [-h] [--freenode-json FREENODE_JSON] [--wikipedia-xml WIKIPEDIA_XML] [--links-db LINKS_DB]
+                         [--matches-db MATCHES_DB] [--in-memory] [--commit-frequency COMMIT_FREQUENCY]
+                         [--doc-limit DOC_LIMIT]
+
+Match the Freenode entities (considering the Wikipedia link graph)
+
+optional arguments:
+  -h, --help                           show this help message and exit
+  --freenode-json FREENODE_JSON        path to Freenode JSON (default: "../data/entity2wikidata.json")
+  --wikipedia-xml WIKIPEDIA_XML        path to Wikipedia XML (default: "../data/enwiki-2018-09.full.xml")
+  --links-db LINKS_DB                  path to links DB (default: "../data/links.db")
+  --matches-db MATCHES_DB              path to matches DB (default: "../data/matches.db")
+  --in-memory                          build complete matches DB in memory before persisting it (default: False)
+  --commit-frequency COMMIT_FREQUENCY  commit to database every ... docs (default: 1000)
+  --doc-limit DOC_LIMIT                terminate after ... docs (default: None)
+```
+
+## Entity Linker
+
+```
+usage: entity-linker.py [-h] [--matches-db MATCHES_DB] [--limit-entities LIMIT_ENTITIES] [--context-size CONTEXT_SIZE]
+                        [--limit-contexts LIMIT_CONTEXTS]
+
+Determine how closely linked contexts of different entities are
+
+optional arguments:
+  -h, --help                       show this help message and exit
+  --matches-db MATCHES_DB          path to links DB (default: "../data/matches.db")
+  --limit-entities LIMIT_ENTITIES  only process the first ... entities (default: None)
+  --context-size CONTEXT_SIZE      consider ... chars on each side of the entity mention (default: 1000)
+  --limit-contexts LIMIT_CONTEXTS  only process the first ... contexts for each entity (default: None)
+```
+
+# Files
+
+## Full Wikipedia XML
+
+```
+<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.10/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.10/ http://www.mediawiki.org/xml/export-0.10.xsd" version="0.10" xml:lang="en">
+  <siteinfo>
+    <sitename>Wikipedia</sitename>
+    <dbname>enwiki</dbname>
+    <base>https://en.wikipedia.org/wiki/Main_Page</base>
+    <generator>MediaWiki 1.32.0-wmf.19</generator>
+    <case>first-letter</case>
+    <namespaces>
+      <namespace key="-2" case="first-letter">Media</namespace>
+      [...]
+      <namespace key="2303" case="case-sensitive">Gadget definition talk</namespace>
+    </namespaces>
+  </siteinfo>
+  <page>
+    <title>AccessibleComputing</title>
+    <ns>0</ns>
+    <id>10</id>
+    <redirect title="Computer accessibility" />
+    <revision>
+      <id>854851586</id>
+      <parentid>834079434</parentid>
+      <timestamp>2018-08-14T06:47:24Z</timestamp>
+      <contributor>
+        <username>Godsy</username>
+        <id>23257138</id>
+      </contributor>
+      <comment>remove from category for seeking instructions on rcats</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">#REDIRECT [[Computer accessibility]]
+
+{{R from move}}
+{{R from CamelCase}}
+{{R unprintworthy}}</text>
+      <sha1>42l0cvblwtb4nnupxm6wo000d27t6kf</sha1>
+    </revision>
+  </page>
+  <page>
+    <title>Anarchism</title>
+    <ns>0</ns>
+    <id>12</id>
+    <revision>
+      <id>857204794</id>
+      <parentid>857204748</parentid>
+      <timestamp>2018-08-30T07:05:08Z</timestamp>
+      <contributor>
+        <ip>71.79.154.225</ip>
+      </contributor>
+      <comment>Fixed typo</comment>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text xml:space="preserve">{{Use dmy dates|date=July 2018}}
+{{redirect2|Anarchist|Anarchists|the fictional character|Anarchist (comics)|other uses|Anarchists (disambiguation)}}
+{{pp-move-indef}}
+{{use British English|date=January 2014}}
+{{Anarchism sidebar}}
+{{Basic forms of government}}
+'''Anarchism''' is a [[political philosophy]]&lt;ref&gt; [...]
+```
+
+## Links DB
+
+```
 CREATE TABLE links (
-    from_doc int,      -- lowercase Wikipedia doc title
-    to_doc int         -- lowercase Wikipedia doc title
+    from_doc int,      -- hashed lowercase Wikipedia doc title
+    to_doc int         -- hashed lowercase Wikipedia doc title
 )
 ```
 
-#### Execute
+## Freenode JSON
 
-The following command executes the link extractor in the background
-and shows the current progress:
+```
+{
+  "/m/010016": {
+    "alternatives": [
+      "Denton, Texas"
+    ],
+    "description": "city in Texas, United States",
+    "label": "Denton",
+    "wikidata_id": "Q128306",
+    "wikipedia": "https://en.wikipedia.org/wiki/Denton,_Texas"
+  },
+  "/m/0100mt": {
+    "alternatives": [
+      "El Paso, Texas"
+    ],
+    "description": "county seat of El Paso County, Texas, United States",
+    "label": "El Paso",
+    "wikidata_id": "Q16562",
+    "wikipedia": "https://en.wikipedia.org/wiki/El_Paso,_Texas"
+  },
+[...]
+```
 
-```bash
-$ PYTHONUNBUFFERED=1;PYTHONHASHSEED=0 python link-extractor.py > link-extractor.stdout &
-$ tail -f link-extractor.stdout
+## dumpr Wikipedia XML
+
+```
+<documents
+    xmlns="https://lavis.cs.hs-rm.de"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://lavis.cs.hs-rm.de documents.xsd">
+
+<doc>
+  <meta name="title">Anarchism</meta>
+  <content>Anarchism is a political philosophy [...]
+```
+
+## Matches DB
+
+```
+CREATE TABLE docs (
+    title text,         -- Lowercase Wikipedia title
+    content text,       -- Truecase article content
+
+    PRIMARY KEY (title)
+)
+```
+
+```
+CREATE TABLE matches (
+    mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
+    entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
+    doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
+    start_char integer, -- Start char position of entity match within document
+    end_char integer,   -- End char position (exclusive) of entity match within document
+    context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
+
+    FOREIGN KEY (doc) REFERENCES docs (title),
+    PRIMARY KEY (mid, doc, start_char)
+)
 ```
