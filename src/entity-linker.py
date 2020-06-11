@@ -5,20 +5,20 @@ import argparse
 import matplotlib.pyplot as plt
 import random
 import sqlite3
+import re
 
 from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
+from os.path import isfile
 
 #
 # DEFAULT CONFIG
 #
 
-MATCHES_DB = '../data/matches.db'
-
-LIMIT_ENTITIES = None
 CONTEXT_SIZE = 1000
 LIMIT_CONTEXTS = None
+LIMIT_ENTITIES = None
 
 
 #
@@ -32,19 +32,22 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Determine how closely linked contexts of different entities are',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
 
-    parser.add_argument('--matches-db', dest='matches_db', default=MATCHES_DB,
-                        help='path to links DB (default: "{}")'.format(MATCHES_DB))
-
-    parser.add_argument('--limit-entities', dest='limit_entities', default=LIMIT_ENTITIES, type=int,
-                        help='only process the first ... entities (default: {})'.format(LIMIT_ENTITIES))
+    parser.add_argument('matches_db', metavar='matches-db', type=str,
+                        help='path to matches DB')
 
     parser.add_argument('--context-size', dest='context_size', default=CONTEXT_SIZE, type=int,
                         help='consider ... chars on each side of the entity mention (default: {})'.format(CONTEXT_SIZE))
 
+    parser.add_argument('--crop-sentences', dest='crop_sentences', action='store_true',
+                        help='crop contexts at their sentence boundaries (instead of token boundaries)')
+
     parser.add_argument('--limit-contexts', dest='limit_contexts', default=LIMIT_CONTEXTS, type=int,
                         help='only process the first ... contexts for each entity (default: {})'.format(LIMIT_CONTEXTS))
+
+    parser.add_argument('--limit-entities', dest='limit_entities', default=LIMIT_ENTITIES, type=int,
+                        help='only process the first ... entities (default: {})'.format(LIMIT_ENTITIES))
 
     args = parser.parse_args()
 
@@ -54,16 +57,27 @@ def main():
 
     print('Applied config:')
     print('    {:20} {}'.format('Matches DB', args.matches_db))
-    print('    {:20} {}'.format('Limit entities', args.limit_entities))
-    print('    {:20} {}'.format('Context size', args.context_size))
-    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print()
+    print('    {:20} {}'.format('Context size', args.context_size))
+    print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
+    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
+    print('    {:20} {}'.format('Limit entities', args.limit_entities))
+    print()
+
+    #
+    # Check for input/output files
+    #
+
+    if not isfile(args.matches_db):
+        print('Matches DB not found')
+        exit()
 
     #
     # Run entity linker
     #
 
-    entity_linker = EntityLinker(args.matches_db, args.limit_entities, args.context_size, args.limit_contexts)
+    entity_linker = EntityLinker(args.matches_db, args.context_size, args.crop_sentences, args.limit_contexts,
+                                 args.limit_entities)
     entity_linker.run()
 
 
@@ -74,16 +88,18 @@ def main():
 class EntityLinker:
     matches_db: str
 
-    limit_entities: int
     context_size: int
+    crop_sentences: bool
     limit_contexts: int
+    limit_entities: int
 
-    def __init__(self, matches_db, limit_entities, context_size, limit_contexts):
+    def __init__(self, matches_db, context_size, crop_sentences, limit_contexts, limit_entities):
         self.matches_db = matches_db
 
-        self.limit_entities = limit_entities
         self.context_size = context_size
+        self.crop_sentences = crop_sentences
         self.limit_contexts = limit_contexts
+        self.limit_entities = limit_entities
 
     def run(self):
         es = Elasticsearch()
@@ -94,6 +110,23 @@ class EntityLinker:
             for id, entity in enumerate(entities):
                 contexts = select_contexts(matches_conn, entity, size=self.context_size, limit=self.limit_contexts)
                 random.shuffle(contexts)
+
+                c_contexts = []
+                for context in contexts:
+                    if self.crop_sentences:
+                        regex = r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s'
+                        start = re.search(regex, context).end()
+                        end = context.rfind(re.findall(regex, context)[-1])
+                        c_contexts.append(context[start:end])
+                    else:
+                        regex = r'\s'
+                        start = re.search(regex, context).end()
+                        end = context.rfind(re.findall(regex, context)[-1])
+                        c_contexts.append(context[start:end])
+
+                for c_context in c_contexts:
+                    print(c_context)
+
                 cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
