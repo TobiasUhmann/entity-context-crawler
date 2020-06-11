@@ -38,12 +38,18 @@ class Wikipedia:
         for event, elem in self._parse():
             namespaces = {'xmlns': etree.QName(elem).namespace}
 
-            title = elem.xpath('./xmlns:title/text()', namespaces=namespaces)
-            redirect = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
-            text = elem.xpath('./xmlns:revision/xmlns:text/text()', namespaces=namespaces)
+            titles = elem.xpath('./xmlns:title/text()', namespaces=namespaces)
+            if titles:
+                title = titles[0]
+            else:
+                continue
 
-            if title and redirect and text:
-                title, redirect, text = title[0], redirect[0], text[0]
+            redirects = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
+            redirect = redirects[0] if redirects else None
+
+            texts = elem.xpath('./xmlns:revision/xmlns:text/text()', namespaces=namespaces)
+            if texts:
+                text = texts[0]
             else:
                 continue
 
