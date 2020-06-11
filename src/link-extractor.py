@@ -75,9 +75,9 @@ def main():
         print('Wikipedia XML not found')
         exit()
 
-    if isfile(args.dist_db):
+    if isfile(args.links_db):
         if args.overwrite:
-            remove(args.dist_db)
+            remove(args.links_db)
         else:
             print('Links DB already exists. Use --overwrite to overwrite it')
             exit()
@@ -87,7 +87,7 @@ def main():
     #
 
     link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.commit_frequency, args.in_memory,
-                                   args.page_limit)
+                                   args.limit_pages)
     link_extractor.run()
 
 
@@ -101,15 +101,15 @@ class LinkExtractor:
 
     commit_frequency: int
     in_memory: bool
-    limit: int
+    limit_pages: int
 
-    def __init__(self, wikipedia_xml, links_db, commit_frequency, in_memory, limit):
+    def __init__(self, wikipedia_xml, links_db, commit_frequency, in_memory, limit_pages):
         self.wikipedia_xml = wikipedia_xml
         self.links_db = links_db
 
         self.commit_frequency = commit_frequency
         self.in_memory = in_memory
-        self.limit = limit
+        self.limit_pages = limit_pages
 
     def run(self):
         if self.in_memory:
@@ -146,7 +146,7 @@ class LinkExtractor:
         with open(self.wikipedia_xml, 'rb') as wikipedia_xml:
             for page_count, page in enumerate(Wikipedia(wikipedia_xml, tag='page')):
 
-                if self.limit and page_count > self.limit:
+                if self.limit_pages and page_count > self.limit_pages:
                     break
 
                 if page_count % self.commit_frequency == 0:
@@ -166,15 +166,15 @@ class LinkExtractor:
                     print(page)
 
 
-                    from_doc = hash(page['title'][0].lower())
+                    from_doc = hash(page['title'].lower())
 
                     if page['redirect']:
-                        to_doc = hash(page['redirect'][0].lower())
+                        to_doc = hash(page['redirect'].lower())
                         redirects[from_doc].add(to_doc)
                         redirect_count += 1
 
                     elif page['text']:
-                        links = wtp.parse(page['text'][0]).wikilinks
+                        links = wtp.parse(page['text']).wikilinks
                         inserts = [(from_doc, hash(link.title.lower())) for link in links]
                         insert_links(links_conn, inserts)
                         link_count += len(inserts)

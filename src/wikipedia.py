@@ -34,16 +34,21 @@ class Wikipedia:
 
         :return: Dict var 'entity' {tag1, value, tag2, value, ... ,tagn, value}}
         """
+
         for event, elem in self._parse():
-            entity = {}
-
-            # Assign the 'elem.namespace' to the 'xpath'
             namespaces = {'xmlns': etree.QName(elem).namespace}
-            entity['title'] = elem.xpath('./xmlns:title/text( )', namespaces=namespaces)
-            entity['redirect'] = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
-            entity['text'] = elem.xpath('./xmlns:revision/xmlns:text/text( )', namespaces=namespaces)
 
-            yield entity
+            title = elem.xpath('./xmlns:title/text()', namespaces=namespaces)
+            redirect = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
+            text = elem.xpath('./xmlns:revision/xmlns:text/text()', namespaces=namespaces)
+
+            if title and redirect and text:
+                title, redirect, text = title[0], redirect[0], text[0]
+            else:
+                continue
+
+            if not title.startswith('Template:'):
+                yield {'title': title, 'redirect': redirect, 'text': text}
 
 
 if __name__ == "__main__":
