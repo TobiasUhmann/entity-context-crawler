@@ -9,6 +9,8 @@ import sqlite3
 from collections import defaultdict
 from datetime import datetime
 from matplotlib.widgets import Slider
+from os import remove
+from os.path import isfile
 from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
@@ -19,14 +21,8 @@ from deepca.dumpr import dumpr
 # DEFAULT CONFIG
 #
 
-FREENODE_JSON = '../data/entity2wikidata.json'
-WIKIPEDIA_XML = '../data/enwiki-2018-09.full.xml'
-LINKS_DB = '../data/links.db'
-MATCHES_DB = '../data/matches.db'
-
-IN_MEMORY = False
 COMMIT_FREQUENCY = 1000
-DOC_LIMIT = None
+LIMIT_DOCS = None
 
 
 #
@@ -39,29 +35,32 @@ def main():
     #
 
     parser = argparse.ArgumentParser(
-        description='Match the Freenode entities (considering the Wikipedia link graph)',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+        description='Match the Freenode entities (considering the link graph)',
+        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
 
-    parser.add_argument('--freenode-json', dest='freenode_json', default=FREENODE_JSON,
-                        help='path to Freenode JSON (default: "{}")'.format(FREENODE_JSON))
+    parser.add_argument('freenode_json', metavar='freenode-json', type=str,
+                        help='path to Freenode JSON')
 
-    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
-                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
+    parser.add_argument('wikipedia_xml', metavar='wikipedia-xml', type=str,
+                        help='path to pre-processed Wikipedia XML')
 
-    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
-                        help='path to links DB (default: "{}")'.format(LINKS_DB))
+    parser.add_argument('links_db', metavar='links-db', type=str,
+                        help='path to links DB')
 
-    parser.add_argument('--matches-db', dest='matches_db', default=MATCHES_DB,
-                        help='path to matches DB (default: "{}")'.format(MATCHES_DB))
-
-    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
-                        help='build complete matches DB in memory before persisting it (default: {})'.format(IN_MEMORY))
+    parser.add_argument('matches_db', metavar='matches-db', type=str,
+                        help='path to matches DB')
 
     parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
                         help='commit to database every ... docs (default: {})'.format(COMMIT_FREQUENCY))
 
-    parser.add_argument('--doc-limit', dest='doc_limit', default=DOC_LIMIT, type=int,
-                        help='terminate after ... docs (default: {})'.format(DOC_LIMIT))
+    parser.add_argument('--in-memory', dest='in_memory', action='store_true',
+                        help='build complete matches DB in memory before persisting it')
+
+    parser.add_argument('--limit-docs', dest='limit_docs', default=LIMIT_DOCS, type=int,
+                        help='terminate after ... docs (default: {})'.format(LIMIT_DOCS))
+
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+                        help='overwrite matches DB if it already exists')
 
     args = parser.parse_args()
 
@@ -74,17 +73,42 @@ def main():
     print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
     print('    {:20} {}'.format('Links DB', args.links_db))
     print('    {:20} {}'.format('Matches DB', args.matches_db))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('Doc limit', args.doc_limit))
     print()
+    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
+    print('    {:20} {}'.format('In memory', args.in_memory))
+    print('    {:20} {}'.format('Limit docs', args.limit_docs))
+    print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print()
+
+    #
+    # Check for input/output files
+    #
+
+    if not isfile(args.freenode_json):
+        print('Freenode JSON not found')
+        exit()
+
+    if not isfile(args.wikipedia_xml):
+        print('Wikipedia XML not found')
+        exit()
+
+    if not isfile(args.links_db):
+        print('Links DB not found')
+        exit()
+
+    if isfile(args.matches_db):
+        if args.overwrite:
+            remove(args.matches_db)
+        else:
+            print('Matches DB already exists. Use --overwrite to overwrite it')
+            exit()
 
     #
     # Run entity matcher
     #
 
     entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
-                                   args.in_memory, args.commit_frequency, args.doc_limit)
+                                   args.commit_frequency, args.in_memory, args.limit_docs)
 
     entity_matcher.init()
     entity_matcher.run()
@@ -110,16 +134,15 @@ class EntityMatcher:
     entities = defaultdict(set)  # TODO example
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
 
-    def __init__(self, freenode_labels_json, wikipedia_docs_xml, links_db, matches_db,
-                 in_memory, commit_frequency, limit):
-        self.freenode_to_wikidata_json = freenode_labels_json
-        self.wikipedia_xml = wikipedia_docs_xml
+    def __init__(self, freenode_json, wikipedia_xml, links_db, matches_db, commit_frequency, in_memory, limit_docs):
+        self.freenode_to_wikidata_json = freenode_json
+        self.wikipedia_xml = wikipedia_xml
         self.links_db = links_db
         self.matches_db = matches_db
 
-        self.in_memory = in_memory
         self.commit_frequency = commit_frequency
-        self.limit = limit
+        self.in_memory = in_memory
+        self.limit = limit_docs
 
     def init(self):
         """

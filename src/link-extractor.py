@@ -49,7 +49,7 @@ def main():
                         help='terminate after ... pages (default: {})'.format(LIMIT_PAGES))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite distribution DB if it already exists')
+                        help='overwrite links DB if it already exists')
 
     args = parser.parse_args()
 
