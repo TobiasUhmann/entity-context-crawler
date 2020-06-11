@@ -4,6 +4,9 @@ from lxml import etree
 
 
 class Wikipedia:
+    missing_titles = 0
+    missing_texts = 0
+
     def __init__(self, fh, tag):
         """
         Initialize 'iterparse' to only generate 'end' events on tag '<entity>'
@@ -35,6 +38,9 @@ class Wikipedia:
         :return: Dict var 'entity' {tag1, value, tag2, value, ... ,tagn, value}}
         """
 
+        self.missing_titles = 0
+        self.missing_texts = 0
+
         for event, elem in self._parse():
             namespaces = {'xmlns': etree.QName(elem).namespace}
 
@@ -42,6 +48,7 @@ class Wikipedia:
             if titles:
                 title = titles[0]
             else:
+                self.missing_titles += 1
                 continue
 
             redirects = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
@@ -51,6 +58,7 @@ class Wikipedia:
             if texts:
                 text = texts[0]
             else:
+                self.missing_texts += 1
                 continue
 
             if not title.startswith('Template:'):

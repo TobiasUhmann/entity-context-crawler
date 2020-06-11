@@ -144,7 +144,8 @@ class LinkExtractor:
         redirect_count = 0
 
         with open(self.wikipedia_xml, 'rb') as wikipedia_xml:
-            for page_count, page in enumerate(Wikipedia(wikipedia_xml, tag='page')):
+            wikipedia = Wikipedia(wikipedia_xml, tag='page')
+            for page_count, page in enumerate(wikipedia):
 
                 if self.limit_pages and page_count > self.limit_pages:
                     break
@@ -173,6 +174,10 @@ class LinkExtractor:
 
                 else:
                     missing_text_count += 1
+
+            print()
+            print('Missing titles: {}'.format(wikipedia.missing_titles))
+            print('Missing texts: {}'.format(wikipedia.missing_texts))
 
             links_conn.commit()
             print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
