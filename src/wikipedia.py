@@ -4,8 +4,9 @@ from lxml import etree
 
 
 class Wikipedia:
-    missing_titles = 0
-    missing_texts = 0
+    missing_titles: int
+    missing_texts: int
+    skipped_templates: int
 
     def __init__(self, fh, tag):
         """
@@ -40,6 +41,7 @@ class Wikipedia:
 
         self.missing_titles = 0
         self.missing_texts = 0
+        self.skipped_templates = 0
 
         for event, elem in self._parse():
             namespaces = {'xmlns': etree.QName(elem).namespace}
@@ -61,8 +63,11 @@ class Wikipedia:
                 self.missing_texts += 1
                 continue
 
-            if not title.startswith('Template:'):
-                yield {'title': title, 'redirect': redirect, 'text': text}
+            if title.startswith('Template:'):
+                self.skipped_templates += 1
+                continue
+
+            yield {'title': title, 'redirect': redirect, 'text': text}
 
 
 if __name__ == "__main__":
