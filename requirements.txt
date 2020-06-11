@@ -3,4 +3,4 @@ elasticsearch~=7.7.1
 lxml~=4.5.0
 matplotlib~=3.2.1
 spacy~=2.2.4
-wikitextparser~=0.35.0
+wikitextparser~=0.37.1
