@@ -158,29 +158,21 @@ class LinkExtractor:
                         datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count,
                         missing_text_count))
 
-                if page_count >= 16512000:
-                    print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
-                        datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count,
-                        missing_text_count))
+                from_doc = hash(page['title'].lower())
 
-                    print(page)
+                if page['redirect']:
+                    to_doc = hash(page['redirect'].lower())
+                    redirects[from_doc].add(to_doc)
+                    redirect_count += 1
 
+                elif page['text']:
+                    links = wtp.parse(page['text']).wikilinks
+                    inserts = [(from_doc, hash(link.title.lower())) for link in links]
+                    insert_links(links_conn, inserts)
+                    link_count += len(inserts)
 
-                    from_doc = hash(page['title'].lower())
-
-                    if page['redirect']:
-                        to_doc = hash(page['redirect'].lower())
-                        redirects[from_doc].add(to_doc)
-                        redirect_count += 1
-
-                    elif page['text']:
-                        links = wtp.parse(page['text']).wikilinks
-                        inserts = [(from_doc, hash(link.title.lower())) for link in links]
-                        insert_links(links_conn, inserts)
-                        link_count += len(inserts)
-
-                    else:
-                        missing_text_count += 1
+                else:
+                    missing_text_count += 1
 
             links_conn.commit()
             print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
