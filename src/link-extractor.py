@@ -7,6 +7,8 @@ import wikitextparser as wtp
 
 from collections import defaultdict
 from datetime import datetime
+from os import remove
+from os.path import isfile
 
 from wikipedia import Wikipedia
 
@@ -14,12 +16,8 @@ from wikipedia import Wikipedia
 # DEFAULT CONFIG
 #
 
-WIKIPEDIA_XML = '../data/enwiki-latest-pages-articles.xml'
-LINKS_DB = '../data/links.db'
-
-IN_MEMORY = False
 COMMIT_FREQUENCY = 10000
-PAGE_LIMIT = None
+LIMIT_PAGES = None
 
 
 #
@@ -33,22 +31,25 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Create the link graph',
-        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=40, width=120))
+        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
 
-    parser.add_argument('--wikipedia-xml', dest='wikipedia_xml', default=WIKIPEDIA_XML,
-                        help='path to Wikipedia XML (default: "{}")'.format(WIKIPEDIA_XML))
+    parser.add_argument('wikipedia_xml', metavar='wikipedia_xml', type=str,
+                        help='path to input Wikipedia XML')
 
-    parser.add_argument('--links-db', dest='links_db', default=LINKS_DB,
-                        help='path to links DB (default: "{}")'.format(LINKS_DB))
-
-    parser.add_argument('--in-memory', dest='in_memory', default=IN_MEMORY, action='store_true',
-                        help='build complete links DB in memory before persisting it (default: {})'.format(IN_MEMORY))
+    parser.add_argument('links_db', metavar='links_db', type=str,
+                        help='path to output links DB')
 
     parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
                         help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
 
-    parser.add_argument('--page-limit', dest='page_limit', default=PAGE_LIMIT, type=int,
-                        help='terminate after ... pages (default: {})'.format(PAGE_LIMIT))
+    parser.add_argument('--in-memory', dest='in_memory', action='store_true',
+                        help='build complete links DB in memory before persisting it)')
+
+    parser.add_argument('--limit-pages', dest='limit_pages', default=LIMIT_PAGES, type=int,
+                        help='terminate after ... pages (default: {})'.format(LIMIT_PAGES))
+
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+                        help='overwrite distribution DB if it already exists')
 
     args = parser.parse_args()
 
@@ -59,16 +60,33 @@ def main():
     print('Applied config:')
     print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
     print('    {:20} {}'.format('Links DB', args.links_db))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('Page limit', args.page_limit))
     print()
+    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
+    print('    {:20} {}'.format('In memory', args.in_memory))
+    print('    {:20} {}'.format('Limit pages', args.limit_pages))
+    print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print()
+
+    #
+    # Check for input/output files
+    #
+
+    if not isfile(args.wikipedia_xml):
+        print('Wikipedia XML not found')
+        exit()
+
+    if isfile(args.dist_db):
+        if args.overwrite:
+            remove(args.dist_db)
+        else:
+            print('Links DB already exists. Use --overwrite to overwrite it')
+            exit()
 
     #
     # Run link extractor
     #
 
-    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.in_memory, args.commit_frequency,
+    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.commit_frequency, args.in_memory,
                                    args.page_limit)
     link_extractor.run()
 
@@ -81,16 +99,16 @@ class LinkExtractor:
     wikipedia_xml: str
     links_db: str
 
-    in_memory: bool
     commit_frequency: int
+    in_memory: bool
     limit: int
 
-    def __init__(self, wikipedia_xml, links_db, in_memory, commit_frequency, limit):
+    def __init__(self, wikipedia_xml, links_db, commit_frequency, in_memory, limit):
         self.wikipedia_xml = wikipedia_xml
         self.links_db = links_db
 
-        self.in_memory = in_memory
         self.commit_frequency = commit_frequency
+        self.in_memory = in_memory
         self.limit = limit
 
     def run(self):
@@ -140,21 +158,29 @@ class LinkExtractor:
                         datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count,
                         missing_text_count))
 
-                from_doc = hash(page['title'][0].lower())
+                if page_count >= 16512000:
+                    print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
+                        datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count,
+                        missing_text_count))
 
-                if page['redirect']:
-                    to_doc = hash(page['redirect'][0].lower())
-                    redirects[from_doc].add(to_doc)
-                    redirect_count += 1
+                    print(page)
 
-                elif page['text']:
-                    links = wtp.parse(page['text'][0]).wikilinks
-                    inserts = [(from_doc, hash(link.title.lower())) for link in links]
-                    insert_links(links_conn, inserts)
-                    link_count += len(inserts)
 
-                else:
-                    missing_text_count += 1
+                    from_doc = hash(page['title'][0].lower())
+
+                    if page['redirect']:
+                        to_doc = hash(page['redirect'][0].lower())
+                        redirects[from_doc].add(to_doc)
+                        redirect_count += 1
+
+                    elif page['text']:
+                        links = wtp.parse(page['text'][0]).wikilinks
+                        inserts = [(from_doc, hash(link.title.lower())) for link in links]
+                        insert_links(links_conn, inserts)
+                        link_count += len(inserts)
+
+                    else:
+                        missing_text_count += 1
 
             links_conn.commit()
             print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
