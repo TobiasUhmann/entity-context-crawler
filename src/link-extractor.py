@@ -33,10 +33,10 @@ def main():
         description='Create the link graph',
         formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
 
-    parser.add_argument('wikipedia_xml', metavar='wikipedia_xml', type=str,
+    parser.add_argument('wikipedia_xml', metavar='wikipedia-xml', type=str,
                         help='path to input Wikipedia XML')
 
-    parser.add_argument('links_db', metavar='links_db', type=str,
+    parser.add_argument('links_db', metavar='links-db', type=str,
                         help='path to output links DB')
 
     parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
@@ -155,9 +155,10 @@ class LinkExtractor:
                     links_conn.commit()
 
                 if page_count % 1000 == 0:
-                    print('{} | {:,} <page>s | {:,} redirects | {:,} links | {:,} missing text'.format(
-                        datetime.now().strftime("%H:%M:%S"), page_count, redirect_count, link_count,
-                        missing_text_count))
+                    row = (datetime.now().strftime("%H:%M:%S"), page_count, wikipedia.missing_titles,
+                           wikipedia.missing_texts, wikipedia.skipped_templates, redirect_count, link_count)
+                    print('{} | {:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
+                          ' | {:,} redirects | {:,} links'.format(*row))
 
                 from_doc = hash(page['title'].lower())
 
