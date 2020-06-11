@@ -10,7 +10,9 @@ import re
 from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
+from os import remove
 from os.path import isfile
+
 
 #
 # DEFAULT CONFIG
@@ -37,6 +39,9 @@ def main():
     parser.add_argument('matches_db', metavar='matches-db', type=str,
                         help='path to matches DB')
 
+    parser.add_argument('contexts_db', metavar='contexts-db', type=str,
+                        help='path to contexts DB')
+
     parser.add_argument('--context-size', dest='context_size', default=CONTEXT_SIZE, type=int,
                         help='consider ... chars on each side of the entity mention (default: {})'.format(CONTEXT_SIZE))
 
@@ -49,6 +54,9 @@ def main():
     parser.add_argument('--limit-entities', dest='limit_entities', default=LIMIT_ENTITIES, type=int,
                         help='only process the first ... entities (default: {})'.format(LIMIT_ENTITIES))
 
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+                        help='overwrite contexts DB if it already exists')
+
     args = parser.parse_args()
 
     #
@@ -57,11 +65,13 @@ def main():
 
     print('Applied config:')
     print('    {:20} {}'.format('Matches DB', args.matches_db))
+    print('    {:20} {}'.format('Contexts DB', args.contexts_db))
     print()
     print('    {:20} {}'.format('Context size', args.context_size))
     print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Limit entities', args.limit_entities))
+    print('    {:20} {}'.format('Overwrite', args.overwrite))
     print()
 
     #
@@ -72,12 +82,19 @@ def main():
         print('Matches DB not found')
         exit()
 
+    if isfile(args.contexts_db):
+        if args.overwrite:
+            remove(args.contexts_db)
+        else:
+            print('Contexts DB already exists. Use --overwrite to overwrite it')
+            exit()
+
     #
     # Run entity linker
     #
 
-    entity_linker = EntityLinker(args.matches_db, args.context_size, args.crop_sentences, args.limit_contexts,
-                                 args.limit_entities)
+    entity_linker = EntityLinker(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences,
+                                 args.limit_contexts, args.limit_entities)
     entity_linker.run()
 
 
@@ -87,14 +104,16 @@ def main():
 
 class EntityLinker:
     matches_db: str
+    contexts_db: str
 
     context_size: int
     crop_sentences: bool
     limit_contexts: int
     limit_entities: int
 
-    def __init__(self, matches_db, context_size, crop_sentences, limit_contexts, limit_entities):
+    def __init__(self, matches_db, contexts_db, context_size, crop_sentences, limit_contexts, limit_entities):
         self.matches_db = matches_db
+        self.contexts_db = contexts_db
 
         self.context_size = context_size
         self.crop_sentences = crop_sentences
@@ -103,36 +122,41 @@ class EntityLinker:
 
     def run(self):
         es = Elasticsearch()
-        with sqlite3.connect(self.matches_db) as matches_conn:
-            all_test_contexts = {}
+        es.indices.delete(index='sentence-sampler-index', ignore=[400, 404])
+        with sqlite3.connect(self.matches_db) as matches_conn, \
+                sqlite3.connect(self.contexts_db) as contexts_conn:
+
+            create_contexts_table(contexts_conn)
 
             entities = select_entities(matches_conn, limit=self.limit_entities)
             for id, entity in enumerate(entities):
                 contexts = select_contexts(matches_conn, entity, size=self.context_size, limit=self.limit_contexts)
                 random.shuffle(contexts)
 
-                c_contexts = []
+                cropped_contexts = []
                 for context in contexts:
-                    if self.crop_sentences:
-                        regex = r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s'
-                        start = re.search(regex, context).end()
+                    regex = r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s' if self.crop_sentences else r'\s'
+                    match = re.search(regex, context)
+                    if match:
+                        start = match.end()
                         end = context.rfind(re.findall(regex, context)[-1])
-                        c_contexts.append(context[start:end])
-                    else:
-                        regex = r'\s'
-                        start = re.search(regex, context).end()
-                        end = context.rfind(re.findall(regex, context)[-1])
-                        c_contexts.append(context[start:end])
+                        if start < end:
+                            cropped_contexts.append(context[start:end])
 
-                for c_context in c_contexts:
+                for c_context in cropped_contexts:
                     print(c_context)
 
-                cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
+                # cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
                 train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
                 test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
-                all_test_contexts[entity] = test_contexts
+
+                for i, test_context in enumerate(test_contexts):
+                    print('####', i)
+                    print(entity)
+                    print(test_context)
+                    insert_context(contexts_conn, entity, test_context)
 
                 es_doc = {'entity': entity, 'context': ' '.join(train_contexts)}
                 es.index(index="sentence-sampler-index", id=id, body=es_doc)
@@ -140,24 +164,27 @@ class EntityLinker:
 
             stats = defaultdict(Counter)
 
-            for entity in all_test_contexts:
-                for test_context in all_test_contexts[entity]:
-                    print(' {:5}  {:20}  {}'.format('QUERY', entity, repr(test_context[:100])))
+            #
+            #
+            #
 
-                    res = es.search(index="sentence-sampler-index",
-                                    body={"query": {"match": {'context': test_context}}})
-                    # print('=> {} Hits:'.format(res['hits']['total']['value']))
-                    print('-------------------------------------------------------------------')
+            all_test_contexts = select_test_contexts(contexts_conn)
+            for entity, test_context in all_test_contexts:
+                print(' {:5}  {:20}  {}'.format('QUERY', entity, repr(test_context[:100])))
 
-                    hits = res['hits']['hits']
-                    for hit in hits:
-                        score = hit['_score']
-                        hit_entity = hit['_source']['entity']
-                        concat = repr(hit['_source']['context'][:100])
-                        print(' {:5.1f}  {:20}  {}'.format(score, hit_entity, concat))
-                        stats[entity][hit_entity] += 1
+                res = es.search(index="sentence-sampler-index",
+                                body={"query": {"match": {'context': test_context}}})
+                print('-------------------------------------------------------------------')
 
-                    print()
+                hits = res['hits']['hits']
+                for hit in hits:
+                    score = hit['_score']
+                    hit_entity = hit['_source']['entity']
+                    concat = repr(hit['_source']['context'][:100])
+                    print(' {:5.1f}  {:20}  {}'.format(score, hit_entity, concat))
+                    stats[entity][hit_entity] += 1
+
+                print()
 
             for entity, stat in stats.items():
                 top_stat = stat.most_common(4)
@@ -183,6 +210,7 @@ def select_entities(conn, limit):
     sql = '''
         SELECT DISTINCT entity
         FROM matches
+        ORDER BY RANDOM()
     '''
 
     cursor = conn.cursor()
@@ -203,11 +231,12 @@ def select_contexts(conn, entity, size, limit):
     sql = '''
         -- SELECT context = [max <size> chars] + [entity] + [max <size> chars]
 
-        SELECT substr(content,
+        SELECT SUBSTR(content,
                       MAX(start_char + 1 - ?, 1), 
                       MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(content)))
         FROM docs INNER JOIN matches ON docs.title = matches.doc
         WHERE entity = ?
+        ORDER BY RANDOM()
     '''
 
     cursor = conn.cursor()
@@ -222,6 +251,45 @@ def select_contexts(conn, entity, size, limit):
     cursor.close()
 
     return [row[0] for row in rows]
+
+
+def create_contexts_table(contexts_conn):
+    sql = '''
+        CREATE TABLE contexts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entity TEXT,
+            context TEXT
+        )
+    '''
+
+    cursor = contexts_conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
+
+def insert_context(contexts_conn, entity, context):
+    sql = '''
+        INSERT INTO contexts (entity, context)
+        VALUES (?, ?)
+    '''
+
+    cursor = contexts_conn.cursor()
+    cursor.execute(sql, (entity, context))
+    cursor.close()
+
+
+def select_test_contexts(contexts_conn):
+    sql = '''
+        SELECT entity, context
+        FROM contexts
+    '''
+
+    cursor = contexts_conn.cursor()
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return [(row[0], row[1]) for row in rows]
 
 
 #
