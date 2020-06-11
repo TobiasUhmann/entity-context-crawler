@@ -128,10 +128,16 @@ class EntityLinker:
 
             create_contexts_table(contexts_conn)
 
+            #
+            # TRAINING
+            #
+
             entities = select_entities(matches_conn, limit=self.limit_entities)
             for id, entity in enumerate(entities):
+                print(' {:5}  {:20}'.format('TRAIN', entity))
+                print('-------------------------------------------------------------------')
+
                 contexts = select_contexts(matches_conn, entity, size=self.context_size, limit=self.limit_contexts)
-                random.shuffle(contexts)
 
                 cropped_contexts = []
                 for context in contexts:
@@ -143,48 +149,50 @@ class EntityLinker:
                         if start < end:
                             cropped_contexts.append(context[start:end])
 
-                for c_context in cropped_contexts:
-                    print(c_context)
-
                 # cropped_contexts = [context[context.find(' ') + 1: context.rfind(' ')] for context in contexts]
                 masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
                 train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
+                for train_context in train_contexts:
+                    print(repr(train_context[:100]))
+                print()
+
                 test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
 
                 for i, test_context in enumerate(test_contexts):
-                    print('####', i)
-                    print(entity)
-                    print(test_context)
                     insert_context(contexts_conn, entity, test_context)
 
                 es_doc = {'entity': entity, 'context': ' '.join(train_contexts)}
                 es.index(index="sentence-sampler-index", id=id, body=es_doc)
                 es.indices.refresh(index="sentence-sampler-index")
 
-            stats = defaultdict(Counter)
+            #
+            # TESTING
+            #
 
-            #
-            #
-            #
+            stats = defaultdict(Counter)
 
             all_test_contexts = select_test_contexts(contexts_conn)
             for entity, test_context in all_test_contexts:
-                print(' {:5}  {:20}  {}'.format('QUERY', entity, repr(test_context[:100])))
+                print(' {:5}  {:24}  {}'.format('QUERY', entity, repr(test_context[:100])))
+                print('-------------------------------------------------------------------')
 
                 res = es.search(index="sentence-sampler-index",
                                 body={"query": {"match": {'context': test_context}}})
-                print('-------------------------------------------------------------------')
 
                 hits = res['hits']['hits']
                 for hit in hits:
                     score = hit['_score']
                     hit_entity = hit['_source']['entity']
                     concat = repr(hit['_source']['context'][:100])
-                    print(' {:5.1f}  {:20}  {}'.format(score, hit_entity, concat))
+                    print(' {:5.1f}  {:24}  {}'.format(score, hit_entity, concat))
                     stats[entity][hit_entity] += 1
 
                 print()
+
+            #
+            # STATS
+            #
 
             for entity, stat in stats.items():
                 top_stat = stat.most_common(4)
@@ -195,11 +203,11 @@ class EntityLinker:
                     print('{:3} {:30}'.format(t[1], t[0]), end='')
                 print()
 
-            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(
-                stats[entity].values())
+            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(stats[entity].values())
                           for entity in entities if sum(stats[entity].values()) > 0}
-            plot_statistics(statistics)
-            plot_statistics(statistics, sort=True)
+
+            # plot_statistics(statistics)
+            # plot_statistics(statistics, sort=True)
 
 
 #
