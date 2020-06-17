@@ -3,9 +3,8 @@
 
 import argparse
 import matplotlib.pyplot as plt
-import random
-import sqlite3
 import re
+import sqlite3
 
 from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
