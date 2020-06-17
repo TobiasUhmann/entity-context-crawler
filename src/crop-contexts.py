@@ -20,10 +20,10 @@ def main():
         formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
 
     parser.add_argument('matches_db', metavar='matches-db', type=str,
-                        help='path to matches DB')
+                        help='path to input matches DB')
 
     parser.add_argument('contexts_db', metavar='contexts-db', type=str,
-                        help='path to contexts DB')
+                        help='path to output contexts DB')
 
     default_context_size = 100
     parser.add_argument('--context-size', dest='context_size', type=int, default=default_context_size,
