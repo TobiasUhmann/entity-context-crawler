@@ -40,7 +40,7 @@ def select_distinct_entities(conn, limit):
     return [row[0] for row in rows]
 
 
-def select_contexts(conn, entity, limit):
+def select_contexts(conn, entity, limit=None):
     sql = '''
         SELECT entity, context
         FROM contexts

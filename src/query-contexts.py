@@ -33,6 +33,11 @@ def main():
                         help='only process the first ... entities'
                              ' (default: {})'.format(default_limit_entities))
 
+    default_top_hits = 10
+    parser.add_argument('--top-hits', dest='top_hits', type=int, default=default_top_hits,
+                        help='evaluate the top ... hits for each query'
+                             ' (default: {})'.format(default_top_hits))
+
     args = parser.parse_args()
 
     #
@@ -45,6 +50,7 @@ def main():
     print()
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Limit entities', args.limit_entities))
+    print('    {:20} {}'.format('Top hits', args.limit_entities))
     print()
 
     #
@@ -64,10 +70,10 @@ def main():
     # Run program
     #
 
-    query_contexts(es, args.index_name, args.test_contexts_db, args.limit_contexts, args.limit_entities)
+    query_contexts(es, args.index_name, args.test_contexts_db, args.limit_contexts, args.limit_entities, args.top_hits)
 
 
-def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entities):
+def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entities, top_hits):
     with sqlite3.connect(test_contexts_db) as test_contexts_conn:
         stats = defaultdict(Counter)
 
@@ -82,7 +88,7 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
                 res = es.search(index=index_name, body={'query': {'match': {'context': test_context}}})
 
                 hits = res['hits']['hits']
-                for hit in hits:
+                for hit in hits[:top_hits]:
                     score = hit['_score']
                     hit_entity = hit['_source']['entity']
                     concat = repr(hit['_source']['context'][:100])
