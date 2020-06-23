@@ -4,6 +4,10 @@ from lxml import etree
 
 
 class Wikipedia:
+    missing_titles: int
+    missing_texts: int
+    skipped_templates: int
+
     def __init__(self, fh, tag):
         """
         Initialize 'iterparse' to only generate 'end' events on tag '<entity>'
@@ -34,20 +38,39 @@ class Wikipedia:
 
         :return: Dict var 'entity' {tag1, value, tag2, value, ... ,tagn, value}}
         """
+
+        self.missing_titles = 0
+        self.missing_texts = 0
+        self.skipped_templates = 0
+
         for event, elem in self._parse():
-            entity = {}
-
-            # Assign the 'elem.namespace' to the 'xpath'
             namespaces = {'xmlns': etree.QName(elem).namespace}
-            entity['title'] = elem.xpath('./xmlns:title/text( )', namespaces=namespaces)
-            entity['redirect'] = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
-            entity['text'] = elem.xpath('./xmlns:revision/xmlns:text/text( )', namespaces=namespaces)
 
-            yield entity
+            titles = elem.xpath('./xmlns:title/text()', namespaces=namespaces)
+            if titles:
+                title = titles[0]
+            else:
+                self.missing_titles += 1
+                continue
+
+            redirects = elem.xpath('./xmlns:redirect/@title', namespaces=namespaces)
+            redirect = redirects[0] if redirects else None
+
+            texts = elem.xpath('./xmlns:revision/xmlns:text/text()', namespaces=namespaces)
+            if texts:
+                text = texts[0]
+            else:
+                self.missing_texts += 1
+                continue
+
+            if title.startswith('Template:'):
+                self.skipped_templates += 1
+                continue
+
+            yield {'title': title, 'redirect': redirect, 'text': text}
 
 
 if __name__ == "__main__":
-
-    with open('enwiki-latest-pages-articles.xml', 'rb') as in_xml:
+    with open('../data/enwiki-latest-pages-articles.xml', 'rb') as in_xml:
         for record in Wikipedia(in_xml, tag='page'):
             print("record:{}".format(record))
