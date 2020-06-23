@@ -1,7 +1,7 @@
 import argparse
 import sqlite3
-from datetime import datetime
 
+from datetime import datetime
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile
@@ -36,6 +36,9 @@ def main():
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='overwrite Elasticsearch index and test contexts DB if it already exists')
 
+    parser.add_argument('--verbose', dest='verbose', action='store_true',
+                        help='print training contexts for each entity')
+
     args = parser.parse_args()
 
     #
@@ -49,22 +52,16 @@ def main():
     print()
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print('    {:20} {}'.format('Verbose', args.verbose))
     print()
 
     #
     # Check for input/output files and Elasticsearch index
     #
 
-    if not isfile(args.matches_db):
+    if not isfile(args.contexts_db):
         print('Contexts DB not found')
         exit()
-
-    if isfile(args.contexts_db):
-        if args.overwrite:
-            remove(args.contexts_db)
-        else:
-            print('Contexts DB already exists. Use --overwrite to overwrite it')
-            exit()
 
     es = Elasticsearch()
     if es.indices.exists(index=args.index_name):
@@ -74,22 +71,29 @@ def main():
             print('Elasticsearch index already exists. Use --overwrite to overwrite it')
             exit()
 
+    if isfile(args.test_contexts_db):
+        if args.overwrite:
+            remove(args.test_contexts_db)
+        else:
+            print('Test contexts DB already exists. Use --overwrite to overwrite it')
+            exit()
+
     #
     # Run program
     #
 
-    build_index(es, args.contexts_db, args.index_name, args.test_contexts_db, args.limit_contexts)
+    build_index(es, args.contexts_db, args.index_name, args.test_contexts_db, args.limit_contexts, args.verbose)
 
 
 #
 # BUILD INDEX
 #
 
-def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts):
+def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, verbose):
     with sqlite3.connect(contexts_db) as contexts_conn, \
             sqlite3.connect(test_contexts_db) as test_contexts_conn:
 
-        create_contexts_table(contexts_conn)
+        create_contexts_table(test_contexts_conn)
 
         entities = select_distinct_entities(contexts_conn)
 
@@ -99,20 +103,24 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts):
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
             train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
-            print(' {:5}  {:20}'.format('TRAIN', entity))
-            print(100 * '-')
-            for train_context in train_contexts:
-                print(repr(train_context[:100]))
-            print()
+
+            if verbose:
+                print()
+                print(' {:5}  {:20}'.format('TRAIN', entity))
+                print(100 * '-')
+                for train_context in train_contexts:
+                    print(repr(train_context[:100]))
+                print()
 
             es_doc = {'entity': entity, 'context': '\n'.join(train_contexts)}
-            es.index(index=index_name, id=id, body=es_doc)
+            es.index(index=index_name, body=es_doc)
+            es.indices.refresh(index=index_name)
 
             test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
             for i, test_context in enumerate(test_contexts):
-                insert_context(contexts_conn, entity, test_context)
+                insert_context(test_contexts_conn, entity, test_context)
 
-        es.indices.refresh(index=index_name)
+            test_contexts_conn.commit()
 
 
 #

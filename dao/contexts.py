@@ -39,7 +39,7 @@ def insert_context(contexts_conn, entity, context):
 
 def select_contexts(conn, entity, limit):
     sql = '''
-        SELECT entity, context
+        SELECT context
         FROM contexts
         WHERE entity = ?
         ORDER BY RANDOM()
@@ -56,4 +56,4 @@ def select_contexts(conn, entity, limit):
     rows = cursor.fetchall()
     cursor.close()
 
-    return rows
+    return [row[0] for row in rows]

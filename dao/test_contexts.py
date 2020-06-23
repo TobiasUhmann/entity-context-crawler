@@ -7,6 +7,10 @@ def create_contexts_table(conn):
         )
     '''
 
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
 
 def insert_context(contexts_conn, entity, context):
     sql = '''
@@ -42,7 +46,7 @@ def select_distinct_entities(conn, limit):
 
 def select_contexts(conn, entity, limit=None):
     sql = '''
-        SELECT entity, context
+        SELECT context
         FROM contexts
         WHERE entity = ?
         ORDER BY RANDOM()
@@ -59,4 +63,4 @@ def select_contexts(conn, entity, limit=None):
     rows = cursor.fetchall()
     cursor.close()
 
-    return rows
+    return [row[0] for row in rows]
