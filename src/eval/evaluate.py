@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from typing import Set, Tuple, List
 
 from eval.evaluator import Evaluator
 from eval.model import Model
+
+from ryn.graphs import split
 
 
 def main():
@@ -15,12 +18,18 @@ def main():
     args = parser.parse_args()
 
     #
+    # Load data
+    #
+
+    dataset = split.Dataset.load('data/oke.fb15k237_0.50-0.70_50_30061990')
+
+    #
     # Evaluate
     #
 
     model = Model()
-    triples = [(3, 2, 3), (3, 5, 3), (5, 3, 3), (2, 5, 3), (4, 5, 3), (6, 5, 3)]
-    entities = [x for x in range(10)]
+    triples: Set[Tuple[int, int, int]] = dataset.cw_train.triples
+    entities: List[int] = list(dataset.ent2id.keys())
 
     evaluator = Evaluator(model, triples, entities)
     result = evaluator.run()

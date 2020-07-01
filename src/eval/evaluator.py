@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List, Tuple
+from typing import List, Tuple, Set
 
 from eval.classes import Result, TotalResult
 from eval.model import Model
@@ -10,7 +10,7 @@ from eval.model import Model
 class Evaluator:
     def __init__(self,
                  model: Model,
-                 actual_triples: List[Tuple[int, int, int]],
+                 actual_triples: Set[Tuple[int, int, int]],
                  entities: List[int]):
 
         self.model = model
@@ -22,8 +22,8 @@ class Evaluator:
         predicted_triples_batch = self.model.predict(self.entities)
 
         for entity, predicted_triples in zip(self.entities, predicted_triples_batch):
-            actual_triples = [(head, tail, tag) for head, tail, tag in self.actual_triples
-                              if head == entity or tail == entity]
+            actual_triples = {(head, tail, tag) for head, tail, tag in self.actual_triples
+                              if head == entity or tail == entity}
 
             #
             # Calc precision, recall, F1

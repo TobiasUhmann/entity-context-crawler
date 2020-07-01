@@ -10,6 +10,7 @@ pyvenv.cfg
 .venv
 env/
 venv/
+venv38/
 ENV/
 env.bak/
 venv.bak/
