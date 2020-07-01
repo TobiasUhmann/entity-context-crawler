@@ -3,8 +3,8 @@
 
 import argparse
 
+from eval.evaluator import Evaluator
 from eval.model import Model
-from eval.result import Result
 
 
 def main():
@@ -12,42 +12,23 @@ def main():
         description='Evaluate relations prediction',
         formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=60, width=120))
 
-    default_batch_size = 3
-    parser.add_argument('--batch-size', dest='batch_size', type=int, default=default_batch_size,
-                        help='entity batch size (default: {})'.format(default_batch_size))
-
     args = parser.parse_args()
-
-    #
-    # Print applied config
-    #
-
-    print('Applied config:')
-    print('    {:20} {}'.format('Batch size', args.batch_size))
-    print()
 
     #
     # Evaluate
     #
 
-    evaluate(args.batch_size)
-
-
-def evaluate(batch_size: int):
-    entities = [x for x in range(10)]
     model = Model()
+    triples = [(3, 2, 3), (3, 5, 3), (5, 3, 3), (2, 5, 3), (4, 5, 3), (6, 5, 3)]
+    entities = [x for x in range(10)]
 
-    for entities_batch in batches(entities, batch_size):
-        triples_batch = model.predict(entities_batch)
-        mmr = 1
-        result = Result(triples_batch, mmr)
-        model.train(triples_batch)
+    evaluator = Evaluator(model, triples, entities)
+    result = evaluator.run()
 
-
-def batches(values, n=1):
-    length = len(values)
-    for i in range(0, length, n):
-        yield values[i:min(i + n, length)]
+    results, mAP = result.results, result.map
+    print(mAP)
+    for res in results:
+        print(res)
 
 
 if __name__ == '__main__':
