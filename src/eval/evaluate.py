@@ -27,17 +27,30 @@ def main():
     # Evaluate
     #
 
-    model = Model()
     triples: Set[Tuple[int, int, int]] = dataset.cw_train.triples
-    entities: List[int] = list(dataset.ent2id.keys())
+    triples = {(head, tail, tag) for head, tail, tag in triples
+               if head < 100 and tail < 100}
+    entity_ids: List[int] = list(dataset.ent2id.keys())
+    entity_ids = [entity_id for entity_id in entity_ids if entity_id < 100]
+    model = Model(dataset.ent2id, triples)
 
-    evaluator = Evaluator(model, triples, entities)
+    evaluator = Evaluator(model, triples, entity_ids)
     result = evaluator.run()
 
     results, mAP = result.results, result.map
     print(mAP)
-    for res in results:
-        print(res)
+    for e_id, res in zip(entity_ids, results):
+        predicted_triples = res.predicted_triples
+        precision = res.precision
+        recall = res.recall
+        f1 = res.f1
+        ap = res.ap
+
+        print()
+        print(dataset.ent2id[e_id])
+        for head, tail, tag in predicted_triples:
+            print(dataset.ent2id[head], '#', dataset.ent2id[tail], '#', dataset.rel2id[tag])
+        print(precision, recall, f1, ap)
 
 
 if __name__ == '__main__':

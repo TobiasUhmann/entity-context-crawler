@@ -21,7 +21,11 @@ class Evaluator:
         results: List[Result] = []
         predicted_triples_batch = self.model.predict(self.entities)
 
+        count = 0
         for entity, predicted_triples in zip(self.entities, predicted_triples_batch):
+            if count % 100 == 0:
+                print(count, count)
+
             actual_triples = {(head, tail, tag) for head, tail, tag in self.actual_triples
                               if head == entity or tail == entity}
 
@@ -67,6 +71,7 @@ class Evaluator:
             #
 
             results.append(Result(predicted_triples, precision, recall, f1, ap))
+            count += 1
 
         aps = [result.ap for result in results]
         mAP = sum(aps) / (len(aps) + 1e-10)
