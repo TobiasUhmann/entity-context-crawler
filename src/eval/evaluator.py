@@ -19,10 +19,10 @@ class Evaluator:
 
     def run(self):
         results: List[Result] = []
-        predicted_triples_batch = self.model.predict(self.entities)
+        predicted_triples_batch, hit_entities = self.model.predict(self.entities)
 
         count = 0
-        for entity, predicted_triples in zip(self.entities, predicted_triples_batch):
+        for entity, predicted_triples, hit_entity_id in zip(self.entities, predicted_triples_batch, hit_entities):
             if count % 100 == 0:
                 print(count, count)
 
@@ -47,6 +47,7 @@ class Evaluator:
                 if actual_triple not in predicted_triples:
                     false_negatives += 1
 
+
             precision = true_positives / (true_positives + false_positives + 1e-9)
             recall = true_positives / (true_positives + false_negatives + 1e-9)
             f1 = 2 * (precision * recall) / (precision + recall + 1e-9)
@@ -70,7 +71,7 @@ class Evaluator:
             #
             #
 
-            results.append(Result(predicted_triples, precision, recall, f1, ap))
+            results.append(Result(hit_entity_id, predicted_triples, precision, recall, f1, ap))
             count += 1
 
         aps = [result.ap for result in results]
