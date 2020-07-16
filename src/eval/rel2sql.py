@@ -63,9 +63,9 @@ def rel2sql(dataset_dir, sqlite_db):
 
     print('Save CW train triples...', end='')
     create_triples_table(sqlite_db, 'cw_train_triples')
-    for cw_train_triple in cw_train_triples:
-        insert_triple(sqlite_db, 'cw_train_triples', cw_train_triple)
+    insert_triples(sqlite_db, 'cw_train_triples', cw_train_triples)
     print(' done')
+
 
 def create_triples_table(db, table):
     sql = '''
@@ -82,7 +82,7 @@ def create_triples_table(db, table):
         cursor.close()
 
 
-def insert_triple(db, table, triple):
+def insert_triples(db, table, triples):
     sql = '''
         INSERT INTO {} (head, tail, rel)
         VALUES (?, ?, ?)
@@ -90,7 +90,7 @@ def insert_triple(db, table, triple):
 
     with sqlite3.connect(db) as conn:
         cursor = conn.cursor()
-        cursor.execute(sql, (*triple,))
+        cursor.executemany(sql, triples)
         cursor.close()
 
 
