@@ -55,6 +55,44 @@ def rel2sql(dataset_dir, sqlite_db):
     ent2id = dataset.ent2id
     rel2id = dataset.rel2id
 
+    cw_train_triples = {(ent2id[head], ent2id[tail], rel2id[rel]) for head, tail, rel in dataset.cw_train.triples}
+
+    #
+    # Save triples in DB
+    #
+
+    print('Save CW train triples...', end='')
+    create_triples_table(sqlite_db, 'cw_train_triples')
+    for cw_train_triple in cw_train_triples:
+        insert_triple(sqlite_db, 'cw_train_triples', cw_train_triple)
+    print(' done')
+
+def create_triples_table(db, table):
+    sql = '''
+        CREATE TABLE {} (
+            head text,
+            tail text,
+            rel text
+        )
+    '''.format(table)
+
+    with sqlite3.connect(db) as conn:
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        cursor.close()
+
+
+def insert_triple(db, table, triple):
+    sql = '''
+        INSERT INTO {} (head, tail, rel)
+        VALUES (?, ?, ?)
+    '''.format(table)
+
+    with sqlite3.connect(db) as conn:
+        cursor = conn.cursor()
+        cursor.execute(sql, (*triple,))
+        cursor.close()
+
 
 if __name__ == '__main__':
     main()
