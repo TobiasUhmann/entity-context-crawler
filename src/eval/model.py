@@ -36,9 +36,9 @@ class Model:
 
                 mod_triples = set()
                 if test_contexts:
-                    test_context = test_contexts[0]
+                    concated_test_contexts = ' '.join(test_contexts)[:1024]  # max ES query length == 1024
                     res = es.search(index="enwiki-latest-contexts-70-500",
-                                    body={"query": {"match": {'context': test_context}}})
+                                    body={"query": {"match": {'context': concated_test_contexts}}})
 
                     hit = res['hits']['hits'][0]
                     hit_entity = hit['_source']['entity']
