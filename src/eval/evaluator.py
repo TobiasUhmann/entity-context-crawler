@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List, Tuple, Set
+from typing import List
 
 from eval.classes import Result, TotalResult
 from eval.model import Model
 
 
 class Evaluator:
-    def __init__(self,
-                 model: Model,
-                 actual_triples: Set[Tuple[int, int, int]],
-                 entities: List[int]):
+    def __init__(self, model: Model, ow_entities, gt_ow_triples):
 
         self.model = model
-        self.actual_triples = actual_triples
-        self.entities = entities
+        self.actual_triples = gt_ow_triples
+        self.entities = ow_entities
 
     def run(self):
         results: List[Result] = []

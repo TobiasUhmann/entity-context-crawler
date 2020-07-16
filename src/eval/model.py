@@ -8,15 +8,13 @@ from elasticsearch import Elasticsearch
 
 
 class Model:
-    def __init__(self, entity2id, triples):
-        self.entity2id = entity2id
+    def __init__(self, triples):
         self.triples = triples
-        self.entity2id_rev = {entity: id for id, entity in entity2id.items()}
 
     def train(self, batch: List[Tuple[int, int, int]]):
         print('train')
 
-    def predict(self, entity_ids: List[int]):
+    def predict(self, entities):
         """
         Takes all entities (closed world + open world) and predicts relations
         :param batch:
@@ -29,12 +27,11 @@ class Model:
             result = []
             hit_entities = []
 
-            for count, entity_id in enumerate(entity_ids):
+            for count, entity in enumerate(entities):
                 if count == 100:
                     print(count)
                     break
 
-                entity = self.entity2id[entity_id]
                 test_contexts = select_test_contexts(contexts_conn, entity)
 
                 mod_triples = set()
@@ -46,20 +43,17 @@ class Model:
                     hit = res['hits']['hits'][0]
                     hit_entity = hit['_source']['entity']
 
-                    if hit_entity not in self.entity2id_rev:
-                        continue
-                    hit_entity_id = self.entity2id_rev[hit_entity]
-                    hit_entities.append(hit_entity_id)
+                    hit_entities.append(hit_entity)
 
                     entity_triples = {(head, tail, tag) for head, tail, tag in self.triples
-                                      if head == hit_entity_id or tail == hit_entity_id}
+                                      if head == hit_entity or tail == hit_entity}
 
                     for entity_triple in entity_triples:
                         head, tail, tag = entity_triple
-                        if head == hit_entity_id:
-                            head = entity_id
-                        if tail == hit_entity_id:
-                            tail = entity_id
+                        if head == hit_entity:
+                            head = entity
+                        if tail == hit_entity:
+                            tail = entity
                         mod_triple = (head, tail, tag)
                         mod_triples.add(mod_triple)
 
