@@ -94,10 +94,16 @@ def evaluate(dataset_dir):
         print()
         print(ow_entity + ' -> ' + pred_cw_entity)
         print(50 * '-')
+        count = 0
         for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):
+            if count == 20:
+                break
             head, tail, relation = triple
             hit_marker = '+' if hit else ' '
             print('{} {:30} {:30} {}'.format(hit_marker, truncate(head, 28), truncate(tail, 28), relation))
+            count += 1
+        if len(pred_ow_triples) - count > 0:
+            print('[{} more hidden]'.format(len(pred_ow_triples) - count))
         print(50 * '-')
         print('{:20} {:.2f}'.format('Precision', precision))
         print('{:20} {:.2f}'.format('Recall', recall))
