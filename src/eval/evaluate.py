@@ -76,31 +76,35 @@ def evaluate(dataset_dir):
     # Evaluate model
     #
 
-    subset = random.sample(ow_entities, 10)
-    evaluator = Evaluator(model, subset, ow_triples)
+    some_ow_entities = random.sample(ow_entities, 10)
+    total_result = Evaluator(model, ow_triples, some_ow_entities).run()
 
-    total_result = evaluator.run()
     results, mAP = total_result.results, total_result.map
 
-    for ow_entity, result in zip(subset, results):
-        pred_cw_entity = result.pred_cw_entity
+    for ow_entity, result in zip(some_ow_entities, results):
         pred_ow_triples = result.pred_ow_triples
         precision = result.precision
         recall = result.recall
         f1 = result.f1
         ap = result.ap
 
+        pred_cw_entity = result.pred_cw_entity
+        pred_ow_triples_hits = result.pred_ow_triples_hits
+
         print()
         print(ow_entity + ' -> ' + pred_cw_entity)
         print(50 * '-')
-        for head, tail, relation in pred_ow_triples:
-            print('{:30} {:30} {}'.format(truncate(head, 28), truncate(tail, 28), relation))
+        for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):
+            head, tail, relation = triple
+            hit_marker = '+' if hit else ' '
+            print('{} {:30} {:30} {}'.format(hit_marker, truncate(head, 28), truncate(tail, 28), relation))
         print(50 * '-')
-        print('{:20} {}'.format('Precision', precision))
-        print('{:20} {}'.format('Recall', recall))
-        print('{:20} {}'.format('F1-Score', f1))
-        print('{:20} {}'.format('Average Precision', ap))
+        print('{:20} {:.2f}'.format('Precision', precision))
+        print('{:20} {:.2f}'.format('Recall', recall))
+        print('{:20} {:.2f}'.format('F1-Score', f1))
+        print('{:20} {:.2f}'.format('Average Precision', ap))
 
+    print()
     print('mAP = ', mAP)
 
 

@@ -8,23 +8,23 @@ from eval.model import Model
 
 
 class Evaluator:
-    def __init__(self, model: Model, ow_entities, gt_ow_triples):
-
+    def __init__(self, model: Model, ow_triples, ow_entities):
         self.model = model
-        self.actual_triples = gt_ow_triples
-        self.entities = ow_entities
+        self.ow_triples = ow_triples
+        self.ow_entity_batch = ow_entities
 
     def run(self):
-        results: List[Result] = []
-        predicted_triples_batch, hit_entities = self.model.predict(self.entities)
+        result_batch = []
+        pred_ow_triples_batch, pred_cw_entity_batch = self.model.predict(self.ow_entity_batch)
 
-        count = 0
-        for entity, predicted_triples, hit_entity_id in zip(self.entities, predicted_triples_batch, hit_entities):
-            if count % 100 == 0:
-                print(count, count)
+        for query_entity, pred_entity, pred_triples in zip(self.ow_entity_batch, pred_cw_entity_batch,
+                                                           pred_ow_triples_batch):
 
-            actual_triples = {(head, tail, tag) for head, tail, tag in self.actual_triples
-                              if head == entity or tail == entity}
+            actual_triples = {(head, tail, tag) for head, tail, tag in self.ow_triples
+                              if head == query_entity or tail == query_entity}
+
+            pred_triples = list(pred_triples)
+            pred_triples_hits = [(True if pred_triple in actual_triples else False) for pred_triple in pred_triples]
 
             #
             # Calc precision, recall, F1
@@ -34,16 +34,15 @@ class Evaluator:
             false_positives = 0
             false_negatives = 0
 
-            for predicted_triple in predicted_triples:
-                if predicted_triple in actual_triples:
+            for pred_triple in pred_triples:
+                if pred_triple in actual_triples:
                     true_positives += 1
                 else:
                     false_positives += 1
 
             for actual_triple in actual_triples:
-                if actual_triple not in predicted_triples:
+                if actual_triple not in pred_triples:
                     false_negatives += 1
-
 
             precision = true_positives / (true_positives + false_positives + 1e-9)
             recall = true_positives / (true_positives + false_negatives + 1e-9)
@@ -55,10 +54,10 @@ class Evaluator:
 
             ranked_positives = 0
             ap_sum = 0
-            for i, predicted_triple in enumerate(predicted_triples):
+            for i, pred_triple in enumerate(pred_triples):
                 rank = i + 1
 
-                if predicted_triple in actual_triples:
+                if pred_triple in actual_triples:
                     ranked_positives += 1
                     ap_sum += ranked_positives / rank
 
@@ -68,10 +67,9 @@ class Evaluator:
             #
             #
 
-            results.append(Result(hit_entity_id, predicted_triples, precision, recall, f1, ap))
-            count += 1
+            result_batch.append(Result(pred_triples, precision, recall, f1, ap, pred_entity, pred_triples_hits))
 
-        aps = [result.ap for result in results]
+        aps = [result.ap for result in result_batch]
         mAP = sum(aps) / (len(aps) + 1e-10)
 
-        return TotalResult(results, mAP)
+        return TotalResult(result_batch, mAP)
