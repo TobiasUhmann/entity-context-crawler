@@ -18,6 +18,9 @@ def main():
     arg_parser.add_argument('dataset_dir', metavar='dataset-dir',
                             help='path to directory containing data files in OpenKE format')
 
+    arg_parser.add_argument('--random-seed', dest='random_seed',
+                            help='Seed for Python random. Use together with PYTHONHASHSEED.')
+
     args = arg_parser.parse_args()
 
     #
@@ -27,6 +30,8 @@ def main():
     print('Applied config:')
     print('    {:24} {}'.format('Dataset dir', args.dataset_dir))
     print()
+    print('    {:24} {}'.format('Random seed', args.random_seed))
+    print()
 
     #
     # Check for input/output files
@@ -35,6 +40,13 @@ def main():
     if not isdir(args.dataset_dir):
         print('Dataset dir not found')
         exit()
+
+    #
+    # Optionally, init random generator
+    #
+
+    if args.random_seed:
+        random.seed(args.random_seed)
 
     #
     # Evaluate
