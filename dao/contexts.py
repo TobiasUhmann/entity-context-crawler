@@ -37,7 +37,7 @@ def insert_context(contexts_conn, entity, context):
     cursor.close()
 
 
-def select_contexts(conn, entity, limit):
+def select_contexts(conn, entity, limit = None):
     sql = '''
         SELECT context
         FROM contexts
