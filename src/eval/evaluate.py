@@ -69,7 +69,7 @@ def evaluate(dataset_dir):
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
 
-    cw_entities = {id2ent[ent] for ent in dataset.cw_train.entities | dataset.cw_valid.entities}
+    cw_entities = {id2ent[ent] for ent in dataset.cw_train.owe}
     cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
 
@@ -89,7 +89,7 @@ def evaluate(dataset_dir):
     # Evaluate model
     #
 
-    some_ow_entities = random.sample(ow_entities, 10)
+    some_ow_entities = random.sample(ow_entities, 100)
     total_result = Evaluator(model, ow_triples, some_ow_entities).run()
 
     results, mAP = total_result.results, total_result.map
@@ -105,7 +105,7 @@ def evaluate(dataset_dir):
         pred_ow_triples_hits = result.pred_ow_triples_hits
 
         print()
-        print(ow_entity + ' -> ' + pred_cw_entity)
+        print(ow_entity + ' -> ' + (pred_cw_entity if pred_cw_entity is not None else '<None>'))
         print(50 * '-')
         count = 0
         for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):

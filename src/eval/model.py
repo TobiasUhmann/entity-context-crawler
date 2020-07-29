@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import sqlite3
-from dataclasses import dataclass
-from typing import List, Tuple
 
+import sqlite3
+
+from dataclasses import dataclass
 from elasticsearch import Elasticsearch
+from typing import List, Tuple
 
 
 class Model:
@@ -22,7 +23,7 @@ class Model:
         """
 
         es = Elasticsearch()
-        with sqlite3.connect('data/enwiki-latest-test-contexts-30-500.db') as contexts_conn:
+        with sqlite3.connect('data/enwiki-latest-ow-contexts-100-500.db') as contexts_conn:
 
             result = []
             hit_entities = []
@@ -34,17 +35,16 @@ class Model:
 
                 test_contexts = select_test_contexts(contexts_conn, entity)
 
+                hit_entity = None
                 mod_triples = set()
                 if test_contexts:
                     concated_test_contexts = ' '.join(test_contexts)[:1024]  # max ES query length == 1024
-                    res = es.search(index="enwiki-latest-contexts-70-500",
+                    res = es.search(index="enwiki-latest-cw-contexts-100-500",
                                     body={"query": {"match": {'context': concated_test_contexts}}})
 
                     hits = res['hits']['hits']
                     for hit in hits[:1]:
                         hit_entity = hit['_source']['entity']
-
-                        hit_entities.append(hit_entity)
 
                         entity_triples = {(head, tail, tag) for head, tail, tag in self.triples
                                           if head == hit_entity or tail == hit_entity}
@@ -58,6 +58,7 @@ class Model:
                             mod_triple = (head, tail, tag)
                             mod_triples.add(mod_triple)
 
+                hit_entities.append(hit_entity)
                 result.append(list(mod_triples))
 
         return result, hit_entities
