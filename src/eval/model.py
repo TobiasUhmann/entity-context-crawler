@@ -40,22 +40,23 @@ class Model:
                     res = es.search(index="enwiki-latest-contexts-70-500",
                                     body={"query": {"match": {'context': concated_test_contexts}}})
 
-                    hit = res['hits']['hits'][0]
-                    hit_entity = hit['_source']['entity']
+                    hits = res['hits']['hits']
+                    for hit in hits[:1]:
+                        hit_entity = hit['_source']['entity']
 
-                    hit_entities.append(hit_entity)
+                        hit_entities.append(hit_entity)
 
-                    entity_triples = {(head, tail, tag) for head, tail, tag in self.triples
-                                      if head == hit_entity or tail == hit_entity}
+                        entity_triples = {(head, tail, tag) for head, tail, tag in self.triples
+                                          if head == hit_entity or tail == hit_entity}
 
-                    for entity_triple in entity_triples:
-                        head, tail, tag = entity_triple
-                        if head == hit_entity:
-                            head = entity
-                        if tail == hit_entity:
-                            tail = entity
-                        mod_triple = (head, tail, tag)
-                        mod_triples.add(mod_triple)
+                        for entity_triple in entity_triples:
+                            head, tail, tag = entity_triple
+                            if head == hit_entity:
+                                head = entity
+                            if tail == hit_entity:
+                                tail = entity
+                            mod_triple = (head, tail, tag)
+                            mod_triples.add(mod_triple)
 
                 result.append(list(mod_triples))
 
