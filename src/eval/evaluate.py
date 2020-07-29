@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import random
+
 from argparse import ArgumentParser, HelpFormatter
 from os.path import isdir
-
 from ryn.graphs.split import Dataset
 
 from eval.evaluator import Evaluator
@@ -53,15 +54,15 @@ def evaluate(dataset_dir):
     dataset = Dataset.load(dataset_dir)
     print(' done')
 
-    ent2id = dataset.ent2id
-    rel2id = dataset.rel2id
+    id2ent = dataset.id2ent
+    id2rel = dataset.id2rel
 
-    cw_entities = {ent2id[ent] for ent in dataset.cw_train.entities | dataset.cw_valid.entities}
-    cw_triples = {(ent2id[head], ent2id[tail], rel2id[rel])
+    cw_entities = {id2ent[ent] for ent in dataset.cw_train.entities | dataset.cw_valid.entities}
+    cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
 
-    ow_entities = {ent2id[ent] for ent in dataset.ow_valid.owe}
-    ow_triples = {(ent2id[head], ent2id[tail], rel2id[rel]) for head, tail, rel in dataset.ow_valid.triples}
+    ow_entities = {id2ent[ent] for ent in dataset.ow_valid.owe}
+    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel]) for head, tail, rel in dataset.ow_valid.triples}
 
     all_entities = cw_entities | ow_entities
     all_triples = cw_triples | ow_triples
