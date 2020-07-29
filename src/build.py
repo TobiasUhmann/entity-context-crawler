@@ -114,6 +114,7 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         ow_entities = {dataset.id2ent[ent] for ent in dataset.ow_valid.owe}
 
         both = cw_entities.intersection(ow_entities)
+        ow_entities = ow_entities.difference(both)
 
         print(' done')
 
