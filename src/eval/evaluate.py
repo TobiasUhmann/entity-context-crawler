@@ -34,6 +34,8 @@ def main():
     print()
     print('    {:24} {}'.format('Random seed', args.random_seed))
     print()
+    print('    {:24} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
+    print()
 
     #
     # Check for input/output files
