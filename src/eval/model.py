@@ -36,7 +36,7 @@ class Model:
                 test_contexts = select_test_contexts(contexts_conn, entity)
 
                 hit_entity = None
-                mod_triples = set()
+                mod_triples = []
                 if test_contexts:
                     concated_test_contexts = ' '.join(test_contexts)[:1024]  # max ES query length == 1024
                     res = es.search(index="enwiki-latest-cw-contexts-100-500",
@@ -46,8 +46,8 @@ class Model:
                     for hit in hits[:1]:
                         hit_entity = hit['_source']['entity']
 
-                        entity_triples = {(head, tail, tag) for head, tail, tag in self.triples
-                                          if head == hit_entity or tail == hit_entity}
+                        entity_triples = [(head, tail, tag) for head, tail, tag in self.triples
+                                          if head == hit_entity or tail == hit_entity]
 
                         for entity_triple in entity_triples:
                             head, tail, tag = entity_triple
@@ -56,7 +56,7 @@ class Model:
                             if tail == hit_entity:
                                 tail = entity
                             mod_triple = (head, tail, tag)
-                            mod_triples.add(mod_triple)
+                            mod_triples.append(mod_triple)
 
                 hit_entities.append(hit_entity)
                 result.append(list(mod_triples))
