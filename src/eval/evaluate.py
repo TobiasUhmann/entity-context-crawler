@@ -122,9 +122,13 @@ def evaluate(dataset_dir):
         for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):
             if count == 20:
                 break
-            head, tail, relation = triple
+            head, tail, rel = triple
             hit_marker = '+' if hit else ' '
-            print('{} {:30} {:30} {}'.format(hit_marker, truncate(head, 28), truncate(tail, 28), relation))
+            print('{} {:30} {:30} {}'.format(
+                hit_marker,
+                truncate('[{}] {}'.format(head_counter[head], head), 28),
+                truncate('[{}] {}'.format(tail_counter[tail], tail), 28),
+                '[{}] {}'.format(rel_counter[rel], rel)))
             count += 1
         if len(pred_ow_triples) - count > 0:
             print('[{} more hidden]'.format(len(pred_ow_triples) - count))
