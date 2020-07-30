@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
 import random
 
 from argparse import ArgumentParser, HelpFormatter
+from collections import Counter
 from os.path import isdir
 from ryn.graphs.split import Dataset
 
@@ -69,15 +71,24 @@ def evaluate(dataset_dir):
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
 
-    cw_entities = {id2ent[ent] for ent in dataset.cw_train.owe}
     cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
 
     ow_entities = {id2ent[ent] for ent in dataset.ow_valid.owe}
-    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel]) for head, tail, rel in dataset.ow_valid.triples}
+    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
+                  for head, tail, rel in dataset.ow_valid.triples}
 
-    all_entities = cw_entities | ow_entities
-    all_triples = cw_triples | ow_triples
+    all_triples = list(cw_triples | ow_triples)
+
+    #
+    # Rank triples
+    #
+
+    head_counter = Counter([head for head, _, _ in all_triples])
+    tail_counter = Counter([tail for _, tail, _ in all_triples])
+    rel_counter = Counter([rel for _, _, rel in all_triples])
+
+    all_triples.sort(key=lambda t: (head_counter[t[0]] + tail_counter[t[1]]) * rel_counter[t[2]], reverse=True)
 
     #
     # Create model
@@ -89,7 +100,7 @@ def evaluate(dataset_dir):
     # Evaluate model
     #
 
-    some_ow_entities = random.sample(ow_entities, 100)
+    some_ow_entities = random.sample(ow_entities, 10)
     total_result = Evaluator(model, ow_triples, some_ow_entities).run()
 
     results, mAP = total_result.results, total_result.map

@@ -126,8 +126,6 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         print('Build closed world ES index...')
 
         for i, entity in enumerate(cw_entities):
-            if i == 500:
-                break
             print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
@@ -149,8 +147,6 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         create_contexts_table(ow_conn)
 
         for i, entity in enumerate(ow_entities):
-            if i == 500:
-                break
             print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
