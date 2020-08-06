@@ -10,11 +10,39 @@ from eval.model import Model
 
 
 def main():
-    st.title('Evaluate relation predictions')
-
     #
     # Sidebar
     #
+
+    st.sidebar.title('Navigation')
+
+    navigate_to = st.sidebar.radio('', [
+        'Build ES index',
+        'Query ES index',
+        'Evaluate model'
+    ])
+
+    if navigate_to == 'Build ES index':
+        render_build_es_index_page()
+    elif navigate_to == 'Query ES index':
+        render_query_es_index_page()
+    elif navigate_to == 'Evaluate model':
+        render_evaluate_model_page()
+
+
+def render_build_es_index_page():
+    st.title('Not yet implemented')
+
+
+def render_query_es_index_page():
+    st.title('Not yet implemented')
+
+
+def render_evaluate_model_page():
+    st.title('Evaluate relation predictions')
+
+    st.sidebar.markdown('---')
+    st.sidebar.title('Config')
 
     random_seed = st.sidebar.number_input('Random seed', value=0, format='%d')
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
