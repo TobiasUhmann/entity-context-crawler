@@ -41,7 +41,7 @@ def render_query_es_index_page():
     st.title('Not yet implemented')
 
 
-# @st.cache
+@st.cache(allow_output_mutation=True)
 def load_dataset():
     return Dataset.load('data/oke.fb15k237_30061990_50')
 
