@@ -19,7 +19,8 @@ def main():
     navigate_to = st.sidebar.radio('', [
         'Build ES index',
         'Query ES index',
-        'Evaluate model'
+        'Evaluate model',
+        'Show triples'
     ])
 
     if navigate_to == 'Build ES index':
@@ -28,6 +29,8 @@ def main():
         render_query_es_index_page()
     elif navigate_to == 'Evaluate model':
         render_evaluate_model_page()
+    elif navigate_to == 'Show triples':
+        render_show_triples_page()
 
 
 def render_build_es_index_page():
@@ -38,8 +41,43 @@ def render_query_es_index_page():
     st.title('Not yet implemented')
 
 
+# @st.cache
+def load_dataset():
+    return Dataset.load('data/oke.fb15k237_30061990_50')
+
+
+def render_show_triples_page():
+    st.title('Show triples')
+
+    #
+    # Load data
+    #
+
+    with st.spinner('Loading dataset...'):
+        dataset = load_dataset()
+    st.success('Dataset loaded')
+
+    id2ent = dataset.id2ent
+    id2rel = dataset.id2rel
+
+    cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
+                  for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
+
+    ow_entities = {id2ent[ent] for ent in dataset.ow_valid.owe}
+    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
+                  for head, tail, rel in dataset.ow_valid.triples}
+
+    all_triples = list(cw_triples | ow_triples)
+
+    #
+    #
+    #
+
+    st.selectbox('Open world entity', list(ow_entities))
+
+
 def render_evaluate_model_page():
-    st.title('Evaluate relation predictions')
+    st.title('Evaluate model')
 
     st.sidebar.markdown('---')
     st.sidebar.title('Config')
@@ -54,8 +92,7 @@ def render_evaluate_model_page():
     #
 
     with st.spinner('Loading dataset...'):
-        dataset_dir = 'data/oke.fb15k237_30061990_50'
-        dataset = Dataset.load(dataset_dir)
+        dataset = load_dataset()
     st.success('Dataset loaded')
 
     id2ent = dataset.id2ent
