@@ -1,9 +1,11 @@
 import os
+import pandas as pd
 import random
 import streamlit as st
 
 from collections import Counter
 from ryn.graphs.split import Dataset
+from typing import Set
 
 from eval.evaluator import Evaluator
 from eval.model import Model
@@ -14,13 +16,11 @@ def main():
     # Sidebar
     #
 
-    st.sidebar.title('Navigation')
-
     navigate_to = st.sidebar.radio('', [
         'Build ES index',
         'Query ES index',
         'Evaluate model',
-        'Show triples'
+        'Entity triples'
     ])
 
     if navigate_to == 'Build ES index':
@@ -29,8 +29,8 @@ def main():
         render_query_es_index_page()
     elif navigate_to == 'Evaluate model':
         render_evaluate_model_page()
-    elif navigate_to == 'Show triples':
-        render_show_triples_page()
+    elif navigate_to == 'Entity triples':
+        render_entity_triples_page()
 
 
 def render_build_es_index_page():
@@ -46,8 +46,12 @@ def load_dataset():
     return Dataset.load('data/oke.fb15k237_30061990_50')
 
 
-def render_show_triples_page():
-    st.title('Show triples')
+def render_entity_triples_page():
+    #
+    # Sidebar
+    #
+
+    st.title('Entity triples')
 
     #
     # Load data
@@ -55,7 +59,6 @@ def render_show_triples_page():
 
     with st.spinner('Loading dataset...'):
         dataset = load_dataset()
-    st.success('Dataset loaded')
 
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
@@ -63,7 +66,7 @@ def render_show_triples_page():
     cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
 
-    ow_entities = {id2ent[ent] for ent in dataset.ow_valid.owe}
+    ow_entities: Set[str] = {id2ent[ent] for ent in dataset.ow_valid.owe}
     ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.ow_valid.triples}
 
@@ -73,7 +76,19 @@ def render_show_triples_page():
     #
     #
 
-    st.selectbox('Open world entity', list(ow_entities))
+    st.sidebar.markdown('---')
+
+    prefix = st.sidebar.text_input('Entity prefix')
+
+    filtered_entities = [entity for entity in ow_entities if entity.startswith(prefix)]
+    filtered_entities.sort()
+
+    selected_entity = st.sidebar.selectbox('Entity', filtered_entities)
+
+    selected_entity_triples = [triple for triple in ow_triples if triple[0] == selected_entity]
+
+    dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
+    st.dataframe(dataFrame)
 
 
 def render_evaluate_model_page():
