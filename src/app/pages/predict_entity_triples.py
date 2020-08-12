@@ -1,5 +1,7 @@
 import os
 import random
+import re
+
 import streamlit as st
 
 from collections import Counter
@@ -15,50 +17,58 @@ from eval.evaluator import Evaluator
 def render_predict_entity_triples_page():
     """
     - Load dataset
-    - Render sidebar (model selectbox)
+    - Render sidebar
+        - Random seed selection & Show PYTHONHASHSEED
+        - Model selection
     - Render main content
+        - Entity prefix & Entity name selection
+        - Evaluate model
+        - Show predicted triples
     """
 
     dataset: Dataset = load_dataset()
-    id2ent = dataset.id2ent
-    ent2id = {ent: id for id, ent in id2ent.items()}
-    id2rel = dataset.id2rel
+
+    ow_entities: Set[int] = dataset.ow_valid.owe
 
     cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
     ow_triples: Set = dataset.ow_valid.triples | dataset.ow_test.triples
     all_triples = list(cw_triples | ow_triples)
 
-    ow_entities = dataset.ow_valid.owe
-
-    cw_ents: Set[int] = dataset.cw_train.owe
-    ow_ents: Set[int] = dataset.ow_valid.owe
+    id2ent = dataset.id2ent
+    id2rel = dataset.id2rel
 
     #
-    # Render sidebar
+    # Sidebar: Random seed & PYTHONHASHSEED
     #
 
     st.sidebar.markdown('---')
 
-    random_seed = st.sidebar.number_input('Random seed', value=0, format='%d')
+    random_seed = st.sidebar.number_input('Random seed', value=0)
     random.seed(random_seed)
 
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
+    #
+    # Sidebar: Model selection
+    #
+
     model_selection = st.sidebar.selectbox('Model', ['Baseline'])
+
     if model_selection == 'Baseline':
         es = Elasticsearch()
         es_index = 'enwiki-latest-cw-contexts-100-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
+        ent2id = {ent: id for id, ent in id2ent.items()}
         model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, all_triples)
 
     prefix = st.sidebar.text_input('Entity prefix', value='Ab')
 
-    ent_names = [id2ent[ent] for ent in ow_ents]
-    filtered_ent_names = [ent for ent in ent_names if ent.startswith(prefix)]
+    options = ['%s (%d)' % (id2ent[entity], entity) for entity in ow_entities]
+    filtered_ent_names = [opt for opt in options if opt.startswith(prefix)]
     filtered_ent_names.sort()
 
-    selected_entity = st.sidebar.selectbox('Entity', filtered_ent_names)
-    selected_entity = ent2id[selected_entity]
+    selected_option = st.sidebar.selectbox('Entity', filtered_ent_names)
+    selected_entity = int(re.match(r'[\w\s]+ \((\d+)\)', selected_option).group(1))
 
     #
     # Render main content
