@@ -44,13 +44,15 @@ def select_distinct_entities(conn, limit):
     return [row[0] for row in rows]
 
 
-def select_contexts(conn, entity, limit=None):
+def select_contexts(conn, entity, limit=None, random=True):
     sql = '''
         SELECT context
         FROM contexts
         WHERE entity = ?
-        ORDER BY RANDOM()
     '''
+
+    if random:
+        sql += 'ORDER BY RANDOM()'
 
     cursor = conn.cursor()
 

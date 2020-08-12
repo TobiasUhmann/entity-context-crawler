@@ -1,3 +1,4 @@
+import random
 import sqlite3
 
 from collections import Counter
@@ -68,7 +69,8 @@ class BaselineModel:
             for count, query_entity, in enumerate(query_entity_batch):
 
                 query_entity_name = self.id2ent[query_entity]
-                query_entity_contexts = select_contexts(query_contexts_conn, query_entity_name)
+                query_entity_contexts = select_contexts(query_contexts_conn, query_entity_name, random=False)
+                random.shuffle(query_entity_contexts)
 
                 if not query_entity_contexts:
                     print('[WARNING] No context for query entity "%s"' % query_entity_name)
