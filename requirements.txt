@@ -1,6 +1,9 @@
 deepCA~=0.1
-elasticsearch~=7.8.0
-lxml~=4.5.1
-matplotlib~=3.3.0rc1
-spacy~=2.2.4
-wikitextparser~=0.37.11
+elasticsearch~=7.9.0a1
+lxml~=4.5.2
+matplotlib~=3.3.0
+pandas~=1.1.0
+Ryn~=0.1
+spacy~=3.0.0a0
+streamlit~=0.64.0
+wikitextparser~=0.42.2

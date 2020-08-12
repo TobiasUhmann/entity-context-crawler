@@ -8,9 +8,7 @@ from app.pages.show_relation_triples import render_show_relation_triples_page
 
 
 def render_index():
-    #
-    # Sidebar
-    #
+    """ Render the part that is common to all pages: The sidebar navigation """
 
     navigate_to = st.sidebar.radio('', [
         'Build ES index',
