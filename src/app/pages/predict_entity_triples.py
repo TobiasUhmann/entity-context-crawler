@@ -90,7 +90,7 @@ def render_predict_entity_triples_page():
     output = ''
     for triple, hit in zip(pred_triples, pred_triples_hits):
         head, tail, rel = triple
-        hit_marker = '+' if hit else ' '
+        hit_marker = hit
         output += '{} {:30} {:30} {}\n'.format(
             hit_marker,
             truncate(id2ent[head], 28),

@@ -23,8 +23,8 @@ class Evaluator:
             actual_triples = {(head, tail, tag) for head, tail, tag in self.ow_triples
                               if head == query_entity or tail == query_entity}
 
-            pred_triples = list(pred_triples)
-            pred_triples_hits = [(True if pred_triple in actual_triples else False) for pred_triple in pred_triples]
+            # pred_triples = list(pred_triples)
+            # pred_triples_hits = [(True if pred_triple in actual_triples else False) for pred_triple in pred_triples]
 
             #
             # Calc precision, recall, F1
@@ -34,15 +34,18 @@ class Evaluator:
             false_positives = 0
             false_negatives = 0
 
-            for pred_triple in pred_triples:
-                if pred_triple in actual_triples:
+            eval_triples = pred_triples + list(actual_triples.difference(set(pred_triples)))
+            eval_triples_hits = []
+            for eval_triple in eval_triples:
+                if eval_triple in pred_triples and eval_triple in actual_triples:
                     true_positives += 1
-                else:
+                    eval_triples_hits.append('+')
+                elif eval_triple in pred_triples and eval_triple not in actual_triples:
                     false_positives += 1
-
-            for actual_triple in actual_triples:
-                if actual_triple not in pred_triples:
+                    eval_triples_hits.append('-')
+                elif eval_triple not in pred_triples and eval_triple in actual_triples:
                     false_negatives += 1
+                    eval_triples_hits.append(' ')
 
             precision = true_positives / (true_positives + false_positives + 1e-9)
             recall = true_positives / (true_positives + false_negatives + 1e-9)
@@ -67,7 +70,7 @@ class Evaluator:
             #
             #
 
-            result_batch.append(Result(pred_triples, precision, recall, f1, ap, pred_entity, pred_triples_hits))
+            result_batch.append(Result(eval_triples, precision, recall, f1, ap, pred_entity, eval_triples_hits))
 
         aps = [result.ap for result in result_batch]
         mAP = sum(aps) / (len(aps) + 1e-10)
