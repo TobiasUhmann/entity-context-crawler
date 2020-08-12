@@ -1,6 +1,6 @@
 import sqlite3
-from collections import Counter
 
+from collections import Counter
 from elasticsearch import Elasticsearch
 from typing import List, Tuple, Dict, Set, Optional
 

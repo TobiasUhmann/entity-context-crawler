@@ -77,55 +77,32 @@ def render_predict_entity_triples_page():
     selected_entity = int(re.match(r'[\w\s]+ \((\d+)\)', selected_option).group(1))
 
     #
-    # Render main content
+    # Evaluate model
     #
 
-    some_ow_entities = [selected_entity]
-    evaluator = Evaluator(model, ow_triples, some_ow_entities)
+    evaluator = Evaluator(model, ow_triples, [selected_entity])
+    total_result = evaluator.run()
+    result = total_result.results[0]
 
-    with st.spinner('Evaluating model...'):
-        total_result = evaluator.run()
+    pred_triples = result.pred_ow_triples
+    pred_triples_hits = result.pred_ow_triples_hits
 
-    results, mAP = total_result.results, total_result.map
+    output = ''
+    for triple, hit in zip(pred_triples, pred_triples_hits):
+        head, tail, rel = triple
+        hit_marker = '+' if hit else ' '
+        output += '{} {:30} {:30} {}\n'.format(
+            hit_marker,
+            truncate(id2ent[head], 28),
+            truncate(id2ent[tail], 28),
+            id2rel[rel])
+    output += 50 * '-' + '\n'
+    output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
+    output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
+    output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
+    output += '{:20} {:.2f}'.format('Average Precision', result.ap) + '\n'
 
-    for ow_entity, result in zip(some_ow_entities, results):
-        pred_ow_triples = result.pred_ow_triples
-        precision = result.precision
-        recall = result.recall
-        f1 = result.f1
-        ap = result.ap
-
-        pred_cw_entity = result.pred_cw_entity
-        pred_ow_triples_hits = result.pred_ow_triples_hits
-
-        output = '\n'
-        output += id2ent[ow_entity] + ' -> ' + (id2ent[pred_cw_entity] if pred_cw_entity is not None else '<None>') + '\n'
-        output += 50 * '-' + '\n'
-
-        count = 0
-        for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):
-            if count == 20:
-                break
-            head, tail, rel = triple
-            hit_marker = '+' if hit else ' '
-            output += '{} {:30} {:30} {}\n'.format(
-                hit_marker,
-                truncate(id2ent[head], 28),
-                truncate(id2ent[tail], 28),
-                id2rel[rel])
-            count += 1
-        if len(pred_ow_triples) - count > 0:
-            output += '[{} more hidden]'.format(len(pred_ow_triples) - count) + '\n'
-        output += 50 * '-' + '\n'
-        output += '{:20} {:.2f}'.format('Precision', precision) + '\n'
-        output += '{:20} {:.2f}'.format('Recall', recall) + '\n'
-        output += '{:20} {:.2f}'.format('F1-Score', f1) + '\n'
-        output += '{:20} {:.2f}'.format('Average Precision', ap) + '\n'
-
-        st.markdown('```' + output + '```')
-
-    st.write()
-    st.write('mAP = ', mAP)
+    st.markdown('```' + output + '```')
 
 
 def truncate(str, max_len):
