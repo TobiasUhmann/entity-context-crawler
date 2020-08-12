@@ -30,6 +30,9 @@ def render_predict_entity_triples_page():
 
     ow_entities = dataset.ow_valid.owe
 
+    cw_ents: Set[int] = dataset.cw_train.owe
+    ow_ents: Set[int] = dataset.ow_valid.owe
+
     #
     # Render sidebar
     #
@@ -48,6 +51,15 @@ def render_predict_entity_triples_page():
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
         model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, all_triples)
 
+    prefix = st.sidebar.text_input('Entity prefix', value='Ab')
+
+    ent_names = [id2ent[ent] for ent in ow_ents]
+    filtered_ent_names = [ent for ent in ent_names if ent.startswith(prefix)]
+    filtered_ent_names.sort()
+
+    selected_entity = st.sidebar.selectbox('Entity', filtered_ent_names)
+    selected_entity = ent2id[selected_entity]
+
     #
     # Render main content
     #
@@ -60,7 +72,7 @@ def render_predict_entity_triples_page():
 
     st.title('Predict entity triples')
 
-    some_ow_entities = random.sample(ow_entities, 10)
+    some_ow_entities = [selected_entity]
     evaluator = Evaluator(model, ow_triples, some_ow_entities)
 
     with st.spinner('Evaluating model...'):
