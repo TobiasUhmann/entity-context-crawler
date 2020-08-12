@@ -1,10 +1,9 @@
 import os
+import pandas as pd
 import random
 import re
-
 import streamlit as st
 
-from collections import Counter
 from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 from typing import Set
@@ -80,29 +79,35 @@ def render_predict_entity_triples_page():
     # Evaluate model
     #
 
+    st.markdown('---')
+
     evaluator = Evaluator(model, ow_triples, [selected_entity])
     total_result = evaluator.run()
     result = total_result.results[0]
 
-    pred_triples = result.pred_ow_triples
-    pred_triples_hits = result.pred_ow_triples_hits
-
     output = ''
-    for triple, hit in zip(pred_triples, pred_triples_hits):
-        head, tail, rel = triple
-        hit_marker = hit
-        output += '{} {:30} {:30} {}\n'.format(
-            hit_marker,
-            truncate(id2ent[head], 28),
-            truncate(id2ent[tail], 28),
-            id2rel[rel])
-    output += 50 * '-' + '\n'
     output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
     output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
     output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
     output += '{:20} {:.2f}'.format('Average Precision', result.ap) + '\n'
-
     st.markdown('```' + output + '```')
+
+    pred_triples = result.pred_ow_triples
+    pred_triples_hits = result.pred_ow_triples_hits
+
+    def highlight(hit):
+        if hit == '+':
+            return 'color: white; background-color: green'
+        elif hit == '-':
+            return 'color: white; background-color: red'
+        else:
+            return 'color: black; background-color: white'
+
+    data = [(hit, id2ent[t[0]], id2ent[t[1]], id2rel[t[2]])
+            for t, hit in zip(pred_triples, pred_triples_hits)]
+    df = pd.DataFrame(data, columns=['', 'Head', 'Tail', 'Rel'])
+    df = df.style.applymap(highlight)
+    st.dataframe(df)
 
 
 def truncate(str, max_len):
