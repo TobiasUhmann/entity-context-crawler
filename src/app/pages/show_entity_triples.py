@@ -36,6 +36,7 @@ def render_show_entity_triples_page():
                   for head, tail, rel in dataset.ow_valid.triples}
 
     all_entities = cw_entities | ow_entities
+    all_triples = cw_triples | ow_triples
 
     #
     #
@@ -68,9 +69,18 @@ def render_show_entity_triples_page():
 
     selected_entity = st.sidebar.selectbox('Entity', filtered_ent_names)
 
-    selected_entity_triples = [triple for triple in ow_triples if triple[0] == selected_entity]
+    def highlight(ent_name):
+        color = "blue" if ent_name in cw_entities else "green"
+        return "color: white; background-color: %s" % color
 
+    selected_entity_triples = [triple for triple in all_triples if triple[0] == selected_entity]
     dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
+    dataFrame = dataFrame.style.applymap(highlight)
+    st.dataframe(dataFrame)
+
+    selected_entity_triples = [triple for triple in all_triples if triple[1] == selected_entity]
+    dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
+    dataFrame = dataFrame.style.applymap(highlight)
     st.dataframe(dataFrame)
 
     #
