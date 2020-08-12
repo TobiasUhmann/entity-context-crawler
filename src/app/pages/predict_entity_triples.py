@@ -32,7 +32,7 @@ def render_predict_entity_triples_page():
 
     cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
     ow_triples: Set = dataset.ow_valid.triples | dataset.ow_test.triples
-    all_triples = list(cw_triples | ow_triples)
+    all_triples = cw_triples | ow_triples
 
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
@@ -80,12 +80,6 @@ def render_predict_entity_triples_page():
     # Render main content
     #
 
-    head_counter = Counter([head for head, _, _ in all_triples])
-    tail_counter = Counter([tail for _, tail, _ in all_triples])
-    rel_counter = Counter([rel for _, _, rel in all_triples])
-
-    all_triples.sort(key=lambda t: (head_counter[t[0]] + tail_counter[t[1]]) * rel_counter[t[2]], reverse=True)
-
     some_ow_entities = [selected_entity]
     evaluator = Evaluator(model, ow_triples, some_ow_entities)
 
@@ -116,9 +110,9 @@ def render_predict_entity_triples_page():
             hit_marker = '+' if hit else ' '
             output += '{} {:30} {:30} {}\n'.format(
                 hit_marker,
-                truncate('[{}] {}'.format(head_counter[head], id2ent[head]), 28),
-                truncate('[{}] {}'.format(tail_counter[tail], id2ent[tail]), 28),
-                '[{}] {}'.format(rel_counter[rel], id2rel[rel]))
+                truncate(id2ent[head], 28),
+                truncate(id2ent[tail], 28),
+                id2rel[rel])
             count += 1
         if len(pred_ow_triples) - count > 0:
             output += '[{} more hidden]'.format(len(pred_ow_triples) - count) + '\n'

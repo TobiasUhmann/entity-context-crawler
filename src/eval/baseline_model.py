@@ -1,4 +1,5 @@
 import sqlite3
+from collections import Counter
 
 from elasticsearch import Elasticsearch
 from typing import List, Tuple, Dict, Set, Optional
@@ -13,7 +14,7 @@ class BaselineModel:
                  ow_contexts_db: str,
                  id2ent: Dict[int, str],
                  ent2id: Dict[str, int],
-                 gt_triples: List[Tuple[int, int, int]]):
+                 gt_triples: Set[Tuple[int, int, int]]):
         """
         :param es: ES index containing closed world contexts
         :param ow_contexts_db: DB containing open world contexts
@@ -26,7 +27,16 @@ class BaselineModel:
         self.query_contexts_db = ow_contexts_db
         self.id2ent = id2ent
         self.ent2id = ent2id
-        self.gt_triples = gt_triples
+        self.gt_triples = list(gt_triples)
+
+        #
+        # Rank triples by (<head importance> + <tail importance>)
+        #
+
+        head_counter = Counter([head for head, _, _ in self.gt_triples])
+        tail_counter = Counter([tail for _, tail, _ in self.gt_triples])
+
+        self.gt_triples.sort(key=lambda t: head_counter[t[0]] + tail_counter[t[1]], reverse=True)
 
     def train(self, batch: List[Tuple[int, int, int]]):
         """
