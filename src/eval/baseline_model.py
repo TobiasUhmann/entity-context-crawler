@@ -85,6 +85,7 @@ class BaselineModel:
                     es_hits = es_result['hits']['hits']
                     for es_hit in es_hits[:1]:
                         hit_entity_name = es_hit['_source']['entity']
+                        print('%s -> %s' % (query_entity_name, hit_entity_name))
                         hit_entity = self.ent2id[hit_entity_name]
 
                         hit_entity_triples = [(head, tail, rel) for head, tail, rel in self.gt_triples
