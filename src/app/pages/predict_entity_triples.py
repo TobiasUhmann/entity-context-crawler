@@ -21,7 +21,7 @@ def render_predict_entity_triples_page():
         - Random seed selection & Show PYTHONHASHSEED
         - Model selection
     - Render main content
-        - Entity prefix & Entity name selection
+        - Entity prefix input & Entity name selection
         - Evaluate model
         - Show predicted triples
     """
@@ -61,13 +61,19 @@ def render_predict_entity_triples_page():
         ent2id = {ent: id for id, ent in id2ent.items()}
         model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, all_triples)
 
-    prefix = st.sidebar.text_input('Entity prefix', value='Ab')
+    #
+    # Entity prefix input & Entity name selection
+    #
+
+    st.title('Predict entity triples')
+
+    prefix = st.text_input('Entity prefix', value='Ab')
 
     options = ['%s (%d)' % (id2ent[entity], entity) for entity in ow_entities]
     filtered_ent_names = [opt for opt in options if opt.startswith(prefix)]
     filtered_ent_names.sort()
 
-    selected_option = st.sidebar.selectbox('Entity', filtered_ent_names)
+    selected_option = st.selectbox('Entity', filtered_ent_names)
     selected_entity = int(re.match(r'[\w\s]+ \((\d+)\)', selected_option).group(1))
 
     #
@@ -80,14 +86,11 @@ def render_predict_entity_triples_page():
 
     all_triples.sort(key=lambda t: (head_counter[t[0]] + tail_counter[t[1]]) * rel_counter[t[2]], reverse=True)
 
-    st.title('Predict entity triples')
-
     some_ow_entities = [selected_entity]
     evaluator = Evaluator(model, ow_triples, some_ow_entities)
 
     with st.spinner('Evaluating model...'):
         total_result = evaluator.run()
-    st.success('Model evaluated')
 
     results, mAP = total_result.results, total_result.map
 
