@@ -43,19 +43,21 @@ def render_show_entity_triples_page():
 
     st.sidebar.markdown('---')
 
-    entity_selection = st.sidebar.selectbox('Entity set', [
-        'All entities',
-        'Closed world entities',
-        'Open world entities'
-    ])
+    options = [
+        'All entities (%d)' % len(all_ents),
+        'Closed world entities (%d)' % len(cw_ents),
+        'Open world entities (%d)' % len(ow_ents)
+    ]
+
+    entity_selection = st.sidebar.selectbox('Entity set', options)
 
     prefix = st.sidebar.text_input('Entity prefix', value='Ab')
 
-    if entity_selection == 'All entities':
+    if entity_selection == options[0]:
         selected_ents = all_ents
-    elif entity_selection == 'Closed world entities':
+    elif entity_selection == options[1]:
         selected_ents = cw_ents
-    elif entity_selection == 'Open world entities':
+    elif entity_selection == options[2]:
         selected_ents = ow_ents
     else:
         raise
@@ -70,3 +72,10 @@ def render_show_entity_triples_page():
 
     dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
     st.dataframe(dataFrame)
+
+    #
+    # Misc
+    #
+
+    st.sidebar.markdown('---')
+    st.sidebar.markdown('**Note:** Entity names are not unique')
