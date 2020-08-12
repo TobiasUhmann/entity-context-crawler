@@ -1,94 +1,12 @@
 import os
-import pandas as pd
 import random
 import streamlit as st
 
 from collections import Counter
-from ryn.graphs.split import Dataset
-from typing import Set
 
+from app.util import load_dataset
 from eval.evaluator import Evaluator
 from eval.model import Model
-
-
-def main():
-    #
-    # Sidebar
-    #
-
-    navigate_to = st.sidebar.radio('', [
-        'Build ES index',
-        'Query ES index',
-        'Evaluate model',
-        'Entity triples'
-    ])
-
-    if navigate_to == 'Build ES index':
-        render_build_es_index_page()
-    elif navigate_to == 'Query ES index':
-        render_query_es_index_page()
-    elif navigate_to == 'Evaluate model':
-        render_evaluate_model_page()
-    elif navigate_to == 'Entity triples':
-        render_entity_triples_page()
-
-
-def render_build_es_index_page():
-    st.title('Not yet implemented')
-
-
-def render_query_es_index_page():
-    st.title('Not yet implemented')
-
-
-@st.cache(allow_output_mutation=True)
-def load_dataset():
-    return Dataset.load('data/oke.fb15k237_30061990_50')
-
-
-def render_entity_triples_page():
-    #
-    # Sidebar
-    #
-
-    st.title('Entity triples')
-
-    #
-    # Load data
-    #
-
-    with st.spinner('Loading dataset...'):
-        dataset = load_dataset()
-
-    id2ent = dataset.id2ent
-    id2rel = dataset.id2rel
-
-    cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
-                  for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
-
-    ow_entities: Set[str] = {id2ent[ent] for ent in dataset.ow_valid.owe}
-    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
-                  for head, tail, rel in dataset.ow_valid.triples}
-
-    all_triples = list(cw_triples | ow_triples)
-
-    #
-    #
-    #
-
-    st.sidebar.markdown('---')
-
-    prefix = st.sidebar.text_input('Entity prefix')
-
-    filtered_entities = [entity for entity in ow_entities if entity.startswith(prefix)]
-    filtered_entities.sort()
-
-    selected_entity = st.sidebar.selectbox('Entity', filtered_entities)
-
-    selected_entity_triples = [triple for triple in ow_triples if triple[0] == selected_entity]
-
-    dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
-    st.dataframe(dataFrame)
 
 
 def render_evaluate_model_page():
@@ -193,7 +111,3 @@ def render_evaluate_model_page():
 
 def truncate(str, max_len):
     return (str[:max_len - 3] + '...') if len(str) > max_len else str
-
-
-if __name__ == '__main__':
-    main()
