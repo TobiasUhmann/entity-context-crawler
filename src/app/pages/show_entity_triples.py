@@ -23,6 +23,10 @@ def render_show_entity_triples_page():
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
 
+    cw_ents: Set[int] = dataset.cw_train.owe
+    ow_ents: Set[int] = dataset.ow_valid.owe
+    all_ents = cw_ents | ow_ents
+
     cw_entities: Set[str] = {id2ent[ent] for ent in dataset.cw_train.owe}
     cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
@@ -39,26 +43,28 @@ def render_show_entity_triples_page():
 
     st.sidebar.markdown('---')
 
-    entity_selection = st.sidebar.selectbox('', [
+    entity_selection = st.sidebar.selectbox('Entity set', [
+        'All entities',
         'Closed world entities',
-        'Open world entities',
-        'All entities'
+        'Open world entities'
     ])
 
-    prefix = st.sidebar.text_input('Entity prefix', value='Abr')
+    prefix = st.sidebar.text_input('Entity prefix', value='Ab')
 
-    if entity_selection == 'Closed world entities':
-        filtered_entities = [ent for ent in cw_entities if ent.startswith(prefix)]
+    if entity_selection == 'All entities':
+        selected_ents = all_ents
+    elif entity_selection == 'Closed world entities':
+        selected_ents = cw_ents
     elif entity_selection == 'Open world entities':
-        filtered_entities = [ent for ent in ow_entities if ent.startswith(prefix)]
-    elif entity_selection == 'All entities':
-        filtered_entities = [ent for ent in all_entities if ent.startswith(prefix)]
+        selected_ents = ow_ents
     else:
         raise
 
-    filtered_entities.sort()
+    ent_names = [id2ent[ent] for ent in selected_ents]
+    filtered_ent_names = [ent for ent in ent_names if ent.startswith(prefix)]
+    filtered_ent_names.sort()
 
-    selected_entity = st.sidebar.selectbox('Entity', filtered_entities)
+    selected_entity = st.sidebar.selectbox('Entity', filtered_ent_names)
 
     selected_entity_triples = [triple for triple in ow_triples if triple[0] == selected_entity]
 
