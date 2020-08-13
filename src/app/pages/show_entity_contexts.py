@@ -1,12 +1,14 @@
 import os
+import pandas as pd
 import random
 import re
-from typing import Set
-
-import pandas as pd
+import sqlite3
 import streamlit as st
 
+from typing import Set
+
 from app.util import load_dataset
+from dao.test_contexts import select_contexts
 
 
 def render_show_entity_contexts_page():
@@ -39,15 +41,15 @@ def render_show_entity_contexts_page():
 
     st.title('Show entity contexts')
 
-    prefix = st.text_input('Entity prefix', value='Ab')
+    prefix = st.text_input('Filter entities by prefix', value='Ab')
 
     options = ['%s (%d)' % (id2ent[ent], ent) for ent in ow_entities]
     prefixed_options = [opt for opt in options if opt.startswith(prefix)]
     prefixed_options.sort()
 
-    selected_option = st.selectbox('Entity', prefixed_options)
+    selected_option = st.selectbox('Entity (ID)', prefixed_options)
     regex = r'[\w\s]+ \((\d+)\)'  # get 42 from "John Doe (42)"
-    selected_entity = int(re.match(regex, selected_option).group(1))
+    entity = int(re.match(regex, selected_option).group(1))
 
     #
     # Show contexts
@@ -55,4 +57,19 @@ def render_show_entity_contexts_page():
 
     st.markdown('---')
 
-    
+    contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
+    with sqlite3.connect(contexts_db) as contexts_conn:
+        entity_name = id2ent[entity]
+        entity_contexts = select_contexts(contexts_conn, entity_name, random=False)
+        random.shuffle(entity_contexts)
+
+    st.write('Database contains **%d contexts** for "%s"' % (len(entity_contexts), entity_name))
+
+    df = pd.DataFrame(entity_contexts, columns=['Context'])
+
+    truncate_contexts = st.checkbox('Truncate contexts')
+
+    if truncate_contexts:
+        st.dataframe(df)
+    else:
+        st.table(df)
