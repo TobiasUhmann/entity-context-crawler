@@ -7,10 +7,6 @@ from app.util import load_dataset
 
 
 def render_show_entity_triples_page():
-    """
-    Render UI specific to "Show entity triples" page
-    """
-
     st.title('Show entity triples')
 
     #
