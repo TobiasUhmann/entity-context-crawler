@@ -40,7 +40,7 @@ def main():
     arg_parser.add_argument('--es-host', dest='es_host', default=default_es_host,
                             help='default Elasticsearch host (default: %s)' % default_es_host)
 
-    default_es_port = 9300
+    default_es_port = 9200
     arg_parser.add_argument('--es-port', dest='es_port', type=int, default=default_es_port,
                             help='default Elasticsearch port (default: %d)' % default_es_port)
 

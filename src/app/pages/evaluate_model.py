@@ -21,7 +21,7 @@ def render_evaluate_model_page():
 
     random.seed(random_seed)
 
-    es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9300')
+    es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9200')
 
     #
     # Load data

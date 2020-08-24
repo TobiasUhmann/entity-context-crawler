@@ -21,7 +21,7 @@ def main():
     arg_parser.add_argument('dataset_dir', metavar='dataset-dir',
                             help='path to directory containing data files in OpenKE format')
 
-    default_es_url = 'localhost:9300'
+    default_es_url = 'localhost:9200'
     arg_parser.add_argument('--es-url', dest='es_url', default=default_es_url,
                             help='Elasticsearch URL (default: %s)' % default_es_url)
 
