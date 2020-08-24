@@ -85,7 +85,7 @@ def render_predict_entity_triples_page():
     total_result = evaluator.run()
     result = total_result.results[0]
 
-    output = ''
+    output = '\n'
     output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
     output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
     output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
