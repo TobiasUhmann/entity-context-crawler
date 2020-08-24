@@ -36,6 +36,14 @@ def main():
     arg_parser.add_argument('ow_db', metavar='ow-db',
                             help='path to output open world DB')
 
+    default_es_host = 'localhost'
+    arg_parser.add_argument('--es-host', dest='es_host', default=default_es_host,
+                            help='default Elasticsearch host (default: %s)' % default_es_host)
+
+    default_es_port = 9300
+    arg_parser.add_argument('--es-port', dest='es_port', type=int, default=default_es_port,
+                            help='default Elasticsearch port (default: %d)' % default_es_port)
+
     default_limit_contexts = 100
     arg_parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
                             help='only process the first ... contexts for each entity'
@@ -56,6 +64,8 @@ def main():
     print('    {:20} {}'.format('CW index', args.cw_index))
     print('    {:20} {}'.format('OW DB', args.ow_db))
     print()
+    print('    {:20} {}'.format('ES host', args.es_host))
+    print('    {:20} {}'.format('ES port', args.es_port))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
     print()
@@ -72,7 +82,7 @@ def main():
         print('Dataset dir not found')
         exit()
 
-    es = Elasticsearch()
+    es = Elasticsearch(host=[args.es_host], port=args.es_port)
     if es.indices.exists(index=args.cw_index):
         if args.overwrite:
             es.indices.delete(index=args.cw_index, ignore=[400, 404])
