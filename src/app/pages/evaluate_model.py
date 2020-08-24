@@ -3,6 +3,7 @@ import random
 import streamlit as st
 
 from collections import Counter
+from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
 from eval.evaluator import Evaluator
@@ -19,6 +20,8 @@ def render_evaluate_model_page():
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
     random.seed(random_seed)
+
+    es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9300')
 
     #
     # Load data
@@ -54,7 +57,8 @@ def render_evaluate_model_page():
     # Create model
     #
 
-    model = Model(all_triples)
+    es = Elasticsearch([es_url])
+    model = Model(es, all_triples)
 
     #
     # Evaluate model

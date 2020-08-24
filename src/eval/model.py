@@ -9,7 +9,8 @@ from typing import List, Tuple
 
 
 class Model:
-    def __init__(self, triples):
+    def __init__(self, es: Elasticsearch, triples):
+        self.es = es
         self.triples = triples
 
     def train(self, batch: List[Tuple[int, int, int]]):
@@ -22,7 +23,6 @@ class Model:
         :return:
         """
 
-        es = Elasticsearch()
         with sqlite3.connect('data/enwiki-latest-ow-contexts-100-500.db') as contexts_conn:
 
             result = []
@@ -39,8 +39,8 @@ class Model:
                 mod_triples = []
                 if test_contexts:
                     concated_test_contexts = ' '.join(test_contexts)[:1024]  # max ES query length == 1024
-                    res = es.search(index="enwiki-latest-cw-contexts-100-500",
-                                    body={"query": {"match": {'context': concated_test_contexts}}})
+                    res = self.es.search(index="enwiki-latest-cw-contexts-100-500",
+                                         body={"query": {"match": {'context': concated_test_contexts}}})
 
                     hits = res['hits']['hits']
                     for hit in hits[:1]:

@@ -6,6 +6,7 @@ import random
 
 from argparse import ArgumentParser, HelpFormatter
 from collections import Counter
+from elasticsearch import Elasticsearch
 from os.path import isdir
 from ryn.graphs.split import Dataset
 
@@ -20,6 +21,10 @@ def main():
     arg_parser.add_argument('dataset_dir', metavar='dataset-dir',
                             help='path to directory containing data files in OpenKE format')
 
+    default_es_url = 'localhost:9300'
+    arg_parser.add_argument('--es-url', dest='es_url', default=default_es_url,
+                            help='Elasticsearch URL (default: %s)' % default_es_url)
+
     arg_parser.add_argument('--random-seed', dest='random_seed',
                             help='Seed for Python random. Use together with PYTHONHASHSEED.')
 
@@ -32,6 +37,7 @@ def main():
     print('Applied config:')
     print('    {:24} {}'.format('Dataset dir', args.dataset_dir))
     print()
+    print('    {:24} {}'.format('Elasticsearch URL', args.es_url))
     print('    {:24} {}'.format('Random seed', args.random_seed))
     print()
     print('    {:24} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
@@ -56,10 +62,10 @@ def main():
     # Evaluate
     #
 
-    evaluate(args.dataset_dir)
+    evaluate(args.dataset_dir, args.es_url)
 
 
-def evaluate(dataset_dir):
+def evaluate(dataset_dir, es_url):
     """For each open-world entity: Evaluate predicted triples"""
 
     #
@@ -96,7 +102,8 @@ def evaluate(dataset_dir):
     # Create model
     #
 
-    model = Model(all_triples)
+    es = Elasticsearch([es_url])
+    model = Model(es, all_triples)
 
     #
     # Evaluate model
