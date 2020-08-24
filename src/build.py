@@ -37,7 +37,7 @@ def main():
                             help='path to output open world DB')
 
     default_es_host = 'localhost'
-    arg_parser.add_argument('--es-host', dest='es_host', type=str, default=default_es_host,
+    arg_parser.add_argument('--es-host', dest='es_host', default=default_es_host,
                             help='default Elasticsearch host (default: %s)' % default_es_host)
 
     default_es_port = 9300
@@ -82,7 +82,7 @@ def main():
         print('Dataset dir not found')
         exit()
 
-    es = Elasticsearch(host=[args.es_host], port=args.es_port)
+    es = Elasticsearch(hosts=[args.es_host], port=args.es_port)
     if es.indices.exists(index=args.cw_index):
         if args.overwrite:
             es.indices.delete(index=args.cw_index, ignore=[400, 404])
