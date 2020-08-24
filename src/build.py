@@ -37,7 +37,7 @@ def main():
                             help='path to output open world DB')
 
     default_es_host = 'localhost'
-    arg_parser.add_argument('--es-host', dest='es_host', default=default_es_host,
+    arg_parser.add_argument('--es-host', dest='es_host', type=str, default=default_es_host,
                             help='default Elasticsearch host (default: %s)' % default_es_host)
 
     default_es_port = 9300
