@@ -29,7 +29,7 @@ def render_predict_entity_triples_page():
 
     ow_entities: Set[int] = dataset.ow_valid.owe
 
-    cw_triples: Set = dataset.cw_train.triples
+    cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
     ow_triples: Set = dataset.ow_valid.triples
     all_triples = cw_triples | ow_triples
 
