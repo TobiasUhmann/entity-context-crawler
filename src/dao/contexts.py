@@ -1,4 +1,4 @@
-def create_contexts_table(conn):
+def create_contexts_table(contexts_conn):
     sql = '''
         CREATE TABLE contexts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7,9 +7,23 @@ def create_contexts_table(conn):
         )
     '''
 
-    cursor = conn.cursor()
+    cursor = contexts_conn.cursor()
     cursor.execute(sql)
     cursor.close()
+
+
+def select_distinct_entities(conn):
+    sql = '''
+        SELECT DISTINCT entity
+        FROM contexts
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return [row[0] for row in rows]
 
 
 def insert_context(contexts_conn, entity, context):
@@ -23,28 +37,7 @@ def insert_context(contexts_conn, entity, context):
     cursor.close()
 
 
-def select_distinct_entities(conn, limit):
-    sql = '''
-        SELECT DISTINCT entity
-        FROM contexts
-        ORDER BY RANDOM()
-    '''
-
-    cursor = conn.cursor()
-
-    if limit:
-        sql += 'LIMIT ?'
-        cursor.execute(sql, (limit,))
-    else:
-        cursor.execute(sql)
-
-    rows = cursor.fetchall()
-    cursor.close()
-
-    return [row[0] for row in rows]
-
-
-def select_contexts(conn, entity, limit=None):
+def select_contexts(conn, entity, limit = None):
     sql = '''
         SELECT context
         FROM contexts
