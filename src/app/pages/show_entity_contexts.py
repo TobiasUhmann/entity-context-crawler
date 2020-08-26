@@ -48,8 +48,8 @@ def render_show_entity_contexts_page():
     prefixed_options.sort()
 
     selected_option = st.selectbox('Entity (ID)', prefixed_options)
-    regex = r'[\w\s]+ \((\d+)\)'  # get 42 from "John Doe (42)"
-    entity = int(re.match(regex, selected_option).group(1))
+    regex = r'^.+ \((\d+)\)$'  # any string followed by space and number in parentheses, e.g. "Foo bar (123)"
+    entity = int(re.match(regex, selected_option).group(1))  # get number, e.g. 123
 
     #
     # Show contexts

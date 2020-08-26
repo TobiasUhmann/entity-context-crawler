@@ -73,8 +73,9 @@ def render_predict_entity_triples_page():
     filtered_ent_names = [opt for opt in options if opt.startswith(prefix)]
     filtered_ent_names.sort()
 
-    selected_option = st.selectbox('Entity', filtered_ent_names)
-    selected_entity = int(re.match(r'[\w\s]+ \((\d+)\)', selected_option).group(1))
+    selected_option = st.selectbox('Entity (ID)', filtered_ent_names)
+    regex = r'^.+ \((\d+)\)$'  # any string followed by space and number in parentheses, e.g. "Foo bar (123)"
+    selected_entity = int(re.match(regex, selected_option).group(1))  # get number, e.g. 123
 
     #
     # Evaluate model
