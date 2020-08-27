@@ -5,7 +5,6 @@ import os
 import random
 
 from argparse import ArgumentParser, HelpFormatter
-from collections import Counter
 from elasticsearch import Elasticsearch
 from os.path import isdir
 from ryn.graphs.split import Dataset
@@ -25,6 +24,11 @@ def main():
     arg_parser.add_argument('--es-url', dest='es_url', default=default_es_url,
                             help='Elasticsearch URL (default: %s)' % default_es_url)
 
+    model_choices = ['baseline-10', 'baseline-100']
+    default_model = model_choices[0]
+    arg_parser.add_argument('--model', dest='model', choices=model_choices, default_model=default_model,
+                            help='one of %s (default: %s)' % (model_choices, default_model))
+
     arg_parser.add_argument('--random-seed', dest='random_seed',
                             help='Seed for Python random. Use together with PYTHONHASHSEED.')
 
@@ -38,6 +42,7 @@ def main():
     print('    {:24} {}'.format('Dataset dir', args.dataset_dir))
     print()
     print('    {:24} {}'.format('Elasticsearch URL', args.es_url))
+    print('    {:24} {}'.format('Model', args.model))
     print('    {:24} {}'.format('Random seed', args.random_seed))
     print()
     print('    {:24} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
@@ -62,10 +67,10 @@ def main():
     # Evaluate
     #
 
-    evaluate(args.dataset_dir, args.es_url)
+    evaluate(args.dataset_dir, args.es_url, args.model)
 
 
-def evaluate(dataset_dir, es_url):
+def evaluate(dataset_dir, es_url, model):
     """For each open-world entity: Evaluate predicted triples"""
 
     #
@@ -86,25 +91,25 @@ def evaluate(dataset_dir, es_url):
     ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.ow_valid.triples}
 
-    all_triples = list(cw_triples | ow_triples)
-
-    #
-    # Rank triples
-    #
-
-    head_counter = Counter([head for head, _, _ in all_triples])
-    tail_counter = Counter([tail for _, tail, _ in all_triples])
-    rel_counter = Counter([rel for _, _, rel in all_triples])
+    all_triples = cw_triples | ow_triples
 
     #
     # Sidebar: Model selection
     #
 
-    es = Elasticsearch([es_url])
-    es_index = 'enwiki-latest-cw-contexts-100-500'
-    ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
-    ent2id = {ent: id for id, ent in id2ent.items()}
-    model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, set(all_triples))
+    if model == 'baseline-10':
+        es = Elasticsearch([es_url])
+        es_index = 'enwiki-latest-cw-contexts-10-500'
+        ow_contexts_db = 'data/enwiki-latest-ow-contexts-10-500.db'
+        ent2id = {ent: id for id, ent in id2ent.items()}
+        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, all_triples)
+
+    elif model == 'baseline-100':
+        es = Elasticsearch([es_url])
+        es_index = 'enwiki-latest-cw-contexts-100-500'
+        ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
+        ent2id = {ent: id for id, ent in id2ent.items()}
+        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, all_triples)
 
     #
     # Evaluate model
@@ -136,9 +141,9 @@ def evaluate(dataset_dir, es_url):
             hit_marker = '+' if hit else ' '
             print('{} {:30} {:30} {}'.format(
                 hit_marker,
-                truncate('[{}] {}'.format(head_counter[head], head), 28),
-                truncate('[{}] {}'.format(tail_counter[tail], tail), 28),
-                '[{}] {}'.format(rel_counter[rel], rel)))
+                truncate('{}'.format(head), 28),
+                truncate('{}'.format(tail), 28),
+                '{}'.format(rel)))
             count += 1
         if len(pred_ow_triples) - count > 0:
             print('[{} more hidden]'.format(len(pred_ow_triples) - count))
