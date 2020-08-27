@@ -6,6 +6,7 @@ from collections import Counter
 from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
+from eval.baseline_model import BaselineModel
 from eval.evaluator import Evaluator
 from eval.model import Model
 
@@ -51,14 +52,19 @@ def render_evaluate_model_page():
     tail_counter = Counter([tail for _, tail, _ in all_triples])
     rel_counter = Counter([rel for _, _, rel in all_triples])
 
-    all_triples.sort(key=lambda t: (head_counter[t[0]] + tail_counter[t[1]]) * rel_counter[t[2]], reverse=True)
-
     #
-    # Create model
+    # Sidebar: Model selection
     #
 
-    es = Elasticsearch([es_url])
-    model = Model(es, all_triples)
+    model_selection = st.sidebar.selectbox('Model', ['Baseline'])
+
+    if model_selection == 'Baseline':
+        es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9200')
+        es = Elasticsearch([es_url])
+        es_index = 'enwiki-latest-cw-contexts-100-500'
+        ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
+        ent2id = {ent: id for id, ent in id2ent.items()}
+        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, set(all_triples))
 
     #
     # Evaluate model
