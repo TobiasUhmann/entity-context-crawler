@@ -27,11 +27,9 @@ def render_show_entity_triples_page():
     cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
 
-    ow_entities: Set[str] = {id2ent[ent] for ent in dataset.ow_valid.owe}
     ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.ow_valid.triples}
 
-    all_entities = cw_entities | ow_entities
     all_triples = cw_triples | ow_triples
 
     #
