@@ -51,7 +51,7 @@ def render_predict_entity_triples_page():
     # Sidebar: Model selection
     #
 
-    model_selection = st.sidebar.selectbox('Model', ['Baseline'])
+    model_selection = st.sidebar.selectbox('Model', ['Baseline 10', 'Baseline 100'])
 
     if model_selection == 'Baseline 10':
         es_url = st.sidebar.text_input('Elasticsearch URL', value='localhost:9200')
