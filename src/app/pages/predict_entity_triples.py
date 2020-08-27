@@ -54,7 +54,7 @@ def render_predict_entity_triples_page():
     model_selection = st.sidebar.selectbox('Model', ['Baseline'])
 
     if model_selection == 'Baseline':
-        es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9200')
+        es_url = st.sidebar.text_input('Elasticsearch URL', value='localhost:9200')
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-100-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
