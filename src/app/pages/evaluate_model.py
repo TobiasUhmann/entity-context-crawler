@@ -11,25 +11,7 @@ from eval.evaluator import Evaluator
 
 
 def render_evaluate_model_page():
-    st.title('Evaluate model')
-
-    st.sidebar.markdown('---')
-    st.sidebar.title('Config')
-
-    random_seed = st.sidebar.number_input('Random seed', value=0, format='%d')
-    st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
-
-    random.seed(random_seed)
-
-    es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9200')
-
-    #
-    # Load data
-    #
-
-    with st.spinner('Loading dataset...'):
-        dataset = load_dataset()
-    st.success('Dataset loaded')
+    dataset = load_dataset()
 
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
@@ -44,12 +26,15 @@ def render_evaluate_model_page():
     all_triples = list(cw_triples | ow_triples)
 
     #
-    # Rank triples
+    # Sidebar
     #
 
-    head_counter = Counter([head for head, _, _ in all_triples])
-    tail_counter = Counter([tail for _, tail, _ in all_triples])
-    rel_counter = Counter([rel for _, _, rel in all_triples])
+    st.sidebar.markdown('---')
+
+    random_seed = st.sidebar.number_input('Random seed', value=0, format='%d')
+    random.seed(random_seed)
+
+    st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
     #
     # Sidebar: Model selection
@@ -68,6 +53,8 @@ def render_evaluate_model_page():
     #
     # Evaluate model
     #
+
+    st.title('Evaluate model')
 
     some_ow_entities = random.sample(ow_entities, 10)
     evaluator = Evaluator(model, ow_triples, some_ow_entities)
