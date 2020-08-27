@@ -2,7 +2,6 @@ import os
 import random
 import streamlit as st
 
-from collections import Counter
 from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
@@ -58,52 +57,15 @@ def render_evaluate_model_page():
 
     some_ow_entities = random.sample(ow_entities, 10)
     evaluator = Evaluator(model, ow_triples, some_ow_entities)
+    total_result = evaluator.run()
+    result, mAP = total_result.results[0], total_result.map
 
-    with st.spinner('Evaluating model...'):
-        total_result = evaluator.run()
-    st.success('Model evaluated')
-
-    results, mAP = total_result.results, total_result.map
-
-    for ow_entity, result in zip(some_ow_entities, results):
-        pred_ow_triples = result.pred_ow_triples
-        precision = result.precision
-        recall = result.recall
-        f1 = result.f1
-        ap = result.ap
-
-        pred_cw_entity = result.pred_cw_entity
-        pred_ow_triples_hits = result.pred_ow_triples_hits
-
-        output = '\n'
-        output += ow_entity + ' -> ' + (pred_cw_entity if pred_cw_entity is not None else '<None>') + '\n'
-        output += 50 * '-' + '\n'
-
-        count = 0
-        for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):
-            if count == 20:
-                break
-            head, tail, rel = triple
-            hit_marker = '+' if hit else ' '
-            output += '{} {:30} {:30} {}\n'.format(
-                hit_marker,
-                truncate('[{}] {}'.format(head_counter[head], head), 28),
-                truncate('[{}] {}'.format(tail_counter[tail], tail), 28),
-                '[{}] {}'.format(rel_counter[rel], rel))
-            count += 1
-        if len(pred_ow_triples) - count > 0:
-            output += '[{} more hidden]'.format(len(pred_ow_triples) - count) + '\n'
-        output += 50 * '-' + '\n'
-        output += '{:20} {:.2f}'.format('Precision', precision) + '\n'
-        output += '{:20} {:.2f}'.format('Recall', recall) + '\n'
-        output += '{:20} {:.2f}'.format('F1-Score', f1) + '\n'
-        output += '{:20} {:.2f}'.format('Average Precision', ap) + '\n'
-
-        st.markdown('```' + output + '```')
+    output = '\n'
+    output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
+    output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
+    output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
+    output += '{:20} {:.2f}'.format('Average Precision', result.ap) + '\n'
+    st.markdown('```' + output + '```')
 
     st.write()
     st.write('mAP = ', mAP)
-
-
-def truncate(str, max_len):
-    return (str[:max_len - 3] + '...') if len(str) > max_len else str
