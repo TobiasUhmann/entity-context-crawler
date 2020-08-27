@@ -82,7 +82,7 @@ def evaluate(dataset_dir, es_url):
     cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
 
-    ow_entities = {id2ent[ent] for ent in dataset.ow_valid.owe}
+    ow_entities = dataset.ow_valid.owe
     ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
                   for head, tail, rel in dataset.ow_valid.triples}
 

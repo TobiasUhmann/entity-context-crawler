@@ -70,7 +70,7 @@ class BaselineModel:
 
                 query_entity_name = self.id2ent[query_entity]
                 query_entity_contexts = select_contexts(query_contexts_conn, query_entity_name, random=False)
-                random.shuffle(query_entity_contexts)
+                # random.shuffle(query_entity_contexts)
 
                 if not query_entity_contexts:
                     print('[WARNING] No context for query entity "%s"' % query_entity_name)

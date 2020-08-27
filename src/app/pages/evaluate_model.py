@@ -64,20 +64,19 @@ def render_evaluate_model_page():
 
     st.title('Evaluate model')
 
-    ow_entity_names = {id2ent[ent] for ent in ow_entities}
-    some_ow_entity_names = random.sample(ow_entity_names, 10)
-    ow_triple_names = {(id2ent[head], id2ent[tail], id2rel[rel])
-                       for head, tail, rel in ow_triples}
-    evaluator = Evaluator(model, ow_triple_names, some_ow_entity_names)
+    some_ow_entities = random.sample(ow_entities, 10)
+    evaluator = Evaluator(model, ow_triples, some_ow_entities)
     total_result = evaluator.run()
-    result, mAP = total_result.results[0], total_result.map
+    results, mAP = total_result.results, total_result.map
 
-    output = '\n'
-    output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
-    output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
-    output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
-    output += '{:20} {:.2f}'.format('Average Precision', result.ap) + '\n'
-    st.markdown('```' + output + '```')
+    for result, ow_entity in zip(results, some_ow_entities):
+        output = '\n'
+        output += '%s' % id2ent[ow_entity] + '\n'
+        output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
+        output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
+        output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
+        output += '{:20} {:.2f}'.format('Average Precision', result.ap) + '\n'
+        st.markdown('```' + output + '```')
 
     st.write()
     st.write('mAP = ', mAP)
