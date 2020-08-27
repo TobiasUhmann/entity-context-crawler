@@ -3,6 +3,8 @@ import random
 import streamlit as st
 
 from elasticsearch import Elasticsearch
+from ryn.graphs.split import Dataset
+from typing import Set
 
 from app.util import load_dataset
 from eval.baseline_model import BaselineModel
@@ -10,27 +12,34 @@ from eval.evaluator import Evaluator
 
 
 def render_evaluate_model_page():
-    dataset = load_dataset()
+    """
+    - Load dataset
+    - Render sidebar
+        - Random seed selection & Show PYTHONHASHSEED
+        - Model selection
+    - Render main content
+        - Evaluate model
+        - Show mAP
+    """
+
+    dataset: Dataset = load_dataset()
+
+    ow_entities = dataset.ow_valid.owe
+
+    cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
+    ow_triples: Set = dataset.ow_valid.triples
+    all_triples = cw_triples | ow_triples
 
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
 
-    cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
-                  for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
-
-    ow_entities = {id2ent[ent] for ent in dataset.ow_valid.owe}
-    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
-                  for head, tail, rel in dataset.ow_valid.triples}
-
-    all_triples = list(cw_triples | ow_triples)
-
     #
-    # Sidebar
+    # Sidebar: Random seed & PYTHONHASHSEED
     #
 
     st.sidebar.markdown('---')
 
-    random_seed = st.sidebar.number_input('Random seed', value=0, format='%d')
+    random_seed = st.sidebar.number_input('Random seed', value=0)
     random.seed(random_seed)
 
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
@@ -42,12 +51,12 @@ def render_evaluate_model_page():
     model_selection = st.sidebar.selectbox('Model', ['Baseline'])
 
     if model_selection == 'Baseline':
-        es_url = st.sidebar.text_input('Elasticsearch', value='localhost:9200')
+        es_url = st.sidebar.text_input('Elasticsearch URL', value='localhost:9200')
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-100-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
         ent2id = {ent: id for id, ent in id2ent.items()}
-        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, set(all_triples))
+        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, ent2id, all_triples)
 
     #
     # Evaluate model
@@ -55,8 +64,11 @@ def render_evaluate_model_page():
 
     st.title('Evaluate model')
 
-    some_ow_entities = random.sample(ow_entities, 10)
-    evaluator = Evaluator(model, ow_triples, some_ow_entities)
+    ow_entity_names = {id2ent[ent] for ent in ow_entities}
+    some_ow_entity_names = random.sample(ow_entity_names, 10)
+    ow_triple_names = {(id2ent[head], id2ent[tail], id2rel[rel])
+                       for head, tail, rel in ow_triples}
+    evaluator = Evaluator(model, ow_triple_names, some_ow_entity_names)
     total_result = evaluator.run()
     result, mAP = total_result.results[0], total_result.map
 
