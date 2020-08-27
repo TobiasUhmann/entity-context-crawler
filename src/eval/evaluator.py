@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import List
-
+from eval.baseline_model import BaselineModel
 from eval.classes import Result, TotalResult
-from eval.model import Model
 
 
 class Evaluator:
-    def __init__(self, model: Model, ow_triples, ow_entities):
+    def __init__(self, model: BaselineModel, ow_triples, ow_entities):
         self.model = model
         self.ow_triples = ow_triples
         self.ow_entity_batch = ow_entities
@@ -22,9 +20,6 @@ class Evaluator:
 
             actual_triples = {(head, tail, tag) for head, tail, tag in self.ow_triples
                               if head == query_entity or tail == query_entity}
-
-            # pred_triples = list(pred_triples)
-            # pred_triples_hits = [(True if pred_triple in actual_triples else False) for pred_triple in pred_triples]
 
             #
             # Calc precision, recall, F1
