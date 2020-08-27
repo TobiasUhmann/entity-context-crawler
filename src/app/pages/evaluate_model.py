@@ -8,7 +8,6 @@ from elasticsearch import Elasticsearch
 from app.util import load_dataset
 from eval.baseline_model import BaselineModel
 from eval.evaluator import Evaluator
-from eval.model import Model
 
 
 def render_evaluate_model_page():
