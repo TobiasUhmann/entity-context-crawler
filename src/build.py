@@ -157,7 +157,7 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         create_contexts_table(ow_conn)
 
         for i, entity in enumerate(ow_entities):
-            print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
+            print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
