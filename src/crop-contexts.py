@@ -102,6 +102,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
     - Load English spaCy model
     - Create contexts DB
     - For each entity in matches DB
+        - Print progress
         - Query contexts
         - Shuffle and limit contexts
         - Crop to token/sentence boundary
@@ -126,6 +127,10 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             limited_contexts = contexts[:limit_contexts]
             print(' | %d/%d contexts' % (len(limited_contexts), len(contexts)))
 
+            #
+            # Crop to token/sentence boundary
+            #
+
             cropped_contexts = []
             for context in limited_contexts:
                 doc = nlp(context)
@@ -139,6 +144,10 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
                 if cropped_context:
                     cropped_contexts.append(cropped_context)
+
+            #
+            # Mask and persist contexts
+            #
 
             masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
