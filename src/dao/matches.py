@@ -21,7 +21,6 @@ def select_contexts(conn, entity, size, limit):
                       MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(content)))
         FROM docs INNER JOIN matches ON docs.title = matches.doc
         WHERE entity = ?
-        ORDER BY RANDOM()
     '''
 
     cursor = conn.cursor()
