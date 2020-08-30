@@ -7,15 +7,17 @@ from argparse import ArgumentParser
 from datetime import datetime
 from os import remove
 from os.path import isfile
+from typing import List
 
-from dao.contexts import insert_context, create_contexts_table
-from dao.matches import select_distinct_entities, select_contexts
+from dao.contexts import create_contexts_table, insert_contexts
+from dao.matches import select_contexts, select_distinct_entities
 
 
 def main():
     """
     - Parse args
     - Print applied config
+    - Seed random generator
     - Check if files already exist
     - Crop contexts
     """
@@ -99,8 +101,8 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
     """
     - Load English spaCy model
     - Create contexts DB
-    - For each entity
-        - Query max number of contexts using matches DB
+    - For each entity in matches DB
+        - Query contexts
         - Shuffle and limit contexts
         - Crop to token/sentence boundary
         - Mask entity in cropped context
@@ -114,7 +116,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
         create_contexts_table(contexts_conn)
 
-        entities = select_distinct_entities(matches_conn)
+        entities: List[str] = select_distinct_entities(matches_conn)
 
         for i, entity in enumerate(entities):
             print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
@@ -139,8 +141,8 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
             masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
-            for masked_context in masked_contexts:
-                insert_context(contexts_conn, entity, masked_context)
+            contexts_data = [(entity, masked_context) for masked_context in masked_contexts]
+            insert_contexts(contexts_conn, contexts_data)
 
             contexts_conn.commit()
 

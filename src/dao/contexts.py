@@ -1,3 +1,6 @@
+from typing import List, Tuple
+
+
 def create_contexts_table(contexts_conn):
     sql = '''
         CREATE TABLE contexts (
@@ -37,7 +40,22 @@ def insert_context(contexts_conn, entity, context):
     cursor.close()
 
 
-def select_contexts(conn, entity, limit = None):
+def insert_contexts(contexts_conn, contexts: List[Tuple[str, str]]):
+    """
+    :param contexts: [(entity, context)]
+    """
+
+    sql = '''
+        INSERT INTO contexts (entity, context)
+        VALUES (?, ?)
+    '''
+
+    cursor = contexts_conn.cursor()
+    cursor.executemany(sql, contexts)
+    cursor.close()
+
+
+def select_contexts(conn, entity, limit=None):
     sql = '''
         SELECT context
         FROM contexts
