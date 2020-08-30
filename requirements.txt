@@ -4,6 +4,6 @@ lxml~=4.5.2
 matplotlib~=3.3.0
 pandas~=1.0.5
 Ryn~=0.1
-spacy~=3.0.0a0
+spacy~=2.3.2
 streamlit~=0.64.0
 wikitextparser~=0.42.2
