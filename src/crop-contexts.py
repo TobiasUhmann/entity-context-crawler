@@ -119,14 +119,15 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
         entities: List[str] = select_distinct_entities(matches_conn)
 
         for i, entity in enumerate(entities):
-            print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
+            print('{} | {:,} | {}'.format(datetime.now().strftime("%H:%M:%S"), i + 1, entity), end='')
 
             contexts = select_contexts(matches_conn, entity, context_size)
             random.shuffle(contexts)
-            contexts = contexts[:limit_contexts]
+            limited_contexts = contexts[:limit_contexts]
+            print(' | %d/%d contexts' % (len(limited_contexts), len(contexts)))
 
             cropped_contexts = []
-            for context in contexts:
+            for context in limited_contexts:
                 doc = nlp(context)
 
                 if crop_sentences:
