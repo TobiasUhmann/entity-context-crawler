@@ -1,6 +1,6 @@
 import os
 import random
-import re
+import spacy
 import sqlite3
 
 from argparse import ArgumentParser
@@ -62,7 +62,7 @@ def main():
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
     print()
-    print('    {:24} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
+    print('    {:20} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
     print()
 
     #
@@ -87,9 +87,22 @@ def main():
     crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts)
 
 
-def crop_contexts(matches_db, contexts_db, context_size, crop_sentences, limit_contexts):
+def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, limit_contexts: int):
+    """
+    - Load English spaCy model
+    - Create contexts DB
+    - For each entity
+        - Query max number of contexts using matches DB
+        - Shuffle contexts
+        - Crop to token/sentence boundary
+        - Mask entity in cropped context
+        - Persist masked contexts
+    """
+
     with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
+
+        nlp = spacy.load('en_core_web_sm')
 
         create_contexts_table(contexts_conn)
 
@@ -103,13 +116,17 @@ def crop_contexts(matches_db, contexts_db, context_size, crop_sentences, limit_c
 
             cropped_contexts = []
             for context in contexts:
-                regex = r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s' if crop_sentences else r'\s'
-                match = re.search(regex, context)
-                if match:
-                    start = match.end()
-                    end = context.rfind(re.findall(regex, context)[-1])
-                    if start < end:
-                        cropped_contexts.append(context[start:end])
+                doc = nlp(context)
+
+                if crop_sentences:
+                    sents = [sent.string.strip() for sent in doc.sents][1:-1]
+                    cropped_context = '\n'.join(sents)
+                else:
+                    tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
+                    cropped_context = ' '.join(tokens)
+
+                if cropped_context:
+                    cropped_contexts.append(cropped_context)
 
             masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
 
@@ -118,10 +135,6 @@ def crop_contexts(matches_db, contexts_db, context_size, crop_sentences, limit_c
 
             contexts_conn.commit()
 
-
-#
-#
-#
 
 if __name__ == '__main__':
     main()
