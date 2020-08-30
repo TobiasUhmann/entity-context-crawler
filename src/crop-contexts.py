@@ -2,6 +2,7 @@ import argparse
 import re
 import sqlite3
 
+from argparse import ArgumentParser
 from datetime import datetime
 from os import remove
 from os.path import isfile
@@ -11,34 +12,35 @@ from dao.matches import select_distinct_entities, select_contexts
 
 
 def main():
-    #
-    # Parse args
-    #
+    """
+    - Parse args
+    - Print applied config
+    - Check if files already exist
+    - Crop contexts
+    """
 
-    parser = argparse.ArgumentParser(
-        description='Crop and store context for each entity match',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
+    parser = ArgumentParser(description='Crop and store context for entity matches')
 
-    parser.add_argument('matches_db', metavar='matches-db', type=str,
+    parser.add_argument('matches_db', metavar='matches-db',
                         help='path to input matches DB')
 
-    parser.add_argument('contexts_db', metavar='contexts-db', type=str,
+    parser.add_argument('contexts_db', metavar='contexts-db',
                         help='path to output contexts DB')
 
     default_context_size = 100
     parser.add_argument('--context-size', dest='context_size', type=int, default=default_context_size,
                         help='consider ... chars on each side of the entity mention'
-                             ' (default: {})'.format(default_context_size))
+                             ' (default: %d)' % default_context_size)
 
     parser.add_argument('--crop-sentences', dest='crop_sentences', action='store_true',
-                        help='crop contexts at their sentence boundaries (instead of token boundaries)')
+                        help='crop contexts at sentence boundaries (instead of token boundaries),'
+                             'sentences will be separated by new line')
 
     default_limit_contexts = 100
     parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
-                        help='only process the first ... contexts for each entity'
-                             ' (default: {})'.format(default_limit_contexts))
+                        help='max number of contexts per entity (default: %d)' % default_limit_contexts)
 
-    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+    parser.add_argument('--overwrite', action='store_true',
                         help='overwrite contexts DB if it already exists')
 
     args = parser.parse_args()
