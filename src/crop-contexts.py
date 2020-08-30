@@ -19,7 +19,7 @@ def main():
     - Print applied config
     - Seed random generator
     - Check if files already exist
-    - Crop contexts
+    - Run actual program
     """
 
     arg_parser = ArgumentParser(description='Crop and store context for entity matches')
@@ -91,7 +91,7 @@ def main():
             exit()
 
     #
-    # Crop contexts
+    # Run actual program
     #
 
     crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts)
