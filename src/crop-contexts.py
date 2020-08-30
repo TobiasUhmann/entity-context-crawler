@@ -61,9 +61,17 @@ def main():
     print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print('    {:20} {}'.format('Random seed', args.random_seed))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
     print()
+
+    #
+    # Seed random generator
+    #
+
+    if args.random_seed:
+        random.seed(args.random_seed)
 
     #
     # Check if files already exist
