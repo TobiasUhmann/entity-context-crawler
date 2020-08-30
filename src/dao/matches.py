@@ -12,7 +12,7 @@ def select_distinct_entities(conn):
     return [row[0] for row in rows]
 
 
-def select_contexts(conn, entity, size, limit):
+def select_contexts(conn, entity, size):
     sql = '''
         -- SELECT context = [max <size> chars] + [entity] + [max <size> chars]
 
@@ -24,13 +24,7 @@ def select_contexts(conn, entity, size, limit):
     '''
 
     cursor = conn.cursor()
-
-    if limit:
-        sql += 'LIMIT ?'
-        cursor.execute(sql, (size, size, size, entity, limit))
-    else:
-        cursor.execute(sql, (size, size, size, entity))
-
+    cursor.execute(sql, (size, size, size, entity))
     rows = cursor.fetchall()
     cursor.close()
 

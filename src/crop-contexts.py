@@ -89,7 +89,7 @@ def main():
             exit()
 
     #
-    # Run program
+    # Crop contexts
     #
 
     crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts)
@@ -101,7 +101,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
     - Create contexts DB
     - For each entity
         - Query max number of contexts using matches DB
-        - Shuffle contexts
+        - Shuffle and limit contexts
         - Crop to token/sentence boundary
         - Mask entity in cropped context
         - Persist masked contexts
@@ -119,8 +119,9 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
         for i, entity in enumerate(entities):
             print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
-            contexts = select_contexts(matches_conn, entity, context_size, limit_contexts)
+            contexts = select_contexts(matches_conn, entity, context_size)
             random.shuffle(contexts)
+            contexts = contexts[:limit_contexts]
 
             cropped_contexts = []
             for context in contexts:
