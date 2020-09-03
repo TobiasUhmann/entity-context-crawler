@@ -5,6 +5,7 @@ from collections import defaultdict, Counter
 from elasticsearch import Elasticsearch
 from os.path import isfile
 from ryn.app.splits import load_dataset
+from typing import List
 
 from dao.contexts import select_contexts, select_distinct_entities
 
@@ -83,7 +84,7 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
     with sqlite3.connect(test_contexts_db) as test_contexts_conn:
         stats = defaultdict(Counter)
 
-        entities = select_distinct_entities(test_contexts_conn)[:limit_entities]
+        entities: List[int] = select_distinct_entities(test_contexts_conn)[:limit_entities]
         dataset = load_dataset()
         id2ent = dataset.id2ent
 

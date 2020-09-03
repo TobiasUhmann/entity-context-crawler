@@ -5,6 +5,8 @@ import sqlite3
 
 from argparse import ArgumentParser, HelpFormatter
 from datetime import datetime
+from typing import List, Set
+
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile, isdir
@@ -120,11 +122,11 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         print('Read dataset...', end='')
 
         dataset = Dataset.load(dataset_dir)
-        cw_entities = {dataset.id2ent[ent] for ent in dataset.cw_train.owe}
-        ow_entities = {dataset.id2ent[ent] for ent in dataset.ow_valid.owe}
 
-        both = cw_entities.intersection(ow_entities)
-        ow_entities = ow_entities.difference(both)
+        id2ent = dataset.id2ent
+
+        cw_entities: Set[int] = dataset.cw_train.owe
+        ow_entities: Set[int] = dataset.ow_valid.owe
 
         print(' done')
 
@@ -136,11 +138,13 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         print('Build closed world ES index...')
 
         for i, entity in enumerate(cw_entities):
-            print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
+            entity_label: str = id2ent[entity]
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)  # TODO
+            print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
-            es_doc = {'entity': entity, 'context': '\n'.join(masked_contexts)}
+            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+
+            es_doc = {'entity': entity_label, 'context': '\n'.join(masked_contexts)}
             es.index(index=cw_index, body=es_doc)
 
         es.indices.refresh(index=cw_index)
@@ -157,12 +161,14 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         create_contexts_table(ow_conn)
 
         for i, entity in enumerate(ow_entities):
-            print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
+            entity_label: str = id2ent[entity]
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)  # TODO
+            print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
+
+            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
             for masked_context in masked_contexts:
-                insert_context(ow_conn, entity, masked_context)  # TODO
+                insert_context(ow_conn, entity, masked_context, entity_label)
 
         ow_conn.commit()
 

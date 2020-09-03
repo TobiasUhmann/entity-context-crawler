@@ -64,7 +64,6 @@ def select_contexts(conn: Connection, entity: int, limit: int = None) -> List[st
         SELECT context
         FROM contexts
         WHERE entity = ?
-        ORDER BY RANDOM()
     '''
 
     cursor = conn.cursor()

@@ -6,6 +6,7 @@ from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile
 from ryn.app.splits import load_dataset
+from typing import List
 
 from dao.contexts import create_contexts_table, insert_context, select_contexts, select_distinct_entities
 
@@ -95,7 +96,7 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
 
         create_contexts_table(test_contexts_conn)
 
-        entities = select_distinct_entities(contexts_conn)
+        entities: List[int] = select_distinct_entities(contexts_conn)
 
         dataset = load_dataset()
         id2ent = dataset.id2ent
