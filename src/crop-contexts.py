@@ -10,6 +10,7 @@ from os.path import isfile
 from typing import List, Tuple
 
 from dao.contexts import create_contexts_table, insert_contexts
+from dao.mid2ent import load_mid2ent
 from dao.matches import select_contexts, select_mids_with_labels
 
 
@@ -114,8 +115,8 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             sqlite3.connect(contexts_db) as contexts_conn:
 
         nlp = spacy.load('en_core_web_sm')
-
         create_contexts_table(contexts_conn)
+        mid2ent = load_mid2ent(r'data\entity2id.txt')
 
         mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn)
 
@@ -152,7 +153,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
             masked_contexts = [context.replace(entity_label, '[MASK]') for context in cropped_contexts]
 
-            contexts_data = [(mid, masked_context, entity_label) for masked_context in masked_contexts]
+            contexts_data = [(mid2ent[mid], masked_context, entity_label) for masked_context in masked_contexts]
             insert_contexts(contexts_conn, contexts_data)
 
             contexts_conn.commit()
