@@ -7,10 +7,10 @@ from argparse import ArgumentParser
 from datetime import datetime
 from os import remove
 from os.path import isfile
-from typing import List
+from typing import List, Tuple
 
 from dao.contexts import create_contexts_table, insert_contexts
-from dao.matches import select_contexts, select_distinct_entities
+from dao.matches import select_contexts, select_mids_with_labels
 
 
 def main():
@@ -117,12 +117,13 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
         create_contexts_table(contexts_conn)
 
-        entities: List[str] = select_distinct_entities(matches_conn)
+        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn)
 
-        for i, entity in enumerate(entities):
-            print('{} | {:,} | {}'.format(datetime.now().strftime("%H:%M:%S"), i + 1, entity), end='')
+        for i, mid_with_label, in enumerate(mids_with_labels):
+            mid, entity_label = mid_with_label
+            print('{} | {:,} | {}'.format(datetime.now().strftime("%H:%M:%S"), i + 1, entity_label), end='')
 
-            contexts = select_contexts(matches_conn, entity, context_size)
+            contexts = select_contexts(matches_conn, mid, context_size)
             random.shuffle(contexts)
             limited_contexts = contexts[:limit_contexts]
             print(' | %d/%d contexts' % (len(limited_contexts), len(contexts)))
@@ -149,9 +150,9 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             # Mask and persist contexts
             #
 
-            masked_contexts = [context.replace(entity, '') for context in cropped_contexts]
+            masked_contexts = [context.replace(entity_label, '[MASK]') for context in cropped_contexts]
 
-            contexts_data = [(entity, masked_context) for masked_context in masked_contexts]
+            contexts_data = [(mid, masked_context, entity_label) for masked_context in masked_contexts]
             insert_contexts(contexts_conn, contexts_data)
 
             contexts_conn.commit()
