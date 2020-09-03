@@ -151,7 +151,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             # Mask and persist contexts
             #
 
-            masked_contexts = [context.replace(entity_label, '[MASK]') for context in cropped_contexts]
+            masked_contexts = [context.replace(entity_label, '') for context in cropped_contexts]
 
             contexts_data = [(mid2ent[mid], masked_context, entity_label) for masked_context in masked_contexts]
             insert_contexts(contexts_conn, contexts_data)
