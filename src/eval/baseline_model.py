@@ -1,11 +1,10 @@
-import random
 import sqlite3
 
 from collections import Counter
 from elasticsearch import Elasticsearch
 from typing import List, Tuple, Dict, Set, Optional
 
-from dao.test_contexts import select_contexts
+from dao.contexts import select_contexts
 
 
 class BaselineModel:
@@ -69,7 +68,7 @@ class BaselineModel:
             for count, query_entity, in enumerate(query_entity_batch):
 
                 query_entity_name = self.id2ent[query_entity]
-                query_entity_contexts = select_contexts(query_contexts_conn, query_entity_name, random=False)
+                query_entity_contexts = select_contexts(query_contexts_conn, query_entity)
                 # random.shuffle(query_entity_contexts)
 
                 if not query_entity_contexts:

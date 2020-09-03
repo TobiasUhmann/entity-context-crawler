@@ -5,9 +5,9 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile
+from ryn.app.splits import load_dataset
 
-from dao.contexts import select_distinct_entities, select_contexts
-from dao.test_contexts import create_contexts_table, insert_context
+from dao.contexts import create_contexts_table, insert_context, select_contexts, select_distinct_entities
 
 
 def main():
@@ -95,30 +95,35 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
 
         create_contexts_table(test_contexts_conn)
 
-        entities = select_distinct_entities(contexts_conn)  # TODO
+        entities = select_distinct_entities(contexts_conn)
+
+        dataset = load_dataset()
+        id2ent = dataset.id2ent
 
         for i, entity in enumerate(entities):
-            print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
+            entity_label = id2ent[entity]
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts) # TODO
+            print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
+
+            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
             train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
 
             if verbose:
                 print()
-                print(' {:5}  {:20}'.format('TRAIN', entity))
+                print(' {:5}  {:20}'.format('TRAIN', entity_label))
                 print(100 * '-')
                 for train_context in train_contexts:
                     print(repr(train_context[:100]))
                 print()
 
-            es_doc = {'entity': entity, 'context': '\n'.join(train_contexts)}
+            es_doc = {'entity': entity_label, 'context': '\n'.join(train_contexts)}
             es.index(index=index_name, body=es_doc)
             es.indices.refresh(index=index_name)
 
             test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
             for i, test_context in enumerate(test_contexts):
-                insert_context(test_contexts_conn, entity, test_context)
+                insert_context(test_contexts_conn, entity, test_context, entity_label)
 
             test_contexts_conn.commit()
 

@@ -116,9 +116,9 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
         nlp = spacy.load('en_core_web_sm')
         create_contexts_table(contexts_conn)
-        mid2ent = load_mid2ent(r'data\entity2id.txt')
 
         mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn)
+        mid2ent = load_mid2ent(r'data/entity2id.txt')
 
         for i, mid_with_label, in enumerate(mids_with_labels):
             mid, entity_label = mid_with_label
