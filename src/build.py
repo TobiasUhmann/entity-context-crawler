@@ -138,7 +138,7 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         for i, entity in enumerate(cw_entities):
             print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)  # TODO
 
             es_doc = {'entity': entity, 'context': '\n'.join(masked_contexts)}
             es.index(index=cw_index, body=es_doc)
@@ -159,10 +159,10 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         for i, entity in enumerate(ow_entities):
             print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)  # TODO
 
             for masked_context in masked_contexts:
-                insert_context(ow_conn, entity, masked_context)
+                insert_context(ow_conn, entity, masked_context)  # TODO
 
         ow_conn.commit()
 

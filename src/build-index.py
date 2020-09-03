@@ -95,12 +95,12 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
 
         create_contexts_table(test_contexts_conn)
 
-        entities = select_distinct_entities(contexts_conn)
+        entities = select_distinct_entities(contexts_conn)  # TODO
 
         for i, entity in enumerate(entities):
             print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity))
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts) # TODO
 
             train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
 
