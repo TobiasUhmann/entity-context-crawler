@@ -133,9 +133,10 @@ def evaluate(dataset_dir, es_url, model):
         print(id2ent[ow_entity] + ' -> ' + pred_cw_entity_label)
         print(50 * '-')
         count = 0
+        for triple, hit_marker in zip(pred_ow_triples, pred_ow_triples_hits):
             if count == 20:
                 break
-        for triple, hit_marker in zip(pred_ow_triples, pred_ow_triples_hits):
+                
             head, tail, rel = triple
             print('{} {:30} {:30} {}'.format(
                 hit_marker,
