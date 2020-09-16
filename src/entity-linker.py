@@ -161,7 +161,7 @@ class EntityLinker:
                 for i, test_context in enumerate(test_contexts):
                     insert_context(contexts_conn, entity, test_context)
 
-                es_doc = {'entity': entity, 'context': ' '.join(train_contexts)}
+                es_doc = {'context': ' '.join(train_contexts), 'entity_label': entity}
                 es.index(index="sentence-sampler-index", id=id, body=es_doc)
                 es.indices.refresh(index="sentence-sampler-index")
 
