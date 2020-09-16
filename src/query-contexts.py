@@ -4,8 +4,10 @@ import sqlite3
 from collections import defaultdict, Counter
 from elasticsearch import Elasticsearch
 from os.path import isfile
+from ryn.app.splits import load_dataset
+from typing import List
 
-from dao.test_contexts import select_distinct_entities, select_contexts
+from dao.contexts import select_contexts, select_distinct_entities
 
 
 def main():
@@ -82,15 +84,18 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
     with sqlite3.connect(test_contexts_db) as test_contexts_conn:
         stats = defaultdict(Counter)
 
-        entities = select_distinct_entities(test_contexts_conn, limit_entities)
+        entities: List[int] = select_distinct_entities(test_contexts_conn)[:limit_entities]
+        dataset = load_dataset()
+        id2ent = dataset.id2ent
 
         for entity in entities:
+            entity_label = id2ent[entity]
             test_contexts = select_contexts(test_contexts_conn, entity, limit_contexts)
             for test_context in test_contexts:
 
                 if verbose:
                     print()
-                    print(' {:5}  {:24}  {}'.format('QUERY', entity, repr(test_context[:100])))
+                    print(' {:5}  {:24}  {}'.format('QUERY', entity_label, repr(test_context[:100])))
                     print(100 * '-')
 
                 res = es.search(index=index_name, body={'query': {'match': {'context': test_context}}})
@@ -114,7 +119,7 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
             top_stat = stat.most_common(4)
             top_stat_count = sum(stat.values())
 
-            print('{:3} / {:3} {:30} #   '.format(stat[entity], top_stat_count, entity), end='')
+            print('{:3} / {:3} {:30} #   '.format(stat[entity], top_stat_count, id2ent[entity]), end='')
             for t in top_stat:
                 print('{:3} {:30}'.format(t[1], t[0]), end='')
             print()

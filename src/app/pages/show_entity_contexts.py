@@ -8,7 +8,7 @@ import streamlit as st
 from typing import Set
 
 from app.util import load_dataset
-from dao.test_contexts import select_contexts
+from dao.contexts import select_contexts
 
 
 def render_show_entity_contexts_page():
@@ -60,7 +60,7 @@ def render_show_entity_contexts_page():
     contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
     with sqlite3.connect(contexts_db) as contexts_conn:
         entity_name = id2ent[entity]
-        entity_contexts = select_contexts(contexts_conn, entity_name, random=False)
+        entity_contexts = select_contexts(contexts_conn, entity)
         random.shuffle(entity_contexts)
 
     st.write('Database contains **%d contexts** for "%s"' % (len(entity_contexts), entity_name))
