@@ -26,7 +26,7 @@ def main():
 
     model_choices = ['baseline-10', 'baseline-100']
     default_model = model_choices[0]
-    arg_parser.add_argument('--model', dest='model', choices=model_choices, default_model=default_model,
+    arg_parser.add_argument('--model', dest='model', choices=model_choices, default=default_model,
                             help='one of %s (default: %s)' % (model_choices, default_model))
 
     arg_parser.add_argument('--random-seed', dest='random_seed',
@@ -84,12 +84,10 @@ def evaluate(dataset_dir, es_url, model):
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
 
-    cw_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
-                  for head, tail, rel in dataset.cw_train.triples | dataset.cw_valid.triples}
+    cw_triples = dataset.cw_train.triples | dataset.cw_valid.triples
 
     ow_entities = dataset.ow_valid.owe
-    ow_triples = {(id2ent[head], id2ent[tail], id2rel[rel])
-                  for head, tail, rel in dataset.ow_valid.triples}
+    ow_triples = dataset.ow_valid.triples
 
     all_triples = cw_triples | ow_triples
 
@@ -128,22 +126,22 @@ def evaluate(dataset_dir, es_url, model):
         ap = result.ap
 
         pred_cw_entity = result.pred_cw_entity
+        pred_cw_entity_label = id2ent[pred_cw_entity] if pred_cw_entity != '' else '<None>'
         pred_ow_triples_hits = result.pred_ow_triples_hits
 
         print()
-        print(ow_entity + ' -> ' + (pred_cw_entity if pred_cw_entity is not None else '<None>'))
+        print(id2ent[ow_entity] + ' -> ' + pred_cw_entity_label)
         print(50 * '-')
         count = 0
-        for triple, hit in zip(pred_ow_triples, pred_ow_triples_hits):
             if count == 20:
                 break
+        for triple, hit_marker in zip(pred_ow_triples, pred_ow_triples_hits):
             head, tail, rel = triple
-            hit_marker = '+' if hit else ' '
             print('{} {:30} {:30} {}'.format(
                 hit_marker,
-                truncate('{}'.format(head), 28),
-                truncate('{}'.format(tail), 28),
-                '{}'.format(rel)))
+                truncate('{}'.format(id2ent[head]), 28),
+                truncate('{}'.format(id2ent[tail]), 28),
+                '{}'.format(id2rel[rel])))
             count += 1
         if len(pred_ow_triples) - count > 0:
             print('[{} more hidden]'.format(len(pred_ow_triples) - count))
