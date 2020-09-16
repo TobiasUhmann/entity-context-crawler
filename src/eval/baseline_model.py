@@ -13,7 +13,6 @@ class BaselineModel:
                  es_index: str,
                  ow_contexts_db: str,
                  id2ent: Dict[int, str],
-                 ent2id: Dict[str, int],
                  gt_triples: Set[Tuple[int, int, int]]):
         """
         :param es: ES index containing closed world contexts
@@ -26,7 +25,6 @@ class BaselineModel:
         self.es_index = es_index
         self.query_contexts_db = ow_contexts_db
         self.id2ent = id2ent
-        self.ent2id = ent2id
         self.gt_triples = list(gt_triples)
 
         #
@@ -83,9 +81,9 @@ class BaselineModel:
 
                     es_hits = es_result['hits']['hits']
                     for es_hit in es_hits[:1]:
-                        hit_entity_name = es_hit['_source']['entity']
-                        print('%s -> %s' % (query_entity_name, hit_entity_name))
-                        hit_entity = self.ent2id[hit_entity_name]
+                        hit_entity = es_hit['_source']['entity']
+
+                        print('%s -> %s' % (query_entity_name, self.id2ent[hit_entity]))
 
                         hit_entity_triples = [(head, tail, rel) for head, tail, rel in self.gt_triples
                                               if head == hit_entity or tail == hit_entity]
