@@ -74,7 +74,7 @@ class BaselineModel:
                 if not query_entity_contexts:
                     print('[WARNING] No context for query entity "%s"' % query_entity_name)
                     hit_entity_batch.append(None)
-                    pred_triples.append(None)
+                    pred_triples_batch.append(None)
 
                 else:
                     concated_query_entity_contexts = ' '.join(query_entity_contexts)[:1024]
