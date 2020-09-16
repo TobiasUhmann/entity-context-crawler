@@ -44,6 +44,9 @@ def main():
     arg_parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
                             help='max number of contexts per entity (default: %d)' % default_limit_contexts)
 
+    arg_parser.add_argument('--limit-entities', dest='limit_entities', type=int, default=None,
+                            help='for debugging: process only first ... entities (default: None)')
+
     arg_parser.add_argument('--overwrite', action='store_true',
                             help='overwrite contexts DB if it already exists')
 
@@ -63,6 +66,7 @@ def main():
     print('    {:20} {}'.format('Context size', args.context_size))
     print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
+    print('    {:20} {}'.format('Limit entities', args.limit_entities))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
     print('    {:20} {}'.format('Random seed', args.random_seed))
     print()
@@ -95,10 +99,12 @@ def main():
     # Run actual program
     #
 
-    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts)
+    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts,
+                  args.limit_entities)
 
 
-def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, limit_contexts: int):
+def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, limit_contexts: int,
+                  limit_entities: int):
     """
     - Load English spaCy model
     - Create contexts DB
@@ -117,7 +123,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
         nlp = spacy.load('en_core_web_sm')
         create_contexts_table(contexts_conn)
 
-        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn)
+        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
         mid2ent = load_mid2ent(r'data/entity2id.txt')
 
         for i, mid_with_label, in enumerate(mids_with_labels):

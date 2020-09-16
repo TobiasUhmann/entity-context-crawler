@@ -2,7 +2,7 @@ from sqlite3 import Connection
 from typing import List, Tuple
 
 
-def select_mids_with_labels(conn: Connection) -> List[Tuple[str, str]]:
+def select_mids_with_labels(conn: Connection, limit: None) -> List[Tuple[str, str]]:
     """
     Select distinct MIDs with their associated labels
 
@@ -15,7 +15,13 @@ def select_mids_with_labels(conn: Connection) -> List[Tuple[str, str]]:
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql)
+
+    if limit:
+        sql += ' LIMIT ?'
+        cursor.execute(sql, (limit,))
+    else:
+        cursor.execute(sql)
+
     rows = cursor.fetchall()
     cursor.close()
 
