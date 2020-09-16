@@ -182,7 +182,7 @@ class EntityLinker:
                 hits = res['hits']['hits']
                 for hit in hits:
                     score = hit['_score']
-                    hit_entity = hit['_source']['entity']
+                    hit_entity = hit['_source']['entity_label']
                     concat = repr(hit['_source']['context'][:100])
                     print(' {:5.1f}  {:24}  {}'.format(score, hit_entity, concat))
                     stats[entity][hit_entity] += 1

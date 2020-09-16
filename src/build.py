@@ -144,7 +144,7 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
-            es_doc = {'entity': entity_label, 'context': '\n'.join(masked_contexts)}
+            es_doc = {'entity': entity, 'context': '\n'.join(masked_contexts), 'entity_label': entity_label}
             es.index(index=cw_index, body=es_doc)
 
         es.indices.refresh(index=cw_index)

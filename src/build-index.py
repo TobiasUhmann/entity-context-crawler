@@ -118,7 +118,7 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
                     print(repr(train_context[:100]))
                 print()
 
-            es_doc = {'entity': entity_label, 'context': '\n'.join(train_contexts)}
+            es_doc = {'entity': entity, 'context': '\n'.join(train_contexts), 'entity_label': entity_label}
             es.index(index=index_name, body=es_doc)
             es.indices.refresh(index=index_name)
 
