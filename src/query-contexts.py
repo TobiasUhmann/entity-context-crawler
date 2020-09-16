@@ -105,7 +105,7 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
                 hits = res['hits']['hits']
                 for hit in hits[:top_hits]:
                     score = hit['_score']
-                    hit_entity = hit['_source']['entity']
+                    hit_entity = hit['_source']['entity_label']
                     concat = repr(hit['_source']['context'][:100])
                     stats[entity][hit_entity] += 1
 
