@@ -4,28 +4,26 @@ from collections import Counter
 from elasticsearch import Elasticsearch
 from typing import List, Tuple, Dict, Set, Optional
 
+from ryn.graphs.split import Dataset
+
 from dao.contexts import select_contexts
 
 
 class BaselineModel:
-    def __init__(self,
-                 es: Elasticsearch,
-                 es_index: str,
-                 ow_contexts_db: str,
-                 id2ent: Dict[int, str],
-                 gt_triples: Set[Tuple[int, int, int]]):
+    def __init__(self, dataset: Dataset, es: Elasticsearch, es_index: str, ow_contexts_db: str):
         """
         :param es: ES index containing closed world contexts
         :param ow_contexts_db: DB containing open world contexts
-        :param id2ent: {entity ID -> entity name} mapping
-        :param gt_triples: List of ground truth (head, tail, rel) triples
         """
 
         self.es = es
         self.es_index = es_index
         self.query_contexts_db = ow_contexts_db
-        self.id2ent = id2ent
-        self.gt_triples = list(gt_triples)
+        self.id2ent = dataset.id2ent
+
+        cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
+        ow_triples: Set = dataset.ow_valid.triples
+        self.gt_triples = list(cw_triples | ow_triples)
 
         #
         # Rank triples by (<head importance> + <tail importance>)

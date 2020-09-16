@@ -84,12 +84,8 @@ def evaluate(dataset_dir, es_url, model):
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
 
-    cw_triples = dataset.cw_train.triples | dataset.cw_valid.triples
-
     ow_entities = dataset.ow_valid.owe
     ow_triples = dataset.ow_valid.triples
-
-    all_triples = cw_triples | ow_triples
 
     #
     # Sidebar: Model selection
@@ -99,15 +95,13 @@ def evaluate(dataset_dir, es_url, model):
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-10-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-10-500.db'
-        ent2id = {ent: id for id, ent in id2ent.items()}
-        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, all_triples)
+        model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
     elif model == 'baseline-100':
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-100-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
-        ent2id = {ent: id for id, ent in id2ent.items()}
-        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, all_triples)
+        model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
     #
     # Evaluate model

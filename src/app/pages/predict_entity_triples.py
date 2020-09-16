@@ -27,14 +27,11 @@ def render_predict_entity_triples_page():
 
     dataset: Dataset = load_dataset()
 
-    ow_entities: Set[int] = dataset.ow_valid.owe
-
-    cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
-    ow_triples: Set = dataset.ow_valid.triples
-    all_triples = cw_triples | ow_triples
-
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
+
+    ow_entities: Set[int] = dataset.ow_valid.owe
+    ow_triples: Set = dataset.ow_valid.triples
 
     #
     # Sidebar: Random seed & PYTHONHASHSEED
@@ -58,16 +55,14 @@ def render_predict_entity_triples_page():
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-10-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-10-500.db'
-        ent2id = {ent: id for id, ent in id2ent.items()}
-        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, all_triples)
+        model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
     elif model_selection == 'Baseline 100':
         es_url = st.sidebar.text_input('Elasticsearch URL', value='localhost:9200')
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-100-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
-        ent2id = {ent: id for id, ent in id2ent.items()}
-        model = BaselineModel(es, es_index, ow_contexts_db, id2ent, all_triples)
+        model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
     #
     # Entity prefix input & Entity name selection
