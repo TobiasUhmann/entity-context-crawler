@@ -1,18 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import sqlite3
 
 from argparse import ArgumentParser, HelpFormatter
 from datetime import datetime
-from typing import List, Set
-
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile, isdir
 from ryn.graphs.split import Dataset
+from typing import Set
 
-from dao.contexts import create_contexts_table, select_contexts, insert_context
+from dao.contexts import create_contexts_table, insert_context, select_contexts
 
 
 def main():
