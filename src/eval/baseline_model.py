@@ -69,6 +69,8 @@ class BaselineModel:
 
                 query_entity_name = self.id2ent[query_entity]
                 query_entity_contexts = select_contexts(query_contexts_conn, query_entity)
+                query_entity_contexts = [context.replace('[MASK]', '') for context in query_entity_contexts]
+
                 # random.shuffle(query_entity_contexts)
 
                 if not query_entity_contexts:

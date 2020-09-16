@@ -107,6 +107,7 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
             print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            masked_contexts = [masked_context.replace('[MASK]', '') for masked_context in masked_contexts]
 
             train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
 
