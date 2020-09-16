@@ -12,7 +12,7 @@ class Result:
 
     # for debugging
     pred_cw_entity: str
-    pred_ow_triples_hits: List[bool]
+    pred_ow_triples_hits: List[str]
 
 @dataclass
 class TotalResult:
