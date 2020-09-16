@@ -21,6 +21,18 @@ class Evaluator:
             actual_triples = {(head, tail, tag) for head, tail, tag in self.ow_triples
                               if head == query_entity or tail == query_entity}
 
+            if pred_entity is None:
+                result = Result(list(actual_triples),
+                                precision=0,
+                                recall=0,
+                                f1=0,
+                                ap=0,
+                                pred_cw_entity='',
+                                pred_ow_triples_hits=[' '] * len(actual_triples))
+
+                result_batch.append(result)
+                continue
+
             #
             # Calc precision, recall, F1
             #
