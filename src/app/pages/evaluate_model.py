@@ -9,6 +9,7 @@ from typing import Set
 from app.util import load_dataset
 from eval.baseline_model import BaselineModel
 from eval.evaluator import Evaluator
+from types import Entity, Triple
 
 
 def render_evaluate_model_page():
@@ -26,8 +27,8 @@ def render_evaluate_model_page():
 
     id2ent = dataset.id2ent
 
-    ow_entities = dataset.ow_valid.owe
-    ow_triples: Set = dataset.ow_valid.triples
+    ow_entities: Set[Entity] = dataset.ow_valid.owe
+    ow_triples: Set[Triple] = dataset.ow_valid.triples
 
     #
     # Sidebar: Random seed & PYTHONHASHSEED

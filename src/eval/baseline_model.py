@@ -7,6 +7,7 @@ from typing import List, Tuple, Set, Optional
 
 from dao.contexts import select_contexts
 from eval.model import Model
+from types import Entity, Triple
 
 
 class BaselineModel(Model):
@@ -34,11 +35,11 @@ class BaselineModel(Model):
 
         self.gt_triples.sort(key=lambda t: head_counter[t[0]] + tail_counter[t[1]], reverse=True)
 
-    def train(self):
+    def train(self, query_entity_batch: List[Entity]):
         pass
 
     def predict(self, query_entity_batch: List[int]) \
-            -> Tuple[List[Optional[Tuple[int, int, int]]], List[Optional[int]]]:
+            -> Tuple[List[Optional[Triple]], List[Optional[Entity]]]:
         """
         Prediction for an entity:
         - Query ES index for most similar closed world entity

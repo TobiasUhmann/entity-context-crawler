@@ -1,16 +1,18 @@
 from typing import List, Optional, Tuple
 
+from types import Entity, Triple
+
 
 class Model:
-    def train(self, batch: List[Tuple[int, int, int]]):
+    def train(self, batch: List[Triple]):
         """
         :param batch: List of (head, tail, rel) triples
         """
 
         raise NotImplementedError()
 
-    def predict(self, query_entity_batch: List[int]) \
-            -> Tuple[List[Optional[Tuple[int, int, int]]], List[Optional[int]]]:
+    def predict(self, query_entity_batch: List[Entity]) \
+            -> Tuple[List[Optional[Triple]], List[Optional[Entity]]]:
         """
         Predict triples for a batch of open world entities.
 
