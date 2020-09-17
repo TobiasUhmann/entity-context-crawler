@@ -2,14 +2,14 @@ import sqlite3
 
 from collections import Counter
 from elasticsearch import Elasticsearch
-from typing import List, Tuple, Dict, Set, Optional
-
 from ryn.graphs.split import Dataset
+from typing import List, Tuple, Set, Optional
 
 from dao.contexts import select_contexts
+from eval.model import Model
 
 
-class BaselineModel:
+class BaselineModel(Model):
     def __init__(self, dataset: Dataset, es: Elasticsearch, es_index: str, ow_contexts_db: str):
         """
         :param es: ES index containing closed world contexts
@@ -34,18 +34,12 @@ class BaselineModel:
 
         self.gt_triples.sort(key=lambda t: head_counter[t[0]] + tail_counter[t[1]], reverse=True)
 
-    def train(self, batch: List[Tuple[int, int, int]]):
-        """
-        :param batch: List of (head, tail, rel) triples
-        """
-
+    def train(self):
         pass
 
     def predict(self, query_entity_batch: List[int]) \
             -> Tuple[List[Optional[Tuple[int, int, int]]], List[Optional[int]]]:
         """
-        Predict triples for a batch of open world entities.
-
         Prediction for an entity:
         - Query ES index for most similar closed world entity
         - Get closed world entity's triples and replace closed world entity with open world query entity
