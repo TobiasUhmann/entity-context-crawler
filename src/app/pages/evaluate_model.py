@@ -1,9 +1,9 @@
 import os
+import pandas as pd
 import random
 import streamlit as st
 
 from elasticsearch import Elasticsearch
-from ryn.graphs.split import Dataset
 from typing import Set
 
 from app.util import load_dataset
@@ -75,14 +75,9 @@ def render_evaluate_model_page():
     total_result = evaluator.run()
     results, mAP = total_result.results, total_result.map
 
-    for result, ow_entity in zip(results, some_ow_entities):
-        output = '\n'
-        output += '%s' % id2ent[ow_entity] + '\n'
-        output += '{:20} {:.2f}'.format('Precision', result.precision) + '\n'
-        output += '{:20} {:.2f}'.format('Recall', result.recall) + '\n'
-        output += '{:20} {:.2f}'.format('F1-Score', result.f1) + '\n'
-        output += '{:20} {:.2f}'.format('Average Precision', result.ap) + '\n'
-        st.markdown('```' + output + '```')
+    st.write('mAP = {:.2f}'.format(mAP))
 
-    st.write()
-    st.write('mAP = ', mAP)
+    data = [(id2ent[ow_entity], result.precision, result.recall, result.f1, result.ap)
+            for ow_entity, result in zip(some_ow_entities, results)]
+    data_frame = pd.DataFrame(data, columns=['Entity', 'Precision', 'Recall', 'F1', 'AP'])
+    st.dataframe(data_frame)
