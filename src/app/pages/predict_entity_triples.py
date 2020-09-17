@@ -25,7 +25,7 @@ def render_predict_entity_triples_page():
         - Show predicted triples
     """
 
-    dataset: Dataset = load_dataset()
+    dataset = load_dataset()
 
     id2ent = dataset.id2ent
     id2rel = dataset.id2rel
