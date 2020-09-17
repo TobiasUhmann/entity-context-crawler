@@ -61,6 +61,9 @@ def render_evaluate_model_page():
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
         model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
+    else:
+        raise AssertionError()
+
     #
     # Evaluate model
     #
