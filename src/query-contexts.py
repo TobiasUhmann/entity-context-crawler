@@ -91,6 +91,8 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
         for entity in entities:
             entity_label = id2ent[entity]
             test_contexts = select_contexts(test_contexts_conn, entity, limit_contexts)
+            test_contexts = [context.replace('[MASK]', '') for context in test_contexts]
+
             for test_context in test_contexts:
 
                 if verbose:

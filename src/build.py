@@ -1,18 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import sqlite3
 
 from argparse import ArgumentParser, HelpFormatter
 from datetime import datetime
-from typing import List, Set
-
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile, isdir
 from ryn.graphs.split import Dataset
+from typing import Set
 
-from dao.contexts import create_contexts_table, select_contexts, insert_context
+from dao.contexts import create_contexts_table, insert_context, select_contexts
 
 
 def main():
@@ -143,6 +139,7 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
             print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            masked_contexts = [masked_context.replace('[MASK]', '') for masked_context in masked_contexts]
 
             es_doc = {'entity': entity,
                       'context': '\n'.join(masked_contexts),
