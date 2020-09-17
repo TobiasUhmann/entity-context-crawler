@@ -7,7 +7,7 @@ from typing import List, Tuple, Set, Optional
 
 from dao.contexts import select_contexts
 from eval.model import Model
-from types import Entity, Triple
+from custom_types import Entity, Triple
 
 
 class BaselineModel(Model):

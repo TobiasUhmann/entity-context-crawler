@@ -9,7 +9,7 @@ from typing import Set
 from app.util import load_dataset
 from eval.baseline_model import BaselineModel
 from eval.evaluator import Evaluator
-from types import Entity, Triple
+from custom_types import Entity, Triple
 
 
 def render_evaluate_model_page():
@@ -23,7 +23,7 @@ def render_evaluate_model_page():
         - Show mAP
     """
 
-    dataset: Dataset = load_dataset()
+    dataset = load_dataset()
 
     id2ent = dataset.id2ent
 
