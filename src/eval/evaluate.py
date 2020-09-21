@@ -86,6 +86,7 @@ def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection
     - Load dataset
     - Build model
     - Evaluate model
+    - Print results
     """
 
     print('Read dataset...', end='')
@@ -128,6 +129,10 @@ def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection
 
     total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
 
+    #
+    # Print results
+    #
+
     results, mean_ap = total_result.results, total_result.map
 
     print()
@@ -139,7 +144,7 @@ def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection
         print('{:24} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(label, prec, recall, f1, ap))
 
     print()
-    print('mAP = {:>.4f}'.format(mean_ap))
+    print('mAP = {:.4f}'.format(mean_ap))
 
 
 def truncate(text: str, max_len: int):
