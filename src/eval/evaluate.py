@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import os
 import random
 
@@ -14,23 +11,30 @@ from eval.evaluator import Evaluator
 
 
 def main():
-    arg_parser = ArgumentParser(description='Evaluate relations prediction',
-                                formatter_class=lambda prog: HelpFormatter(prog, max_help_position=60, width=120))
+    """
+    - Parse args
+    - Print applied config
+    - Seed random generator
+    - Check if files already exist
+    - Run actual program
+    """
+
+    arg_parser = ArgumentParser(description='Evaluate model')
 
     arg_parser.add_argument('dataset_dir', metavar='dataset-dir',
-                            help='path to directory containing data files in OpenKE format')
+                            help='path to directory containing OpenKE data')
 
     default_es_url = 'localhost:9200'
-    arg_parser.add_argument('--es-url', dest='es_url', default=default_es_url,
-                            help='Elasticsearch URL (default: %s)' % default_es_url)
+    arg_parser.add_argument('--es-url', dest='es_url', metavar='STR', default=default_es_url,
+                            help='Elasticsearch URL (default: {})'.format(default_es_url))
 
     model_choices = ['baseline-10', 'baseline-100']
-    default_model = model_choices[0]
-    arg_parser.add_argument('--model', dest='model', choices=model_choices, default=default_model,
-                            help='one of %s (default: %s)' % (model_choices, default_model))
+    default_model = model_choices[1]
+    arg_parser.add_argument('--model', dest='model', metavar='STR', choices=model_choices, default=default_model,
+                            help='one of {} (default: {})'.format(model_choices, default_model))
 
-    arg_parser.add_argument('--random-seed', dest='random_seed',
-                            help='Seed for Python random. Use together with PYTHONHASHSEED.')
+    arg_parser.add_argument('--random-seed', dest='random_seed', metavar='STR',
+                            help='seed for Python random, use together with PYTHONHASHSEED')
 
     args = arg_parser.parse_args()
 
@@ -49,7 +53,14 @@ def main():
     print()
 
     #
-    # Check for input/output files
+    # Seed random generator
+    #
+
+    if args.random_seed:
+        random.seed(args.random_seed)
+
+    #
+    # Check if files already exist
     #
 
     if not isdir(args.dataset_dir):
@@ -57,14 +68,7 @@ def main():
         exit()
 
     #
-    # Optionally, init random generator
-    #
-
-    if args.random_seed:
-        random.seed(args.random_seed)
-
-    #
-    # Evaluate
+    # Run actual program
     #
 
     evaluate(args.dataset_dir, args.es_url, args.model)
