@@ -1,6 +1,8 @@
 import sqlite3
 
 from collections import Counter
+from datetime import datetime
+
 from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 from typing import List, Tuple, Set, Optional
@@ -65,7 +67,7 @@ class BaselineModel(Model):
                 # random.shuffle(query_entity_contexts)
 
                 if not query_entity_contexts:
-                    print('[WARNING] No context for query entity "%s"' % query_entity_name)
+                    log('{} | {} -> <NONE>'.format(count, query_entity_name))
                     hit_entity_batch.append(None)
                     pred_triples_batch.append(None)
 
@@ -78,7 +80,7 @@ class BaselineModel(Model):
                     for es_hit in es_hits[:1]:
                         hit_entity = es_hit['_source']['entity']
 
-                        print('%s -> %s' % (query_entity_name, self.id2ent[hit_entity]))
+                        log('{} | {} -> {}'.format(count, query_entity_name, self.id2ent[hit_entity]))
 
                         hit_entity_triples = [(head, tail, rel) for head, tail, rel in self.gt_triples
                                               if head == hit_entity or tail == hit_entity]
@@ -92,3 +94,7 @@ class BaselineModel(Model):
                         pred_triples_batch.append(pred_triples)
 
         return pred_triples_batch, hit_entity_batch
+
+
+def log(msg: str):
+    print('{} | {}'.format(datetime.now().strftime("%H:%M:%S"), msg))
