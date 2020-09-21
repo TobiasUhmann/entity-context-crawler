@@ -1,7 +1,7 @@
 import os
 import random
 
-from argparse import ArgumentParser, HelpFormatter
+from argparse import ArgumentParser
 from elasticsearch import Elasticsearch
 from os.path import isdir
 from ryn.graphs.split import Dataset
@@ -28,6 +28,12 @@ def main():
     arg_parser.add_argument('--es-url', dest='es_url', metavar='STR', default=default_es_url,
                             help='Elasticsearch URL (default: {})'.format(default_es_url))
 
+    default_limit_entities = None
+    arg_parser.add_argument('--limit-entities', dest='limit_entities', metavar='INT', type=int,
+                            default=default_limit_entities,
+                            help='for debugging: process only first ... entities (default: {})'.format(
+                                default_limit_entities))
+
     model_choices = ['baseline-10', 'baseline-100']
     default_model = model_choices[1]
     arg_parser.add_argument('--model', dest='model', metavar='STR', choices=model_choices, default=default_model,
@@ -46,6 +52,7 @@ def main():
     print('    {:24} {}'.format('Dataset dir', args.dataset_dir))
     print()
     print('    {:24} {}'.format('Elasticsearch URL', args.es_url))
+    print('    {:24} {}'.format('Limit entities', args.limit_entities))
     print('    {:24} {}'.format('Model', args.model))
     print('    {:24} {}'.format('Random seed', args.random_seed))
     print()
@@ -71,15 +78,15 @@ def main():
     # Run actual program
     #
 
-    evaluate(args.dataset_dir, args.es_url, args.model)
+    evaluate(args.dataset_dir, args.limit_entities, args.es_url, args.model)
 
 
-def evaluate(dataset_dir, es_url, model):
-    """For each open-world entity: Evaluate predicted triples"""
-
-    #
-    # Load data
-    #
+def evaluate(dataset_dir, limit_entities, es_url, model):
+    """
+    - Load dataset
+    - Build model
+    - Evaluate model
+    """
 
     print('Read dataset...', end='')
     dataset = Dataset.load(dataset_dir)
@@ -92,7 +99,7 @@ def evaluate(dataset_dir, es_url, model):
     ow_triples = dataset.ow_valid.triples
 
     #
-    # Sidebar: Model selection
+    # Build model
     #
 
     if model == 'baseline-10':
@@ -107,16 +114,24 @@ def evaluate(dataset_dir, es_url, model):
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
         model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
+    else:
+        raise AssertionError()
+
     #
     # Evaluate model
     #
 
-    some_ow_entities = random.sample(ow_entities, 10)
-    total_result = Evaluator(model, ow_triples, some_ow_entities).run()
+    if limit_entities:
+        shuffled_ow_entities = random.sample(ow_entities, limit_entities)
+    else:
+        shuffled_ow_entities = list(ow_entities)
+        random.shuffle(shuffled_ow_entities)
+
+    total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
 
     results, mAP = total_result.results, total_result.map
 
-    for ow_entity, result in zip(some_ow_entities, results):
+    for ow_entity, result in zip(shuffled_ow_entities, results):
         pred_ow_triples = result.pred_ow_triples
         precision = result.precision
         recall = result.recall
@@ -134,7 +149,7 @@ def evaluate(dataset_dir, es_url, model):
         for triple, hit_marker in zip(pred_ow_triples, pred_ow_triples_hits):
             if count == 20:
                 break
-                
+
             head, tail, rel = triple
             print('{} {:30} {:30} {}'.format(
                 hit_marker,
