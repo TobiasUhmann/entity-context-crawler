@@ -131,42 +131,16 @@ def evaluate(dataset_dir, limit_entities, es_url, model):
 
     results, mAP = total_result.results, total_result.map
 
+    print()
+    print('{:24} {:>8} {:>8} {:>8} {:>8}'.format('ENTITY', 'PREC', 'RECALL', 'F1', 'AP'))
+    print('-' * (24 + 4 * 9))
     for ow_entity, result in zip(shuffled_ow_entities, results):
-        pred_ow_triples = result.pred_ow_triples
-        precision = result.precision
-        recall = result.recall
-        f1 = result.f1
-        ap = result.ap
-
-        pred_cw_entity = result.pred_cw_entity
-        pred_cw_entity_label = id2ent[pred_cw_entity] if pred_cw_entity != '' else '<None>'
-        pred_ow_triples_hits = result.pred_ow_triples_hits
-
-        print()
-        print(id2ent[ow_entity] + ' -> ' + pred_cw_entity_label)
-        print(50 * '-')
-        count = 0
-        for triple, hit_marker in zip(pred_ow_triples, pred_ow_triples_hits):
-            if count == 20:
-                break
-
-            head, tail, rel = triple
-            print('{} {:30} {:30} {}'.format(
-                hit_marker,
-                truncate('{}'.format(id2ent[head]), 28),
-                truncate('{}'.format(id2ent[tail]), 28),
-                '{}'.format(id2rel[rel])))
-            count += 1
-        if len(pred_ow_triples) - count > 0:
-            print('[{} more hidden]'.format(len(pred_ow_triples) - count))
-        print(50 * '-')
-        print('{:20} {:.2f}'.format('Precision', precision))
-        print('{:20} {:.2f}'.format('Recall', recall))
-        print('{:20} {:.2f}'.format('F1-Score', f1))
-        print('{:20} {:.2f}'.format('Average Precision', ap))
+        label = truncate(id2ent[ow_entity], 24)
+        prec, recall, f1, ap = result.precision, result.recall, result.f1, result.ap
+        print('{:24} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(label, prec, recall, f1, ap))
 
     print()
-    print('mAP = ', mAP)
+    print('mAP = {:>.4f}'.format(mAP))
 
 
 def truncate(str, max_len):
