@@ -12,7 +12,7 @@ class Model:
         raise NotImplementedError()
 
     def predict(self, query_entity_batch: List[Entity]) \
-            -> Tuple[List[Optional[Triple]], List[Optional[Entity]]]:
+            -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
         """
         Predict triples for a batch of open world entities.
 

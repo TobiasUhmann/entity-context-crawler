@@ -38,8 +38,8 @@ class BaselineModel(Model):
     def train(self, query_entity_batch: List[Entity]):
         pass
 
-    def predict(self, query_entity_batch: List[int]) \
-            -> Tuple[List[Optional[Triple]], List[Optional[Entity]]]:
+    def predict(self, query_entity_batch: List[Entity]) \
+            -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
         """
         Prediction for an entity:
         - Query ES index for most similar closed world entity
