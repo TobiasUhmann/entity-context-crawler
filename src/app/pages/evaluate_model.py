@@ -20,7 +20,7 @@ def render_evaluate_model_page():
         - Model selection
     - Render main content
         - Evaluate model
-        - Show mAP
+        - Show results
     """
 
     dataset = load_dataset()
@@ -31,7 +31,7 @@ def render_evaluate_model_page():
     ow_triples: Set[Triple] = dataset.ow_valid.triples
 
     #
-    # Sidebar: Random seed & PYTHONHASHSEED
+    # Render sidebar - Random seed selection & Show PYTHONHASHSEED
     #
 
     st.sidebar.markdown('---')
@@ -42,7 +42,7 @@ def render_evaluate_model_page():
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
     #
-    # Sidebar: Model selection
+    # Render sidebar - Model selection
     #
 
     model_selection = st.sidebar.selectbox('Model', ['Baseline 10', 'Baseline 100'])

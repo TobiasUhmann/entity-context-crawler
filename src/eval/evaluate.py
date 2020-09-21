@@ -81,7 +81,7 @@ def main():
     evaluate(args.dataset_dir, args.limit_entities, args.es_url, args.model)
 
 
-def evaluate(dataset_dir, limit_entities, es_url, model):
+def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection: str):
     """
     - Load dataset
     - Build model
@@ -93,7 +93,6 @@ def evaluate(dataset_dir, limit_entities, es_url, model):
     print(' done')
 
     id2ent = dataset.id2ent
-    id2rel = dataset.id2rel
 
     ow_entities = dataset.ow_valid.owe
     ow_triples = dataset.ow_valid.triples
@@ -102,13 +101,13 @@ def evaluate(dataset_dir, limit_entities, es_url, model):
     # Build model
     #
 
-    if model == 'baseline-10':
+    if model_selection == 'baseline-10':
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-10-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-10-500.db'
         model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
-    elif model == 'baseline-100':
+    elif model_selection == 'baseline-100':
         es = Elasticsearch([es_url])
         es_index = 'enwiki-latest-cw-contexts-100-500'
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
@@ -129,7 +128,7 @@ def evaluate(dataset_dir, limit_entities, es_url, model):
 
     total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
 
-    results, mAP = total_result.results, total_result.map
+    results, mean_ap = total_result.results, total_result.map
 
     print()
     print('{:24} {:>8} {:>8} {:>8} {:>8}'.format('ENTITY', 'PREC', 'RECALL', 'F1', 'AP'))
@@ -140,11 +139,11 @@ def evaluate(dataset_dir, limit_entities, es_url, model):
         print('{:24} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(label, prec, recall, f1, ap))
 
     print()
-    print('mAP = {:>.4f}'.format(mAP))
+    print('mAP = {:>.4f}'.format(mean_ap))
 
 
-def truncate(str, max_len):
-    return (str[:max_len - 3] + '...') if len(str) > max_len else str
+def truncate(text: str, max_len: int):
+    return (text[:max_len - 3] + '...') if len(text) > max_len else text
 
 
 if __name__ == '__main__':
