@@ -2,7 +2,6 @@ import sqlite3
 
 from collections import Counter
 from datetime import datetime
-
 from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 from typing import List, Tuple, Set, Optional
