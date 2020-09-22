@@ -120,7 +120,7 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
     with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
 
-        nlp = spacy.load('en_core_web_sm')
+        nlp = spacy.load('en_core_web_lg')
         create_contexts_table(contexts_conn)
 
         mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
