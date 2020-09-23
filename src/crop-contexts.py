@@ -138,9 +138,11 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
         print(' done')
 
         create_contexts_table(contexts_conn)
-
-        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
         mid2ent = load_mid2ent(r'data/entity2id.txt')
+
+        print('Select MIDs...', end='')
+        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
+        print(' done')
 
         for i, mid_with_label, in enumerate(mids_with_labels):
             mid, entity_label = mid_with_label
