@@ -12,6 +12,7 @@ from typing import List, Tuple
 from dao.contexts import create_contexts_table, insert_contexts
 from dao.mid2ent import load_mid2ent
 from dao.matches import select_contexts, select_mids_with_labels
+from util import log
 
 
 def main():
@@ -109,12 +110,12 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
     - Load English spaCy model
     - Create contexts DB
     - For each entity in matches DB
-        - Print progress
         - Query contexts
         - Shuffle and limit contexts
         - Crop to token/sentence boundary
         - Mask entity in cropped context
         - Persist masked contexts
+        - Log progress
     """
 
     with sqlite3.connect(matches_db) as matches_conn, \
@@ -128,12 +129,10 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
         for i, mid_with_label, in enumerate(mids_with_labels):
             mid, entity_label = mid_with_label
-            print('{} | {:,} | {}'.format(datetime.now().strftime("%H:%M:%S"), i + 1, entity_label), end='')
 
             contexts = select_contexts(matches_conn, mid, context_size)
             random.shuffle(contexts)
             limited_contexts = contexts[:limit_contexts]
-            print(' | %d/%d contexts' % (len(limited_contexts), len(contexts)))
 
             #
             # Crop to token/sentence boundary
@@ -163,6 +162,12 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             insert_contexts(contexts_conn, contexts_data)
 
             contexts_conn.commit()
+
+            #
+            # Log progress
+            #
+
+            log('{:,} | {} | {:,}/{:,} contexts'.format(i, entity_label, len(limited_contexts), len(contexts)))
 
 
 if __name__ == '__main__':
