@@ -2,7 +2,7 @@ from sqlite3 import Connection
 from typing import List, Tuple
 
 
-def select_mids_with_labels(conn: Connection, limit: None) -> List[Tuple[str, str]]:
+def select_mids_with_labels(conn: Connection, limit: int = None) -> List[Tuple[str, str]]:
     """
     Select distinct MIDs with their associated labels
 

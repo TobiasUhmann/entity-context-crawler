@@ -1,10 +1,10 @@
+import csv
 import os
 import random
 import spacy
 import sqlite3
 
 from argparse import ArgumentParser
-from datetime import datetime
 from os import remove
 from os.path import isfile
 from typing import List, Tuple
@@ -41,6 +41,10 @@ def main():
                             help='crop contexts at sentence boundaries (instead of token boundaries),'
                                  'sentences will be separated by new line')
 
+    default_csv_file = None
+    arg_parser.add_argument('--csv-file', dest='csv_file', default=default_csv_file,
+                            help='log context stats to CSV file (default: {})'.format(default_csv_file))
+
     default_limit_contexts = 100
     arg_parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
                             help='max number of contexts per entity (default: %d)' % default_limit_contexts)
@@ -66,6 +70,7 @@ def main():
     print()
     print('    {:20} {}'.format('Context size', args.context_size))
     print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
+    print('    {:20} {}'.format('CSV file', args.csv_file))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Limit entities', args.limit_entities))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
@@ -96,16 +101,23 @@ def main():
             print('Contexts DB already exists. Use --overwrite to overwrite it')
             exit()
 
+    if isfile(args.csv_file):
+        if args.overwrite:
+            remove(args.csv_file)
+        else:
+            print('CSV file already exists. Use --overwrite to overwrite it')
+            exit()
+
     #
     # Run actual program
     #
 
-    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts,
-                  args.limit_entities)
+    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.csv_file,
+                  args.limit_contexts, args.limit_entities)
 
 
-def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, limit_contexts: int,
-                  limit_entities: int):
+def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, csv_file: str,
+                  limit_contexts: int, limit_entities: int):
     """
     - Load English spaCy model
     - Create contexts DB
@@ -168,6 +180,10 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             #
 
             log('{:,} | {} | {:,}/{:,} contexts'.format(i, entity_label, len(limited_contexts), len(contexts)))
+
+            if csv_file:
+                with open(csv_file, 'a', newline='') as csv_fh:
+                    csv.writer(csv_fh).writerow([entity_label, len(contexts)])
 
 
 if __name__ == '__main__':
