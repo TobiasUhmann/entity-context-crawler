@@ -6,9 +6,9 @@ def render_model_overview_page():
     st.title('Model Overview')
 
     data = [
-        ('Baseline 10', 0.0325,
+        ('Baseline 10', '7.80%',
          'Searches for most similar entity (in terms of TF-IDF) and assumes that the similar entity\'s triples also apply to the query entity. An entity is characterized by 10 text contexts with 500 characters each.'),
-        ('Baseline 100', 0.0697,
+        ('Baseline 100', '8.16%',
          'Searches for most similar entity (in terms of TF-IDF) and assumes that the similar entity\'s triples also apply to the query entity. An entity is characterized by 100 text contexts with 500 characters each.')
     ]
 
