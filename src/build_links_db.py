@@ -11,12 +11,13 @@ from wikipedia import Wikipedia
 
 def add_parser_args(parser: ArgumentParser):
     """
-    wiki-xml
-    links-db
-    --commit-frequency
-    --in-memory
-    --limit-pages
-    --overwrite
+    Add arguments to arg parser:
+        wiki-xml
+        links-db
+        --commit-frequency
+        --in-memory
+        --limit-pages
+        --overwrite
     """
 
     parser.add_argument('wiki_xml', metavar='wiki-xml',
@@ -35,8 +36,7 @@ def add_parser_args(parser: ArgumentParser):
                         help='Build complete links DB in memory before persisting it')
 
     default_limit_pages = None
-    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT',
-                        default=default_limit_pages,
+    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_pages,
                         help='Early stop after ... pages (default: {})'.format(default_limit_pages))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
