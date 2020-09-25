@@ -1,6 +1,6 @@
-import argparse
 import sqlite3
 
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from elasticsearch import Elasticsearch
 from os import remove
@@ -11,44 +11,47 @@ from typing import List
 from dao.contexts import create_contexts_table, insert_context, select_contexts, select_distinct_entities
 
 
-def main():
-    #
-    # Parse args
-    #
+def add_parser_args(parser: ArgumentParser):
+    """
+    Add arguments to arg parser:
+        contexts-db
+        es-url
+        test-contexts-db
+        --limit-contexts
+        --overwrite
+        --verbose
+    """
 
-    parser = argparse.ArgumentParser(
-        description='Crop and store context for each entity match',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
+    parser.add_argument('contexts_db', metavar='contexts-db',
+                        help='Path to input contexts DB')
 
-    parser.add_argument('contexts_db', metavar='contexts-db', type=str,
-                        help='path to input contexts DB')
+    parser.add_argument('es_url', metavar='es-url',
+                        help='URL of output Elasticsearch index')
 
-    parser.add_argument('index_name', metavar='index-name', type=str,
-                        help='name of output Elasticsearch index')
+    parser.add_argument('test_contexts_db', metavar='test-contexts-db',
+                        help='Path to output test contexts DB')
 
-    parser.add_argument('test_contexts_db', metavar='test-contexts-db', type=str,
-                        help='path to output test contexts DB')
-
-    default_limit_contexts = 100
-    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
-                        help='only process the first ... contexts for each entity'
+    default_limit_contexts = None
+    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
+                        default=default_limit_contexts,
+                        help='Process only the first ... contexts for each entity'
                              ' (default: {})'.format(default_limit_contexts))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite Elasticsearch index and test contexts DB if it already exists')
+                        help='Overwrite Elasticsearch index and contexts DB if they already exist')
 
     parser.add_argument('--verbose', dest='verbose', action='store_true',
-                        help='print training contexts for each entity')
+                        help='Print training contexts for each entity')
 
-    args = parser.parse_args()
 
+def run(args: Namespace):
     #
     # Print applied config
     #
 
     print('Applied config:')
     print('    {:20} {}'.format('Contexts DB', args.contexts_db))
-    print('    {:20} {}'.format('Index name', args.index_name))
+    print('    {:20} {}'.format('Elasticsearch URL', args.es_url))
     print('    {:20} {}'.format('Test contexts DB', args.test_contexts_db))
     print()
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
@@ -64,8 +67,8 @@ def main():
         print('Contexts DB not found')
         exit()
 
-    es = Elasticsearch()
-    if es.indices.exists(index=args.index_name):
+    es = Elasticsearch([args.es_url])
+    if es.indices.exists():
         if args.overwrite:
             es.indices.delete(index=args.index_name, ignore=[400, 404])
         else:
@@ -131,11 +134,3 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
                 insert_context(test_contexts_conn, entity, test_context, entity_label)
 
             test_contexts_conn.commit()
-
-
-#
-#
-#
-
-if __name__ == '__main__':
-    main()

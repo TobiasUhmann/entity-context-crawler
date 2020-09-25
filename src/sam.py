@@ -3,6 +3,7 @@ import random
 from argparse import ArgumentParser, HelpFormatter
 
 import build_contexts_db
+import build_es_test
 import build_links_db
 import build_matches_db
 
@@ -61,6 +62,18 @@ def main():
 
     build_contexts_db.add_parser_args(build_contexts_db_parser)
     build_contexts_db_parser.set_defaults(func=build_contexts_db.run)
+
+    #
+    # Add build-es-test sub command
+    #
+
+    build_es_test_parser = sub_parsers.add_parser(
+        'build-es-test',
+        formatter_class=get_formatter,
+        description='Crop and store context for each entity match')
+
+    build_es_test.add_parser_args(build_es_test_parser)
+    build_es_test_parser.set_defaults(func=build_es_test.run)
 
     #
     # Seed random generator and run specified sub command
