@@ -6,6 +6,7 @@ import build_contexts_db
 import build_es_test
 import build_links_db
 import build_matches_db
+import eval_es_test
 
 
 def main():
@@ -74,6 +75,18 @@ def main():
 
     build_es_test.add_parser_args(build_es_test_parser)
     build_es_test_parser.set_defaults(func=build_es_test.run)
+
+    #
+    # Add eval-es-test sub command
+    #
+
+    eval_es_test_parser = sub_parsers.add_parser(
+        'eval-es-test',
+        formatter_class=get_formatter,
+        description='Determine how closely linked contexts of different entities are')
+
+    eval_es_test.add_parser_args(eval_es_test_parser)
+    eval_es_test_parser.set_defaults(func=eval_es_test.run)
 
     #
     # Seed random generator and run specified sub command
