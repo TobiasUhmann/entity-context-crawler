@@ -1,15 +1,11 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import argparse
 import sqlite3
 import wikitextparser as wtp
 
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from datetime import datetime
 from os import remove
 from os.path import isfile
-
 from wikipedia import Wikipedia
 
 #
@@ -20,19 +16,7 @@ COMMIT_FREQUENCY = 10000
 LIMIT_PAGES = None
 
 
-#
-# MAIN
-#
-
-def main():
-    #
-    # Parse args
-    #
-
-    parser = argparse.ArgumentParser(
-        description='Create the link graph',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
-
+def add_parser_args(parser: ArgumentParser):
     parser.add_argument('wikipedia_xml', metavar='wikipedia-xml', type=str,
                         help='path to input Wikipedia XML')
 
@@ -51,8 +35,8 @@ def main():
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='overwrite links DB if it already exists')
 
-    args = parser.parse_args()
 
+def run(args: Namespace):
     #
     # Print applied config
     #
@@ -229,4 +213,4 @@ def insert_links(conn, links):
 #
 
 if __name__ == '__main__':
-    main()
+    run()
