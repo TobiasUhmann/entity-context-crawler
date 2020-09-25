@@ -8,32 +8,39 @@ from os import remove
 from os.path import isfile
 from wikipedia import Wikipedia
 
-#
-# DEFAULT CONFIG
-#
-
-COMMIT_FREQUENCY = 10000
-LIMIT_PAGES = None
-
 
 def add_parser_args(parser: ArgumentParser):
-    parser.add_argument('wikipedia_xml', metavar='wikipedia-xml', type=str,
-                        help='path to input Wikipedia XML')
+    """
+    wiki-xml
+    links-db
+    --commit-frequency
+    --in-memory
+    --limit-pages
+    --overwrite
+    """
 
-    parser.add_argument('links_db', metavar='links-db', type=str,
-                        help='path to output links DB')
+    parser.add_argument('wiki_xml', metavar='wiki-xml',
+                        help='Path to input Wikipedia XML')
 
-    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
-                        help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
+    parser.add_argument('links_db', metavar='links-db',
+                        help='Path to output links DB')
+
+    default_commit_frequency = None
+    parser.add_argument('--commit-frequency', dest='commit_frequency', type=int, metavar='INT',
+                        default=default_commit_frequency,
+                        help='Commit to database every ... pages instead of committing at the end only'
+                             ' (default: {})'.format(default_commit_frequency))
 
     parser.add_argument('--in-memory', dest='in_memory', action='store_true',
-                        help='build complete links DB in memory before persisting it)')
+                        help='Build complete links DB in memory before persisting it')
 
-    parser.add_argument('--limit-pages', dest='limit_pages', default=LIMIT_PAGES, type=int,
-                        help='terminate after ... pages (default: {})'.format(LIMIT_PAGES))
+    default_limit_pages = None
+    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT',
+                        default=default_limit_pages,
+                        help='Early stop after ... pages (default: {})'.format(default_limit_pages))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite links DB if it already exists')
+                        help='Overwrite links DB if it already exists')
 
 
 def run(args: Namespace):
@@ -42,7 +49,7 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Wikipedia XML', args.wiki_xml))
     print('    {:20} {}'.format('Links DB', args.links_db))
     print()
     print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
@@ -70,7 +77,7 @@ def run(args: Namespace):
     # Run link extractor
     #
 
-    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.commit_frequency, args.in_memory,
+    link_extractor = LinkExtractor(args.wiki_xml, args.links_db, args.commit_frequency, args.in_memory,
                                    args.limit_pages)
     link_extractor.run()
 
@@ -206,11 +213,3 @@ def insert_links(conn, links):
     cursor = conn.cursor()
     cursor.executemany(sql, links)
     cursor.close()
-
-
-#
-#
-#
-
-if __name__ == '__main__':
-    run()
