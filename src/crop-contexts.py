@@ -1,10 +1,10 @@
+import csv
 import os
 import random
 import spacy
 import sqlite3
 
 from argparse import ArgumentParser
-from datetime import datetime
 from os import remove
 from os.path import isfile
 from typing import List, Tuple
@@ -12,6 +12,7 @@ from typing import List, Tuple
 from dao.contexts import create_contexts_table, insert_contexts
 from dao.mid2ent import load_mid2ent
 from dao.matches import select_contexts, select_mids_with_labels
+from util import log
 
 
 def main():
@@ -40,6 +41,10 @@ def main():
                             help='crop contexts at sentence boundaries (instead of token boundaries),'
                                  'sentences will be separated by new line')
 
+    default_csv_file = None
+    arg_parser.add_argument('--csv-file', dest='csv_file', default=default_csv_file,
+                            help='log context stats to CSV file (default: {})'.format(default_csv_file))
+
     default_limit_contexts = 100
     arg_parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
                             help='max number of contexts per entity (default: %d)' % default_limit_contexts)
@@ -65,6 +70,7 @@ def main():
     print()
     print('    {:20} {}'.format('Context size', args.context_size))
     print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
+    print('    {:20} {}'.format('CSV file', args.csv_file))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Limit entities', args.limit_entities))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
@@ -95,45 +101,55 @@ def main():
             print('Contexts DB already exists. Use --overwrite to overwrite it')
             exit()
 
+    if isfile(args.csv_file):
+        if args.overwrite:
+            remove(args.csv_file)
+        else:
+            print('CSV file already exists. Use --overwrite to overwrite it')
+            exit()
+
     #
     # Run actual program
     #
 
-    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.limit_contexts,
-                  args.limit_entities)
+    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.csv_file,
+                  args.limit_contexts, args.limit_entities)
 
 
-def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, limit_contexts: int,
-                  limit_entities: int):
+def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, csv_file: str,
+                  limit_contexts: int, limit_entities: int):
     """
     - Load English spaCy model
     - Create contexts DB
     - For each entity in matches DB
-        - Print progress
         - Query contexts
         - Shuffle and limit contexts
         - Crop to token/sentence boundary
         - Mask entity in cropped context
         - Persist masked contexts
+        - Log progress
     """
 
     with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
 
+        print('Load spaCy model...', end='')
         nlp = spacy.load('en_core_web_lg')
-        create_contexts_table(contexts_conn)
+        print(' done')
 
-        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
+        create_contexts_table(contexts_conn)
         mid2ent = load_mid2ent(r'data/entity2id.txt')
+
+        print('Select MIDs...', end='')
+        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
+        print(' done')
 
         for i, mid_with_label, in enumerate(mids_with_labels):
             mid, entity_label = mid_with_label
-            print('{} | {:,} | {}'.format(datetime.now().strftime("%H:%M:%S"), i + 1, entity_label), end='')
 
             contexts = select_contexts(matches_conn, mid, context_size)
             random.shuffle(contexts)
             limited_contexts = contexts[:limit_contexts]
-            print(' | %d/%d contexts' % (len(limited_contexts), len(contexts)))
 
             #
             # Crop to token/sentence boundary
@@ -163,6 +179,16 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             insert_contexts(contexts_conn, contexts_data)
 
             contexts_conn.commit()
+
+            #
+            # Log progress
+            #
+
+            log('{:,} | {} | {:,}/{:,} contexts'.format(i, entity_label, len(limited_contexts), len(contexts)))
+
+            if csv_file:
+                with open(csv_file, 'a', newline='') as csv_fh:
+                    csv.writer(csv_fh).writerow([entity_label, len(contexts)])
 
 
 if __name__ == '__main__':
