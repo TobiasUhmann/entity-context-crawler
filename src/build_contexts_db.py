@@ -4,7 +4,7 @@ import random
 import spacy
 import sqlite3
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
 from typing import List, Tuple
@@ -15,54 +15,58 @@ from dao.matches import select_contexts, select_mids_with_labels
 from util import log
 
 
-def main():
+def add_parser_args(parser: ArgumentParser):
     """
-    - Parse args
+    Add arguments to arg parser:
+        matches-db
+        contexts-db
+        --context-size
+        --crop-sentences
+        --csv-file
+        --limit-contexts
+        --limit-entities
+        --overwrite
+    """
+
+    parser.add_argument('matches_db', metavar='matches-db',
+                        help='Path to input matches DB')
+
+    parser.add_argument('contexts_db', metavar='contexts-db',
+                        help='Path to output contexts DB')
+
+    default_context_size = 100
+    parser.add_argument('--context-size', dest='context_size', type=int, metavar='INT', default=default_context_size,
+                        help='Consider ... chars on each side of the entity mention'
+                             ' (default: {})'.format(default_context_size))
+
+    parser.add_argument('--crop-sentences', dest='crop_sentences', action='store_true',
+                        help='Crop contexts at sentence boundaries (instead of token boundaries),'
+                             ' sentences will be separated by new lines')
+
+    default_csv_file = None
+    parser.add_argument('--csv-file', dest='csv_file', metavar='STR', default=default_csv_file,
+                        help='Log context stats to CSV file at path ... (default: {})'.format(default_csv_file))
+
+    default_limit_contexts = None
+    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
+                        default=default_limit_contexts,
+                        help='Max number of contexts per entity (default: {})'.format(default_limit_contexts))
+
+    default_limit_entities = None
+    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
+                        default=default_limit_entities,
+                        help='Early stop after ... entities (default: {})'.format(default_limit_entities))
+
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+                        help='Overwrite contexts DB if it already exists')
+
+
+def run(args: Namespace):
+    """
     - Print applied config
-    - Seed random generator
     - Check if files already exist
     - Run actual program
     """
-
-    arg_parser = ArgumentParser(description='Crop and store context for entity matches')
-
-    arg_parser.add_argument('matches_db', metavar='matches-db',
-                            help='path to input matches DB')
-
-    arg_parser.add_argument('contexts_db', metavar='contexts-db',
-                            help='path to output contexts DB')
-
-    default_context_size = 100
-    arg_parser.add_argument('--context-size', dest='context_size', type=int, default=default_context_size,
-                            help='consider ... chars on each side of the entity mention'
-                                 ' (default: %d)' % default_context_size)
-
-    arg_parser.add_argument('--crop-sentences', dest='crop_sentences', action='store_true',
-                            help='crop contexts at sentence boundaries (instead of token boundaries),'
-                                 'sentences will be separated by new line')
-
-    default_csv_file = None
-    arg_parser.add_argument('--csv-file', dest='csv_file', default=default_csv_file,
-                            help='log context stats to CSV file (default: {})'.format(default_csv_file))
-
-    default_limit_contexts = 100
-    arg_parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
-                            help='max number of contexts per entity (default: %d)' % default_limit_contexts)
-
-    arg_parser.add_argument('--limit-entities', dest='limit_entities', type=int, default=None,
-                            help='for debugging: process only first ... entities (default: None)')
-
-    arg_parser.add_argument('--overwrite', action='store_true',
-                            help='overwrite contexts DB if it already exists')
-
-    arg_parser.add_argument('--random-seed', dest='random_seed',
-                            help='random seed, use together with PYTHONHASHSEED for reproducibility')
-
-    args = arg_parser.parse_args()
-
-    #
-    # Print applied config
-    #
 
     print('Applied config:')
     print('    {:20} {}'.format('Matches DB', args.matches_db))
@@ -78,13 +82,6 @@ def main():
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
     print()
-
-    #
-    # Seed random generator
-    #
-
-    if args.random_seed:
-        random.seed(args.random_seed)
 
     #
     # Check if files already exist
@@ -192,4 +189,4 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
 
 
 if __name__ == '__main__':
-    main()
+    run()

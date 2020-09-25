@@ -1,5 +1,8 @@
+import random
+
 from argparse import ArgumentParser, HelpFormatter
 
+import build_contexts_db
 import build_links_db
 import build_matches_db
 
@@ -17,6 +20,10 @@ def main():
     parser = ArgumentParser(
         formatter_class=get_formatter,
         description='The Sentence (Sam)pler Tool Suite')
+
+    parser.add_argument('--random-seed', dest='random_seed',
+                        help='Use together with PYTHONHASHSEED for reproducibility')
+
     sub_parsers = parser.add_subparsers()
 
     #
@@ -44,10 +51,26 @@ def main():
     build_matches_db_parser.set_defaults(func=build_matches_db.run)
 
     #
-    # Run specified sub command
+    # Add build-contexts-db sub command
+    #
+
+    build_contexts_db_parser = sub_parsers.add_parser(
+        'build-contexts-db',
+        formatter_class=get_formatter,
+        description='Crop and store context for entity matches')
+
+    build_contexts_db.add_parser_args(build_contexts_db_parser)
+    build_contexts_db_parser.set_defaults(func=build_contexts_db.run)
+
+    #
+    # Seed random generator and run specified sub command
     #
 
     args = parser.parse_args()
+
+    if args.random_seed:
+        random.seed(args.random_seed)
+
     args.func(args)
 
 
