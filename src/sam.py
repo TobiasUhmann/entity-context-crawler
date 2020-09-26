@@ -2,6 +2,7 @@ import random
 
 from argparse import ArgumentParser, HelpFormatter
 
+import build_baseline
 import build_contexts_db
 import build_es_test
 import build_links_db
@@ -89,7 +90,19 @@ def main():
     eval_es_test_parser.set_defaults(func=eval_es_test.run)
 
     #
-    # Seed random generator and run specified sub command
+    # Add build-baseline sub command
+    #
+
+    build_baseline_parser = sub_parsers.add_parser(
+        'build-baseline',
+        formatter_class=get_formatter,
+        description='Build closed world ES index and open world DB')
+
+    build_baseline.add_parser_args(build_baseline_parser)
+    build_baseline_parser.set_defaults(func=build_baseline.run)
+
+    #
+    # Seed random generator & Run specified sub command
     #
 
     args = parser.parse_args()
