@@ -1,7 +1,7 @@
 import os
 import random
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from elasticsearch import Elasticsearch
 from os.path import isdir
 from ryn.graphs.split import Dataset
@@ -10,39 +10,44 @@ from eval.baseline_model import BaselineModel
 from eval.evaluator import Evaluator
 
 
-def main():
+def add_parser_args(parser: ArgumentParser):
     """
-    - Parse args
+    Add arguments to arg parser:
+        dataset-dir
+        contexts-db
+        --es-instance
+        --limit-entities
+        --model
+    """
+
+    parser.add_argument('dataset_dir', metavar='dataset-dir',
+                        help='Path to directory containing input OpenKE files')
+
+    parser.add_argument('contexts_db', metavar='contexts-db',
+                        help='Path to output contexts DB')
+
+    default_es_instance = 'localhost:9200'
+    parser.add_argument('--es-instance', dest='es_instance', metavar='STR', default=default_es_instance,
+                        help='Address of Elasticsearch instance (default: {})'.format(default_es_instance))
+
+    default_limit_entities = None
+    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
+                        default=default_limit_entities,
+                        help='Process only first ... entities (default: {})'.format(default_limit_entities))
+
+    model_choices = ['baseline-10', 'baseline-100']
+    default_model = model_choices[1]
+    parser.add_argument('--model', dest='model', metavar='STR', choices=model_choices, default=default_model,
+                        help='One of {} (default: {})'.format(model_choices, default_model))
+
+
+def run(args: Namespace):
+    """
     - Print applied config
     - Seed random generator
     - Check if files already exist
     - Run actual program
     """
-
-    arg_parser = ArgumentParser(description='Evaluate model')
-
-    arg_parser.add_argument('dataset_dir', metavar='dataset-dir',
-                            help='path to directory containing OpenKE data')
-
-    default_es_url = 'localhost:9200'
-    arg_parser.add_argument('--es-url', dest='es_url', metavar='STR', default=default_es_url,
-                            help='Elasticsearch URL (default: {})'.format(default_es_url))
-
-    default_limit_entities = None
-    arg_parser.add_argument('--limit-entities', dest='limit_entities', metavar='INT', type=int,
-                            default=default_limit_entities,
-                            help='for debugging: process only first ... entities (default: {})'.format(
-                                default_limit_entities))
-
-    model_choices = ['baseline-10', 'baseline-100']
-    default_model = model_choices[1]
-    arg_parser.add_argument('--model', dest='model', metavar='STR', choices=model_choices, default=default_model,
-                            help='one of {} (default: {})'.format(model_choices, default_model))
-
-    arg_parser.add_argument('--random-seed', dest='random_seed', metavar='STR',
-                            help='seed for Python random, use together with PYTHONHASHSEED')
-
-    args = arg_parser.parse_args()
 
     #
     # Print applied config
@@ -51,20 +56,13 @@ def main():
     print('Applied config:')
     print('    {:24} {}'.format('Dataset dir', args.dataset_dir))
     print()
-    print('    {:24} {}'.format('Elasticsearch URL', args.es_url))
+    print('    {:24} {}'.format('ES instance', args.es_instance))
     print('    {:24} {}'.format('Limit entities', args.limit_entities))
     print('    {:24} {}'.format('Model', args.model))
     print('    {:24} {}'.format('Random seed', args.random_seed))
     print()
     print('    {:24} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
     print()
-
-    #
-    # Seed random generator
-    #
-
-    if args.random_seed:
-        random.seed(args.random_seed)
 
     #
     # Check if files already exist
@@ -78,7 +76,7 @@ def main():
     # Run actual program
     #
 
-    evaluate(args.dataset_dir, args.limit_entities, args.es_url, args.model)
+    evaluate(args.dataset_dir, args.limit_entities, args.es_instance, args.model)
 
 
 def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection: str):
@@ -149,7 +147,3 @@ def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection
 
 def truncate(text: str, max_len: int):
     return (text[:max_len - 3] + '...') if len(text) > max_len else text
-
-
-if __name__ == '__main__':
-    main()

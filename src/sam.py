@@ -8,6 +8,7 @@ import build_es_test
 import build_links_db
 import build_matches_db
 import eval_es_test
+import eval_model
 
 
 def main():
@@ -100,6 +101,18 @@ def main():
 
     build_baseline.add_parser_args(build_baseline_parser)
     build_baseline_parser.set_defaults(func=build_baseline.run)
+
+    #
+    # Add eval-model sub command
+    #
+
+    eval_model_parser = sub_parsers.add_parser(
+        'eval-model',
+        formatter_class=get_formatter,
+        description='Evaluate model')
+
+    eval_model.add_parser_args(eval_model_parser)
+    eval_model_parser.set_defaults(func=eval_model.run)
 
     #
     # Seed random generator & Run specified sub command
