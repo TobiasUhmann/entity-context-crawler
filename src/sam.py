@@ -20,18 +20,23 @@ def main():
         formatter_class=get_formatter,
         description='The Sentence (Sam)pler Tool Suite')
 
-    parser.add_argument('--random-seed', dest='random_seed',
-                        help='Use together with PYTHONHASHSEED for reproducibility')
+    sub_parsers = parser.add_subparsers(required=True)
 
-    sub_parsers = parser.add_subparsers()
+    #
+    # Build parent parser with common args
+    #
+
+    common_parser = ArgumentParser(add_help=False)
+
+    common_parser.add_argument('--random-seed', dest='random_seed',
+                               help='Use together with PYTHONHASHSEED for reproducibility')
 
     #
     # Add build-links-db sub command
     #
 
     build_links_db_parser = sub_parsers.add_parser(
-        'build-links-db',
-        formatter_class=get_formatter,
+        'build-links-db', formatter_class=get_formatter, parents=[common_parser],
         description='Build Wikipedia link graph')
 
     build_links_db.add_parser_args(build_links_db_parser)
@@ -42,8 +47,7 @@ def main():
     #
 
     build_matches_db_parser = sub_parsers.add_parser(
-        'build-matches-db',
-        formatter_class=get_formatter,
+        'build-matches-db', formatter_class=get_formatter, parents=[common_parser],
         description='Match the Freenode entities (considering the link graph)')
 
     build_matches_db.add_parser_args(build_matches_db_parser)
@@ -54,8 +58,7 @@ def main():
     #
 
     build_contexts_db_parser = sub_parsers.add_parser(
-        'build-contexts-db',
-        formatter_class=get_formatter,
+        'build-contexts-db', formatter_class=get_formatter, parents=[common_parser],
         description='Crop and store context for entity matches')
 
     build_contexts_db.add_parser_args(build_contexts_db_parser)
@@ -66,8 +69,7 @@ def main():
     #
 
     build_es_test_parser = sub_parsers.add_parser(
-        'build-es-test',
-        formatter_class=get_formatter,
+        'build-es-test', formatter_class=get_formatter, parents=[common_parser],
         description='Crop and store context for each entity match')
 
     build_es_test.add_parser_args(build_es_test_parser)
@@ -78,8 +80,7 @@ def main():
     #
 
     query_es_test_parser = sub_parsers.add_parser(
-        'query-es-test',
-        formatter_class=get_formatter,
+        'query-es-test', formatter_class=get_formatter, parents=[common_parser],
         description='Query Elasticsearch index for test contexts')
 
     query_es_test.add_parser_args(query_es_test_parser)
@@ -90,8 +91,7 @@ def main():
     #
 
     eval_es_test_parser = sub_parsers.add_parser(
-        'eval-es-test',
-        formatter_class=get_formatter,
+        'eval-es-test', formatter_class=get_formatter, parents=[common_parser],
         description='Determine how closely linked contexts of different entities are')
 
     eval_es_test.add_parser_args(eval_es_test_parser)
@@ -102,8 +102,7 @@ def main():
     #
 
     build_baseline_parser = sub_parsers.add_parser(
-        'build-baseline',
-        formatter_class=get_formatter,
+        'build-baseline', formatter_class=get_formatter, parents=[common_parser],
         description='Build closed world ES index and open world DB')
 
     build_baseline.add_parser_args(build_baseline_parser)
@@ -114,8 +113,7 @@ def main():
     #
 
     eval_model_parser = sub_parsers.add_parser(
-        'eval-model',
-        formatter_class=get_formatter,
+        'eval-model', formatter_class=get_formatter, parents=[common_parser],
         description='Evaluate model')
 
     eval_model.add_parser_args(eval_model_parser)
