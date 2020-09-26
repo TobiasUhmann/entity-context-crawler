@@ -3,7 +3,7 @@ import random
 from argparse import ArgumentParser, HelpFormatter
 
 from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, build_matches_db, eval_es_test, \
-    eval_model
+    eval_model, query_es_test
 
 
 def main():
@@ -72,6 +72,18 @@ def main():
 
     build_es_test.add_parser_args(build_es_test_parser)
     build_es_test_parser.set_defaults(func=build_es_test.run)
+
+    #
+    # Add query-es-test sub command
+    #
+
+    query_es_test_parser = sub_parsers.add_parser(
+        'query-es-test',
+        formatter_class=get_formatter,
+        description='Query Elasticsearch index for test contexts')
+
+    query_es_test.add_parser_args(query_es_test_parser)
+    query_es_test_parser.set_defaults(func=query_es_test.run)
 
     #
     # Add eval-es-test sub command
