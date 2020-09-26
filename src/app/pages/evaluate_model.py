@@ -9,7 +9,7 @@ from typing import Set
 from app.util import load_dataset
 from eval.baseline_model import BaselineModel
 from eval.evaluator import Evaluator
-from custom_types import Entity, Triple
+from util.custom_types import Entity, Triple
 
 
 def render_evaluate_model_page():

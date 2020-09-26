@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime
 from os import remove
 from os.path import isfile
-from wikipedia import Wikipedia
+from util.wikipedia import Wikipedia
 
 
 def add_parser_args(parser: ArgumentParser):

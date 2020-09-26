@@ -12,7 +12,7 @@ from typing import List, Tuple
 from dao.contexts import create_contexts_table, insert_contexts
 from dao.mid2ent import load_mid2ent
 from dao.matches import select_contexts, select_mids_with_labels
-from util import log
+from util.util import log
 
 
 def add_parser_args(parser: ArgumentParser):

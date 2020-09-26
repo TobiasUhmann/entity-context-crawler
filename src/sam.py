@@ -2,13 +2,8 @@ import random
 
 from argparse import ArgumentParser, HelpFormatter
 
-import build_baseline
-import build_contexts_db
-import build_es_test
-import build_links_db
-import build_matches_db
-import eval_es_test
-import eval_model
+from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, build_matches_db, eval_es_test, \
+    eval_model
 
 
 def main():
