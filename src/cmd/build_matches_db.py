@@ -82,7 +82,7 @@ def run(args: Namespace):
         print('Freenode JSON not found')
         exit()
 
-    if not isfile(args.wikipedia_xml):
+    if not isfile(args.wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
@@ -101,7 +101,7 @@ def run(args: Namespace):
     # Run entity matcher
     #
 
-    entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
+    entity_matcher = EntityMatcher(args.freenode_json, args.wiki_xml, args.links_db, args.matches_db,
                                    args.commit_frequency, args.in_memory, args.limit_docs)
 
     entity_matcher.init()
@@ -114,7 +114,7 @@ def run(args: Namespace):
 
 class EntityMatcher:
     freenode_to_wikidata_json: str
-    wikipedia_xml: str
+    wiki_xml: str
     links_db: str
     matches_db: str
 
@@ -128,9 +128,9 @@ class EntityMatcher:
     entities = defaultdict(set)  # TODO example
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
 
-    def __init__(self, freenode_json, wikipedia_xml, links_db, matches_db, commit_frequency, in_memory, limit_docs):
+    def __init__(self, freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_docs):
         self.freenode_to_wikidata_json = freenode_json
-        self.wikipedia_xml = wikipedia_xml
+        self.wiki_xml = wiki_xml
         self.links_db = links_db
         self.matches_db = matches_db
 
@@ -235,7 +235,7 @@ class EntityMatcher:
 
     def __process_wikipedia(self, matches_conn):
         with sqlite3.connect(self.links_db) as links_conn, \
-                dumpr.BatchReader(self.wikipedia_xml) as reader:
+                dumpr.BatchReader(self.wiki_xml) as reader:
 
             for doc_count, dumpr_doc in enumerate(reader.docs):
                 if self.limit and doc_count > self.limit:
