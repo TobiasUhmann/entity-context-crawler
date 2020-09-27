@@ -62,7 +62,7 @@ def run(args: Namespace):
     # Check for input/output files
     #
 
-    if not isfile(args.wikipedia_xml):
+    if not isfile(args.wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
@@ -141,9 +141,10 @@ class LinkExtractor:
                 if self.limit_pages and page_count > self.limit_pages:
                     break
 
-                if page_count % self.commit_frequency == 0:
-                    print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
-                    links_conn.commit()
+                if self.commit_frequency:
+                    if page_count % self.commit_frequency == 0:
+                        print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
+                        links_conn.commit()
 
                 if page_count % 1000 == 0:
                     row = (datetime.now().strftime("%H:%M:%S"), page_count, wikipedia.missing_titles,
