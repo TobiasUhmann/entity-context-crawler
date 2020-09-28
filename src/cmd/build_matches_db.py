@@ -241,7 +241,7 @@ class EntityMatcher:
                 if self.limit and doc_count > self.limit:
                     break
 
-                if doc_count % self.commit_frequency == 0:
+                if self.commit_frequency and doc_count % self.commit_frequency == 0:
                     print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
                     matches_conn.commit()
                     # self.plot_statistics()
