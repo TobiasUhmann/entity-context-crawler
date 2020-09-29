@@ -7,7 +7,7 @@ from datetime import datetime
 from os import remove
 from os.path import isfile
 
-from dao.links import create_links_table, insert_links
+from dao.links_db import create_links_table, insert_links
 from util.wikipedia import Wikipedia
 
 

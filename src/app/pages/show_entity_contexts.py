@@ -8,7 +8,7 @@ import streamlit as st
 from typing import Set
 
 from app.util import load_dataset
-from dao.contexts import select_contexts
+from dao.contexts_db import select_contexts
 
 
 def render_show_entity_contexts_page():

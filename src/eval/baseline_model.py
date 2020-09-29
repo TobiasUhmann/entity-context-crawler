@@ -6,7 +6,7 @@ from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 from typing import List, Tuple, Set, Optional
 
-from dao.contexts import select_contexts
+from dao.contexts_db import select_contexts
 from eval.model import Model
 from util.custom_types import Entity, Triple
 

@@ -8,7 +8,7 @@ from os.path import isfile, isdir
 from ryn.graphs.split import Dataset
 from typing import Set
 
-from dao.contexts import create_contexts_table, insert_context, select_contexts
+from dao.contexts_db import create_contexts_table, insert_context, select_contexts
 
 
 def add_parser_args(parser: ArgumentParser):

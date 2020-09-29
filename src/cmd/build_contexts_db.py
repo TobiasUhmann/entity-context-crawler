@@ -9,9 +9,9 @@ from os import remove
 from os.path import isfile
 from typing import List, Tuple
 
-from dao.contexts import create_contexts_table, insert_contexts
-from dao.mid2ent import load_mid2ent
-from dao.matches import select_contexts, select_mids_with_labels
+from dao.contexts_db import create_contexts_table, insert_contexts
+from dao.mid2ent_txt import load_mid2ent
+from dao.matches_db import select_contexts, select_mids_with_labels
 from util.util import log
 
 

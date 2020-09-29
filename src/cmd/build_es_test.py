@@ -8,7 +8,7 @@ from os.path import isfile
 from ryn.app.splits import load_dataset
 from typing import List
 
-from dao.contexts import create_contexts_table, insert_context, select_contexts, select_distinct_entities
+from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities
 
 
 def add_parser_args(parser: ArgumentParser):
