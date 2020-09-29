@@ -139,6 +139,7 @@ def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
 
 def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
     link_count = 0
+    alias_count = 0
     missing_text_count = 0
 
     redirects: Dict[Set[str]] = defaultdict(set)
@@ -148,7 +149,7 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
         wikipedia = Wikipedia(wiki_xml, tag='page')
         for page_count, page in enumerate(wikipedia):
 
-            if limit_pages and page_count > limit_pages:
+            if limit_pages and page_count == limit_pages:
                 break
 
             if commit_frequency and page_count % commit_frequency == 0:
@@ -157,27 +158,28 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
 
             if page_count % 1000 == 0:
                 row = (page_count, wikipedia.missing_titles, wikipedia.missing_texts, wikipedia.skipped_templates,
-                       redirect_count, link_count)
+                       redirect_count, link_count, alias_count)
                 log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
-                    ' | {:,} redirects | {:,} links'.format(*row))
+                    ' | {:,} redirects | {:,} links | {:,} aliases'.format(*row))
 
-            from_page = page['title']
+            page_title = page['title']
+            redirect_page_title = page['redirect']
+            page_markup = page['text']
 
-            if page['redirect']:
-                to_page = page['redirect']
-                redirects[from_page].add(to_page)
+            if redirect_page_title:
+                redirects[page_title].add(redirect_page_title)
                 redirect_count += 1
 
-            elif page['text']:
-                wiki_links = wtp.parse(page['text']).wikilinks
+            elif page_markup:
+                wiki_links = wtp.parse(page_markup).wikilinks
 
-                db_links = [Link(from_page, link.title) for link in wiki_links]
+                db_links = [Link(page_title, link.title) for link in wiki_links]
                 insert_links(links_conn, db_links)
+                link_count += len(db_links)
 
                 db_aliases = [Alias(link.title, link.text) for link in wiki_links if link.text]
                 insert_aliases(links_conn, db_aliases)
-
-                link_count += len(db_links)
+                alias_count += len(db_aliases)
 
             else:
                 missing_text_count += 1
