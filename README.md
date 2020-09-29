@@ -1,24 +1,18 @@
-# Overview
+### Introduction
 
-Currently, the sentence sampler consists of the following components:
+Knowledge graphs represent entities and their relationship to each other as a graph. The graph's nodes represent entities like *"Angela Merkel"* and *"Germany"*. The graph's directed edges represent relations between entities like *"is chancellor of"* which holds true for *"Angela Merkel"* and *"Germany"* as of 2020.
 
-- The `LinkExtractor` creates a link graph from a full Wikipedia dump
-  and stores it in the links database.
-- The `EntityMatcher` searches a pre-processed Wikipedia dump for
-  Freenode entities. To minimize false positives (e.g. find the movie
-  "2012" in many unrelated articles), entities are only searched in
-  articles linked to their main article. The entitie's occurrences
-  are stored in the matches database.
-- The `EntityLinker` determines how closely entities are linked to each
-  other by comparing their contexts. In particular, it splits the
-  entity matches' contexts into training and test contexts, stores
-  the training contexts in Elasticsearch and subsequently queries 
-  Elasticsearch for the contexts that best match the outheld test 
-  contexts.
+There are well maintained knowledge graphs for general knowledge as described in Wikipedia, for example. For specific domains, however, there are rarely comprehensive knowledge graphs because of the high effort to create them. However, the domain-specific entities are often known and there are large amounts of unstructured data such as texts describing the entities and their relationships.
 
-![Architecture](doc/architecture.png)
+This is referred to as an *open world scenario*: A knowledge graph exists for the known *closed world entities* and the relations between them. In addition, there are the known *open world entities*, whose relations are unknown. However, these relations can be derived from the existing, unstructured data that describes the open world entities.
 
-# Setup
+### Project Scope
+
+This project provides tools for setting up a baseline model that follows a primitive approach to predict an open world entity's triples: It looks up the closed world entity most similar to the open world entity using Elasticseach, which uses TF-IDF as a measure of similarity, and assumes that the closed world entity's triples also apply to the open world entity. For example, if *"Emmanuel Macron"* is an open world entity whose most similar closed world entity is *"Angela Merkel"* for who the relation *"has profession"* towards the entity *"politician"* is true, the model assumes that this also applies to *"Emmanuel Macron"*.
+
+Furthermore, the project contains an evaluation framework for comparing other models to the baseline, tools for running a grid search to find the best hyperparameters to train these models, as well as a browser UI that allows browsing the data.
+
+### Setup
 
 1. Make sure that you have at least 150GB of free disk space.
 
@@ -59,6 +53,40 @@ Currently, the sentence sampler consists of the following components:
    ```
 
 7. Set up Elasticsearch.
+
+### Build the Baseline Model
+
+Essentially, the baseline model consists of the closed world knowledge graph and the Elasticsearch index that stores text contexts for all the closed world entities. The knowledge graph must be given. This section shows how to build the Elasticsearch index. At the same time, contexts for the open world entities are sampled as well. They are stored in a database and are used later for prediction.
+
+To be able to sample the text contexts of an entity, first the mentions of the entity in Wikipedia must be found. An entity can be described with different words. For example "Angela Merkel" could be mentioned by her name or as "the chancellor". For the text search we use the Wikidata label of the entity as well as all the link texts that are used to link the entity's Wikipedia article from other articles. We limit our search to adjacent Wikipedia articles because the search terms' meaning will often vary on distant Wikipedia articles. To know which articles are adjacent we build a link graph in the first step.
+
+Thus, from start to finish, building the baseline model includes the following steps:
+1. Build the link graph
+2. Find an entity's matches in it's corresponding Wikipedia article and the adjacent articles
+3. Sample contexts for the matches
+4. Optionally, conduct a test experiment to verify the contexts' expressiveness
+5. Concatenate the closed world entities' contexts and store them in the Elasticsearch index
+6. Concatenate the open world entities' contexts and store them in a database
+
+# Overview
+
+Currently, the sentence sampler consists of the following components:
+
+- The `LinkExtractor` creates a link graph from a full Wikipedia dump
+  and stores it in the links database.
+- The `EntityMatcher` searches a pre-processed Wikipedia dump for
+  Freenode entities. To minimize false positives (e.g. find the movie
+  "2012" in many unrelated articles), entities are only searched in
+  articles linked to their main article. The entitie's occurrences
+  are stored in the matches database.
+- The `EntityLinker` determines how closely entities are linked to each
+  other by comparing their contexts. In particular, it splits the
+  entity matches' contexts into training and test contexts, stores
+  the training contexts in Elasticsearch and subsequently queries 
+  Elasticsearch for the contexts that best match the outheld test 
+  contexts.
+
+![Architecture](doc/architecture.png)
 
 # Usage
 

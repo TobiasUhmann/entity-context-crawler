@@ -10,40 +10,45 @@ from typing import List
 from dao.contexts import select_contexts, select_distinct_entities
 
 
-def main():
-    #
-    # Parse args
-    #
+def add_parser_args(parser: argparse.ArgumentParser):
+    """
+    Add arguments to arg parser:
+        index-name
+        test-contexts-db
+        --limit-contexts
+        --limit-entities
+        --top-hits
+        --verbose
+    """
 
-    parser = argparse.ArgumentParser(
-        description='Query Elasticsearch index for test contexts',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
+    parser.add_argument('index_name', metavar='index-name',
+                        help='Name of input Elasticsearch index')
 
-    parser.add_argument('index_name', metavar='index-name', type=str,
-                        help='name of input Elasticsearch index')
+    parser.add_argument('test_contexts_db', metavar='test-contexts-db',
+                        help='Path to input test contexts DB')
 
-    parser.add_argument('test_contexts_db', metavar='test-contexts-db', type=str,
-                        help='path to input test contexts DB')
-
-    default_limit_contexts = 100
-    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
-                        help='only process the first ... contexts for each entity'
+    default_limit_contexts = None
+    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
+                        default=default_limit_contexts,
+                        help='Process only the first ... contexts for each entity'
                              ' (default: {})'.format(default_limit_contexts))
 
-    default_limit_entities = 10
-    parser.add_argument('--limit-entities', dest='limit_entities', type=int, default=default_limit_entities,
-                        help='only process the first ... entities'
+    default_limit_entities = None
+    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
+                        default=default_limit_entities,
+                        help='Process only the first ... entities'
                              ' (default: {})'.format(default_limit_entities))
 
     default_top_hits = 10
-    parser.add_argument('--top-hits', dest='top_hits', type=int, default=default_top_hits,
-                        help='evaluate the top ... hits for each query'
+    parser.add_argument('--top-hits', dest='top_hits', type=int, metavar='INT', default=default_top_hits,
+                        help='Evaluate the top ... hits for each query'
                              ' (default: {})'.format(default_top_hits))
 
     parser.add_argument('--verbose', dest='verbose', action='store_true',
-                        help='print query contexts for each entity')
+                        help='Print query contexts for each entity')
 
-    args = parser.parse_args()
+
+def run(args: argparse.Namespace):
 
     #
     # Print applied config
@@ -125,11 +130,3 @@ def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entit
             for t in top_stat:
                 print('{:3} {:30}'.format(t[1], t[0]), end='')
             print()
-
-
-#
-#
-#
-
-if __name__ == '__main__':
-    main()

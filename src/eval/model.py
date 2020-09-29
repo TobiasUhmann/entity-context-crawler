@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 
-from custom_types import Entity, Triple
+from util.custom_types import Entity, Triple
 
 
 class Model:

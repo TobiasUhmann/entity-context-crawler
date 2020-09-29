@@ -1,11 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import argparse
 import json
 import matplotlib.pyplot as plt
 import sqlite3
 
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from datetime import datetime
 from matplotlib.widgets import Slider
@@ -17,60 +14,57 @@ from spacy.matcher import PhraseMatcher
 
 from deepca.dumpr import dumpr
 
-#
-# DEFAULT CONFIG
-#
 
-COMMIT_FREQUENCY = 1000
-LIMIT_DOCS = None
+def add_parser_args(parser: ArgumentParser):
+    """
+    Add arguments to arg parser:
+        freenode-json
+        wiki-xml
+        links-db
+        matches-db
+        --commit-frequency
+        --in-memory
+        --limit-docs
+        --overwrite
+    """
 
+    parser.add_argument('freenode_json', metavar='freenode-json',
+                        help='Path to input Freenode JSON')
 
-#
-# MAIN
-#
+    parser.add_argument('wiki_xml', metavar='wiki-xml',
+                        help='Path to input pre-processed Wikipedia XML')
 
-def main():
-    #
-    # Parse args
-    #
+    parser.add_argument('links_db', metavar='links-db',
+                        help='Path to input links DB')
 
-    parser = argparse.ArgumentParser(
-        description='Match the Freenode entities (considering the link graph)',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
+    parser.add_argument('matches_db', metavar='matches-db',
+                        help='Path to output matches DB')
 
-    parser.add_argument('freenode_json', metavar='freenode-json', type=str,
-                        help='path to Freenode JSON')
-
-    parser.add_argument('wikipedia_xml', metavar='wikipedia-xml', type=str,
-                        help='path to pre-processed Wikipedia XML')
-
-    parser.add_argument('links_db', metavar='links-db', type=str,
-                        help='path to links DB')
-
-    parser.add_argument('matches_db', metavar='matches-db', type=str,
-                        help='path to matches DB')
-
-    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY,
-                        help='commit to database every ... docs (default: {})'.format(COMMIT_FREQUENCY))
+    default_commit_frequency = None
+    parser.add_argument('--commit-frequency', dest='commit_frequency', type=int, metavar='INT',
+                        default=default_commit_frequency,
+                        help='Commit to database every ... pages instead of committing at the end only'
+                             ' (default: {})'.format(default_commit_frequency))
 
     parser.add_argument('--in-memory', dest='in_memory', action='store_true',
-                        help='build complete matches DB in memory before persisting it')
+                        help='Build complete matches DB in memory before persisting it')
 
-    parser.add_argument('--limit-docs', dest='limit_docs', default=LIMIT_DOCS, type=int,
-                        help='terminate after ... docs (default: {})'.format(LIMIT_DOCS))
+    default_limit_docs = None
+    parser.add_argument('--limit-docs', dest='limit_docs', type=int, metavar='INT', default=default_limit_docs,
+                        help='Early stop after ... docs (default: {})'.format(default_limit_docs))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite matches DB if it already exists')
+                        help='Overwrite matches DB if it already exists')
 
-    args = parser.parse_args()
 
+def run(args: Namespace):
     #
     # Print applied config
     #
 
     print('Applied config:')
     print('    {:20} {}'.format('Freenode JSON', args.freenode_json))
-    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Wikipedia XML', args.wiki_xml))
     print('    {:20} {}'.format('Links DB', args.links_db))
     print('    {:20} {}'.format('Matches DB', args.matches_db))
     print()
@@ -88,7 +82,7 @@ def main():
         print('Freenode JSON not found')
         exit()
 
-    if not isfile(args.wikipedia_xml):
+    if not isfile(args.wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
@@ -107,7 +101,7 @@ def main():
     # Run entity matcher
     #
 
-    entity_matcher = EntityMatcher(args.freenode_json, args.wikipedia_xml, args.links_db, args.matches_db,
+    entity_matcher = EntityMatcher(args.freenode_json, args.wiki_xml, args.links_db, args.matches_db,
                                    args.commit_frequency, args.in_memory, args.limit_docs)
 
     entity_matcher.init()
@@ -120,7 +114,7 @@ def main():
 
 class EntityMatcher:
     freenode_to_wikidata_json: str
-    wikipedia_xml: str
+    wiki_xml: str
     links_db: str
     matches_db: str
 
@@ -134,9 +128,9 @@ class EntityMatcher:
     entities = defaultdict(set)  # TODO example
     statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
 
-    def __init__(self, freenode_json, wikipedia_xml, links_db, matches_db, commit_frequency, in_memory, limit_docs):
+    def __init__(self, freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_docs):
         self.freenode_to_wikidata_json = freenode_json
-        self.wikipedia_xml = wikipedia_xml
+        self.wiki_xml = wiki_xml
         self.links_db = links_db
         self.matches_db = matches_db
 
@@ -241,13 +235,13 @@ class EntityMatcher:
 
     def __process_wikipedia(self, matches_conn):
         with sqlite3.connect(self.links_db) as links_conn, \
-                dumpr.BatchReader(self.wikipedia_xml) as reader:
+                dumpr.BatchReader(self.wiki_xml) as reader:
 
             for doc_count, dumpr_doc in enumerate(reader.docs):
                 if self.limit and doc_count > self.limit:
                     break
 
-                if doc_count % self.commit_frequency == 0:
+                if self.commit_frequency and doc_count % self.commit_frequency == 0:
                     print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
                     matches_conn.commit()
                     # self.plot_statistics()
@@ -429,11 +423,3 @@ def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, con
     cursor = matches_conn.cursor()
     cursor.execute(sql, (mid, entity, doc_title, start_char, end_char, context))
     cursor.close()
-
-
-#
-#
-#
-
-if __name__ == '__main__':
-    main()

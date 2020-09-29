@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+from argparse import ArgumentParser, Namespace
 
-import argparse
 import matplotlib.pyplot as plt
 import re
 import sqlite3
@@ -13,51 +11,48 @@ from os import remove
 from os.path import isfile
 
 
-#
-# DEFAULT CONFIG
-#
+def add_parser_args(parser: ArgumentParser):
+    """
+    Add arguments to arg parser:
+        matches-db
+        contexts-db
+        --context-size
+        --crop-sentences
+        --limit-contexts
+        --limit-entities
+        --overwrite
+    """
 
-CONTEXT_SIZE = 1000
-LIMIT_CONTEXTS = None
-LIMIT_ENTITIES = None
+    parser.add_argument('matches_db', metavar='matches-db',
+                        help='Path to input matches DB')
 
+    parser.add_argument('contexts_db', metavar='contexts-db',
+                        help='Path to output contexts DB')
 
-#
-# MAIN
-#
-
-def main():
-    #
-    # Parse args
-    #
-
-    parser = argparse.ArgumentParser(
-        description='Determine how closely linked contexts of different entities are',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
-
-    parser.add_argument('matches_db', metavar='matches-db', type=str,
-                        help='path to matches DB')
-
-    parser.add_argument('contexts_db', metavar='contexts-db', type=str,
-                        help='path to contexts DB')
-
-    parser.add_argument('--context-size', dest='context_size', default=CONTEXT_SIZE, type=int,
-                        help='consider ... chars on each side of the entity mention (default: {})'.format(CONTEXT_SIZE))
+    default_context_size = 100
+    parser.add_argument('--context-size', dest='context_size', type=int, metavar='INT', default=default_context_size,
+                        help='Consider ... chars on each side of the entity mention'
+                             ' (default: {})'.format(default_context_size))
 
     parser.add_argument('--crop-sentences', dest='crop_sentences', action='store_true',
-                        help='crop contexts at their sentence boundaries (instead of token boundaries)')
+                        help='Crop contexts at their sentence boundaries (instead of token boundaries)')
 
-    parser.add_argument('--limit-contexts', dest='limit_contexts', default=LIMIT_CONTEXTS, type=int,
-                        help='only process the first ... contexts for each entity (default: {})'.format(LIMIT_CONTEXTS))
+    default_limit_contexts = None
+    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
+                        default=default_limit_contexts,
+                        help='Process only the first ... contexts for each entity'
+                             ' (default: {})'.format(default_limit_contexts))
 
-    parser.add_argument('--limit-entities', dest='limit_entities', default=LIMIT_ENTITIES, type=int,
-                        help='only process the first ... entities (default: {})'.format(LIMIT_ENTITIES))
+    default_limit_entities = None
+    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
+                        default=default_limit_entities,
+                        help='Process only the first ... entities (default: {})'.format(default_limit_entities))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite contexts DB if it already exists')
+                        help='Overwrite contexts DB if it already exists')
 
-    args = parser.parse_args()
 
+def run(args: Namespace):
     #
     # Print applied config
     #
@@ -202,7 +197,8 @@ class EntityLinker:
                     print('{:3} {:30}'.format(t[1], t[0]), end='')
                 print()
 
-            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(stats[entity].values())
+            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(
+                stats[entity].values())
                           for entity in entities if sum(stats[entity].values()) > 0}
 
             # plot_statistics(statistics)
@@ -353,11 +349,3 @@ def plot_statistics(statistics, sort=False):
     plt.sca(ax_bar_chart)
     plt.xticks(rotation=90)
     plt.show()
-
-
-#
-#
-#
-
-if __name__ == '__main__':
-    main()

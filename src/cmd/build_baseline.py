@@ -1,6 +1,6 @@
 import sqlite3
 
-from argparse import ArgumentParser, HelpFormatter
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from elasticsearch import Elasticsearch
 from os import remove
@@ -11,46 +11,45 @@ from typing import Set
 from dao.contexts import create_contexts_table, insert_context, select_contexts
 
 
-def main():
+def add_parser_args(parser: ArgumentParser):
+    """
+    Add arguments to arg parser:
+        contexts-db
+        dataset-dir
+        cw-es-index
+        ow-contexts-db
+        --limit-contexts
+        --overwrite
+    """
+
+    parser.add_argument('contexts_db', metavar='contexts-db',
+                        help='Path to input contexts DB')
+
+    parser.add_argument('dataset_dir', metavar='dataset-dir',
+                        help='Path to directory containing input OpenKE files')
+
+    parser.add_argument('cw_es_index', metavar='cw-es-index',
+                        help='Name of output closed world Elasticsearch index')
+
+    parser.add_argument('ow_contexts_db', metavar='ow-contexts-db',
+                        help='Path to output open world contexts DB')
+
+    default_es_instance = 'localhost:9200'
+    parser.add_argument('--es-instance', dest='es_instance', metavar='STR', default=default_es_instance,
+                        help='Address of Elasticsearch instance (default: {})'.format(default_es_instance))
+
+    default_limit_contexts = None
+    parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
+                        default=default_limit_contexts,
+                        help='Process only the first ... contexts for each entity'
+                             ' (default: {})'.format(default_limit_contexts))
+
+    parser.add_argument('--overwrite', dest='overwrite', action='store_true',
+                        help='Overwrite Elasticsearch index and contexts DB if they already exist')
+
+
+def run(args: Namespace):
     """ Parse args, print applied config, check whether files and index exist, run program """
-
-    #
-    # Parse args
-    #
-
-    arg_parser = ArgumentParser(
-        description='Build closed world ES index and open world DB',
-        formatter_class=lambda prog: HelpFormatter(prog, max_help_position=60, width=120))
-
-    arg_parser.add_argument('contexts_db', metavar='contexts-db',
-                            help='path to input contexts DB')
-
-    arg_parser.add_argument('dataset_dir', metavar='dataset-dir',
-                            help='path to directory containing OpenKE files')
-
-    arg_parser.add_argument('cw_index', metavar='cw-index',
-                            help='name of output closed world ES index')
-
-    arg_parser.add_argument('ow_db', metavar='ow-db',
-                            help='path to output open world DB')
-
-    default_es_host = 'localhost'
-    arg_parser.add_argument('--es-host', dest='es_host', default=default_es_host,
-                            help='default Elasticsearch host (default: %s)' % default_es_host)
-
-    default_es_port = 9200
-    arg_parser.add_argument('--es-port', dest='es_port', type=int, default=default_es_port,
-                            help='default Elasticsearch port (default: %d)' % default_es_port)
-
-    default_limit_contexts = 100
-    arg_parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, default=default_limit_contexts,
-                            help='only process the first ... contexts for each entity'
-                                 ' (default: {})'.format(default_limit_contexts))
-
-    arg_parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                            help='overwrite ES index and DB if they already exist')
-
-    args = arg_parser.parse_args()
 
     #
     # Print applied config
@@ -59,11 +58,10 @@ def main():
     print('Applied config:')
     print('    {:20} {}'.format('Contexts DB', args.contexts_db))
     print('    {:20} {}'.format('Dataset dir', args.dataset_dir))
-    print('    {:20} {}'.format('CW index', args.cw_index))
+    print('    {:20} {}'.format('CW ES index', args.cw_es_index))
     print('    {:20} {}'.format('OW DB', args.ow_db))
     print()
-    print('    {:20} {}'.format('ES host', args.es_host))
-    print('    {:20} {}'.format('ES port', args.es_port))
+    print('    {:20} {}'.format('ES instance', args.es_instance))
     print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
     print('    {:20} {}'.format('Overwrite', args.overwrite))
     print()
@@ -80,7 +78,7 @@ def main():
         print('Dataset dir not found')
         exit()
 
-    es = Elasticsearch(hosts=[args.es_host], port=args.es_port)
+    es = Elasticsearch([args.es_instance])
     if es.indices.exists(index=args.cw_index):
         if args.overwrite:
             es.indices.delete(index=args.cw_index, ignore=[400, 404])
@@ -173,7 +171,3 @@ def build(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
         ow_conn.commit()
 
         print('Done.')
-
-
-if __name__ == '__main__':
-    main()

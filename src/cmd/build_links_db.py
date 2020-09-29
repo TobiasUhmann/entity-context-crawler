@@ -1,64 +1,55 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import argparse
 import sqlite3
 import wikitextparser as wtp
 
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from datetime import datetime
 from os import remove
 from os.path import isfile
-
-from wikipedia import Wikipedia
-
-#
-# DEFAULT CONFIG
-#
-
-COMMIT_FREQUENCY = 10000
-LIMIT_PAGES = None
+from util.wikipedia import Wikipedia
 
 
-#
-# MAIN
-#
+def add_parser_args(parser: ArgumentParser):
+    """
+    Add arguments to arg parser:
+        wiki-xml
+        links-db
+        --commit-frequency
+        --in-memory
+        --limit-pages
+        --overwrite
+    """
 
-def main():
-    #
-    # Parse args
-    #
+    parser.add_argument('wiki_xml', metavar='wiki-xml',
+                        help='Path to input Wikipedia XML')
 
-    parser = argparse.ArgumentParser(
-        description='Create the link graph',
-        formatter_class=lambda prog: argparse.MetavarTypeHelpFormatter(prog, max_help_position=50, width=120))
+    parser.add_argument('links_db', metavar='links-db',
+                        help='Path to output links DB')
 
-    parser.add_argument('wikipedia_xml', metavar='wikipedia-xml', type=str,
-                        help='path to input Wikipedia XML')
-
-    parser.add_argument('links_db', metavar='links-db', type=str,
-                        help='path to output links DB')
-
-    parser.add_argument('--commit-frequency', dest='commit_frequency', default=COMMIT_FREQUENCY, type=int,
-                        help='commit to database every ... pages (default: {})'.format(COMMIT_FREQUENCY))
+    default_commit_frequency = None
+    parser.add_argument('--commit-frequency', dest='commit_frequency', type=int, metavar='INT',
+                        default=default_commit_frequency,
+                        help='Commit to database every ... pages instead of committing at the end only'
+                             ' (default: {})'.format(default_commit_frequency))
 
     parser.add_argument('--in-memory', dest='in_memory', action='store_true',
-                        help='build complete links DB in memory before persisting it)')
+                        help='Build complete links DB in memory before persisting it')
 
-    parser.add_argument('--limit-pages', dest='limit_pages', default=LIMIT_PAGES, type=int,
-                        help='terminate after ... pages (default: {})'.format(LIMIT_PAGES))
+    default_limit_pages = None
+    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_pages,
+                        help='Early stop after ... pages (default: {})'.format(default_limit_pages))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='overwrite links DB if it already exists')
+                        help='Overwrite links DB if it already exists')
 
-    args = parser.parse_args()
 
+def run(args: Namespace):
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Wikipedia XML', args.wikipedia_xml))
+    print('    {:20} {}'.format('Wikipedia XML', args.wiki_xml))
     print('    {:20} {}'.format('Links DB', args.links_db))
     print()
     print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
@@ -71,7 +62,7 @@ def main():
     # Check for input/output files
     #
 
-    if not isfile(args.wikipedia_xml):
+    if not isfile(args.wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
@@ -86,7 +77,7 @@ def main():
     # Run link extractor
     #
 
-    link_extractor = LinkExtractor(args.wikipedia_xml, args.links_db, args.commit_frequency, args.in_memory,
+    link_extractor = LinkExtractor(args.wiki_xml, args.links_db, args.commit_frequency, args.in_memory,
                                    args.limit_pages)
     link_extractor.run()
 
@@ -150,9 +141,10 @@ class LinkExtractor:
                 if self.limit_pages and page_count > self.limit_pages:
                     break
 
-                if page_count % self.commit_frequency == 0:
-                    print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
-                    links_conn.commit()
+                if self.commit_frequency:
+                    if page_count % self.commit_frequency == 0:
+                        print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
+                        links_conn.commit()
 
                 if page_count % 1000 == 0:
                     row = (datetime.now().strftime("%H:%M:%S"), page_count, wikipedia.missing_titles,
@@ -222,11 +214,3 @@ def insert_links(conn, links):
     cursor = conn.cursor()
     cursor.executemany(sql, links)
     cursor.close()
-
-
-#
-#
-#
-
-if __name__ == '__main__':
-    main()
