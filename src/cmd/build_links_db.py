@@ -8,7 +8,7 @@ from os import remove
 from os.path import isfile
 from typing import Dict, Set
 
-from dao.links_db import create_links_table, insert_links
+from dao.links_db import create_links_table, insert_links, Link
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -168,7 +168,7 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
 
             elif page['text']:
                 wiki_links = wtp.parse(page['text']).wikilinks
-                db_links = [(from_page, link.title) for link in wiki_links]
+                db_links = [Link(from_page, link.title) for link in wiki_links]
                 insert_links(links_conn, db_links)
                 link_count += len(db_links)
 

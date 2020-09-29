@@ -15,6 +15,9 @@ from spacy.matcher import PhraseMatcher
 
 from deepca.dumpr import dumpr
 
+from dao.links_db import select_pages_linking_to, select_pages_linked_from
+from dao.matches_db import insert_page, create_pages_table, create_matches_table, insert_match, Page, Match
+
 
 def add_parser_args(parser: ArgumentParser):
     """
@@ -205,7 +208,7 @@ class EntityMatcher:
 
             wikipedia_url = wikidata[mid]['wikipedia']
             if wikipedia_url:
-                doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ').lower()
+                doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ')
 
                 for label in labels:
                     self.entities[label].add((mid, doc_title))
@@ -235,14 +238,14 @@ class EntityMatcher:
 
     def __run_on_disk(self):
         with sqlite3.connect(self.matches_db) as matches_conn:
-            create_docs_table(matches_conn)
+            create_pages_table(matches_conn)
             create_matches_table(matches_conn)
             self.__process_wikipedia(matches_conn)
             print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
 
     def __run_in_memory(self):
         with sqlite3.connect(':memory:') as memory_conn:
-            create_docs_table(memory_conn)
+            create_pages_table(memory_conn)
             create_matches_table(memory_conn)
             self.__process_wikipedia(memory_conn)
 
@@ -270,40 +273,32 @@ class EntityMatcher:
                 if dumpr_doc.content is None:
                     continue
 
-                self.process_doc(dumpr_doc, matches_conn, links_conn, doc_count)
+                self.process_page(dumpr_doc, matches_conn, links_conn, doc_count)
 
-    def process_doc(self, dumpr_doc, matches_conn, links_conn, doc_count):
-        current_doc_title = dumpr_doc.meta['title']
-        current_doc_hash = hash(current_doc_title.lower())
+    def process_page(self, dumpr_doc, matches_conn, links_conn, page_count):
+        current_page = dumpr_doc.meta['title']
 
         #
         # Store doc in docs table
         #
 
-        insert_doc(matches_conn, dumpr_doc.meta['title'], dumpr_doc.content)
+        insert_page(matches_conn, Page(current_page, dumpr_doc.content))
 
         #
         # spaCy
         #
 
-        doc = self.nlp.make_doc(dumpr_doc.content)
-        matches = self.matcher(doc)
+        spacy_doc = self.nlp.make_doc(dumpr_doc.content)
+        matches = self.matcher(spacy_doc)
 
         #
-        # Query neighbor docs
+        # Query neighbor pages
         #
 
-        cursor = links_conn.cursor()
-        cursor.execute('SELECT to_doc FROM links WHERE from_doc = ?', (current_doc_hash,))
-        links_to_hashes = {row[0] for row in cursor.fetchall()}
-        cursor.close()
+        pages_linked_from_current_page = select_pages_linked_from(links_conn, current_page)
+        pages_linking_to_current_page = select_pages_linking_to(links_conn, current_page)
 
-        cursor = links_conn.cursor()
-        cursor.execute('SELECT from_doc FROM links WHERE to_doc = ?', (current_doc_hash,))
-        linked_from_hashes = {row[0] for row in cursor.fetchall()}
-        cursor.close()
-
-        neighbor_docs = {current_doc_hash} | links_to_hashes | linked_from_hashes
+        neighbor_pages = pages_linking_to_current_page | {current_page} | pages_linked_from_current_page
 
         #
         # Process all Freenode entities & save if in neighbor docs
@@ -311,31 +306,30 @@ class EntityMatcher:
 
         match_count = 0
         for match_id, start, end in matches:
-            entity_span = doc[start:end]
-            entity = entity_span.text
+            entity_span = spacy_doc[start:end]
+            entity_labels = entity_span.text
 
-            if not self.entities[entity]:
+            if not self.entities[entity_labels]:
                 continue
 
-            entity_doc_title = list(self.entities[entity])[0][1]
-            entity_doc = hash(entity_doc_title)
-            if entity_doc not in neighbor_docs:
+            entity_page_title = list(self.entities[entity_labels])[0][1]
+            if entity_page_title not in neighbor_pages:
                 continue
 
-            mid = list(self.entities[entity])[0][0]
+            mid = list(self.entities[entity_labels])[0][0]
 
             context_start = max(entity_span.start_char - 20, 0)
             context_end = min(entity_span.end_char + 20, len(dumpr_doc.content))
             context = dumpr_doc.content[context_start:context_end]
 
-            insert_match(matches_conn, mid, entity, current_doc_title,
-                         entity_span.start_char, entity_span.end_char, context)
+            match = Match(mid, entity_labels, current_page, entity_span.start_char, entity_span.end_char, context)
+            insert_match(matches_conn, match)
 
             match_count += 1
-            self.statistics[entity] += 1
+            self.statistics[entity_labels] += 1
 
         print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
-            datetime.now().strftime("%H:%M:%S"), doc_count, current_doc_title, len(neighbor_docs), match_count))
+            datetime.now().strftime("%H:%M:%S"), page_count, current_page, len(neighbor_pages), match_count))
 
     def plot_statistics(self):
         """
@@ -383,64 +377,3 @@ class EntityMatcher:
         plt.sca(ax_bar_chart)
         plt.xticks(rotation=90)
         plt.show()
-
-
-#
-# DATABASE FUNCTIONS
-#
-
-def create_docs_table(matches_conn):
-    sql = '''
-        CREATE TABLE docs (
-            title text,         -- Lowercase Wikipedia title
-            content text,       -- Truecase article content
-
-            PRIMARY KEY (title)
-        )
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql)
-    cursor.close()
-
-
-def create_matches_table(matches_conn):
-    sql = '''
-        CREATE TABLE matches (
-            mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
-            entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
-            doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-            start_char integer, -- Start char position of entity match within document
-            end_char integer,   -- End char position (exclusive) of entity match within document
-            context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
-
-            FOREIGN KEY (doc) REFERENCES docs (title),
-            PRIMARY KEY (mid, doc, start_char)
-        )
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql)
-    cursor.close()
-
-
-def insert_doc(matches_conn, title, content):
-    sql = '''
-        INSERT INTO docs (title, content)
-        VALUES (?, ?)
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql, (title, content))
-    cursor.close()
-
-
-def insert_match(matches_conn, mid, entity, doc_title, start_char, end_char, context):
-    sql = '''
-        INSERT INTO matches (mid, entity, doc, start_char, end_char, context)
-        VALUES (?, ?, ?, ?, ?, ?)
-    '''
-
-    cursor = matches_conn.cursor()
-    cursor.execute(sql, (mid, entity, doc_title, start_char, end_char, context))
-    cursor.close()

@@ -1,8 +1,12 @@
+from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import List, Tuple
+from typing import List, Set
 
 
-Link = Tuple[str, str]
+@dataclass
+class Link:
+    from_page: str
+    to_page: str
 
 
 def create_links_table(conn: Connection):
@@ -33,9 +37,39 @@ def create_links_table(conn: Connection):
 def insert_links(conn: Connection, links: List[Link]):
     sql = '''
         INSERT INTO links (from_page, to_page)
-        VALUES(?, ?)
+        VALUES (?, ?)
     '''
 
     cursor = conn.cursor()
-    cursor.executemany(sql, links)
+    cursor.executemany(sql, [(link.from_page, link.to_page) for link in links])
     cursor.close()
+
+
+def select_pages_linked_from(conn: Connection, from_page: str) -> Set[str]:
+    sql = '''
+        SELECT to_page
+        FROM links
+        WHERE from_page = ?
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (from_page,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return {row[0] for row in rows}
+
+
+def select_pages_linking_to(conn: Connection, to_page: str) -> Set[str]:
+    sql = '''
+            SELECT from_page
+            FROM links
+            WHERE to_page = ?
+        '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (to_page,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return {row[0] for row in rows}
