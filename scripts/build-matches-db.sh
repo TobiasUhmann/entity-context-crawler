@@ -7,4 +7,4 @@ nohup python -u src/sam.py build-matches-db \
   data/enwiki-20200920-links.db \
   data/enwiki-20200920-matches.db \
   --in-memory \
-> log/build-matches-db_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-matches-db_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

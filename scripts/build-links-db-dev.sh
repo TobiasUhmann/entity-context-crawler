@@ -7,4 +7,4 @@ nohup python -u src/sam.py build-links-db \
   --limit-pages 1000 \
   --overwrite \
   --random-seed 0 \
-> log/build-links-db-dev_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-links-db-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

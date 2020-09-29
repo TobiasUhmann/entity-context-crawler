@@ -11,4 +11,4 @@ nohup python -u src/sam.py build-contexts-db \
   --limit-entities 10 \
   --overwrite \
   --random-seed 0 \
-> log/build-contexts-db-dev_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-contexts-db-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

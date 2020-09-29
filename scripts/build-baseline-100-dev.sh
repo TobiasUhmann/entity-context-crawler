@@ -9,4 +9,4 @@ nohup python -u src/sam.py build-baseline \
   --limit-contexts 100 \
   --overwrite \
   --random-seed 0 \
-> log/build-baseline-100-dev_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-baseline-100-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

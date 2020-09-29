@@ -8,4 +8,4 @@ nohup python -u src/sam.py build-es-test \
   --limit-contexts 100 \
   --overwrite \
   --random-seed 0 \
-> log/build-es-test-dev_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-es-test-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

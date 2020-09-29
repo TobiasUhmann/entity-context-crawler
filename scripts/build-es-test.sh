@@ -6,4 +6,4 @@ nohup python -u src/sam.py build-es-test \
   enwiki-20200920-cw-contexts-100-500 \
   data/enwiki-20200920-ow-contexts-100-500.db \
   --limit-contexts 100 \
-> log/build-es-test_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-es-test_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

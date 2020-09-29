@@ -7,4 +7,4 @@ nohup python -u src/sam.py build-baseline \
   enwiki-20200920-cw-contexts-100-500 \
   data/enwiki-20200920-ow-contexts-100-500.db \
   --limit-contexts 100 \
-> log/build-baseline-100_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-baseline-100_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

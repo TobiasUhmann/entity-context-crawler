@@ -8,4 +8,4 @@ nohup python -u src/sam.py build-contexts-db \
   --crop-sentences \
   --csv-file data/enwiki-20200920-contexts-100-500-qa.csv \
   --limit-contexts 100 \
-> log/build-contexts-db-qa_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-contexts-db-qa_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

@@ -9,4 +9,4 @@ nohup python -u src/sam.py build-matches-db \
   --limit-docs 1000 \
   --overwrite \
   --random-seed 0 \
-> log/build-matches-db-dev_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-matches-db-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

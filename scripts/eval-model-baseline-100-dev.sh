@@ -6,4 +6,4 @@ nohup python -u src/sam.py eval-model \
   data/enwiki-20200920-ow-contexts-100-500.db \
   --model baseline-100 \
   --random-seed 0 \
-> log/eval-model-baseline-100-dev_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/eval-model-baseline-100-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &
