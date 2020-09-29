@@ -3,6 +3,10 @@ from sqlite3 import Connection
 from typing import List, Set
 
 
+#
+# Links
+#
+
 @dataclass
 class Link:
     from_page: str
@@ -73,3 +77,39 @@ def select_pages_linking_to(conn: Connection, to_page: str) -> Set[str]:
     cursor.close()
 
     return {row[0] for row in rows}
+
+
+#
+# Aliases
+#
+
+@dataclass
+class Alias:
+    page: str
+    alias: str
+
+
+def create_aliases_table(conn: Connection):
+    sql = '''
+        CREATE TABLE aliases (
+            page TEXT,
+            alias TEXT,
+            
+            PRIMARY KEY (page, alias)
+        )
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
+
+def insert_aliases(conn: Connection, aliases: List[Alias]):
+    sql = '''
+        INSERT OR IGNORE INTO aliases (page, alias)
+        VALUES (?, ?)
+    '''
+
+    cursor = conn.cursor()
+    cursor.executemany(sql, [(alias.page, alias.alias) for alias in aliases])
+    cursor.close()

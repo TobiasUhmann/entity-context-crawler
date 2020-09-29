@@ -8,7 +8,7 @@ from os import remove
 from os.path import isfile
 from typing import Dict, Set
 
-from dao.links_db import create_links_table, insert_links, Link
+from dao.links_db import create_links_table, insert_links, create_aliases_table, Link, Alias, insert_aliases
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -112,6 +112,7 @@ def _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages
 def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
     with sqlite3.connect(links_db) as links_conn:
         create_links_table(links_conn)
+        create_aliases_table(links_conn)
 
         _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages)
 
@@ -119,18 +120,19 @@ def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
 
 
 def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
-    with sqlite3.connect(':memory:') as memory_conn:
-        create_links_table(memory_conn)
+    with sqlite3.connect(':memory:') as memory_links_conn:
+        create_links_table(memory_links_conn)
+        create_aliases_table(memory_links_conn)
 
-        _process_wikipedia(wiki_xml, memory_conn, commit_frequency, limit_pages)
+        _process_wikipedia(wiki_xml, memory_links_conn, commit_frequency, limit_pages)
 
         print()
         log('Persist...')
 
-        with sqlite3.connect(links_db) as conn_links:
-            for line in memory_conn.iterdump():
+        with sqlite3.connect(links_db) as disk_links_conn:
+            for line in memory_links_conn.iterdump():
                 if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
-                    conn_links.execute(line)
+                    disk_links_conn.execute(line)
 
         log('Done')
 
@@ -168,8 +170,13 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
 
             elif page['text']:
                 wiki_links = wtp.parse(page['text']).wikilinks
+
                 db_links = [Link(from_page, link.title) for link in wiki_links]
                 insert_links(links_conn, db_links)
+
+                db_aliases = [Alias(link.title, link.text) for link in wiki_links if link.text]
+                insert_aliases(links_conn, db_aliases)
+
                 link_count += len(db_links)
 
             else:
