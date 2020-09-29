@@ -3,11 +3,11 @@ import wikitextparser as wtp
 
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from datetime import datetime
 from os import remove
 from os.path import isfile
 
 from dao.links_db import create_links_table, insert_links
+from util.util import log
 from util.wikipedia import Wikipedia
 
 
@@ -89,7 +89,7 @@ def _run_on_disk(wiki_xml, links_db, limit_pages, commit_frequency):
     with sqlite3.connect(links_db) as links_conn:
         create_links_table(links_conn)
         _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency)
-        print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
+        log('Done')
 
 
 def _run_in_memory(wiki_xml, links_db, limit_pages, commit_frequency):
@@ -97,13 +97,15 @@ def _run_in_memory(wiki_xml, links_db, limit_pages, commit_frequency):
         create_links_table(memory_conn)
         _process_wikipedia(wiki_xml, memory_conn, limit_pages, commit_frequency)
 
-        print('{} | PERSIST'.format(datetime.now().strftime('%H:%M:%S')))
+        print()
+        log('Persist...')
+
         with sqlite3.connect(links_db) as conn_links:
             for line in memory_conn.iterdump():
                 if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
                     conn_links.execute(line)
 
-        print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
+        log('Done')
 
 
 def _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency):
@@ -121,14 +123,14 @@ def _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency):
                 break
 
             if commit_frequency and page_count % commit_frequency == 0:
-                print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
+                log('Commit')
                 links_conn.commit()
 
             if page_count % 1000 == 0:
-                row = (datetime.now().strftime("%H:%M:%S"), page_count, wikipedia.missing_titles,
-                       wikipedia.missing_texts, wikipedia.skipped_templates, redirect_count, link_count)
-                print('{} | {:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
-                      ' | {:,} redirects | {:,} links'.format(*row))
+                row = (page_count, wikipedia.missing_titles, wikipedia.missing_texts, wikipedia.skipped_templates,
+                       redirect_count, link_count)
+                log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
+                    ' | {:,} redirects | {:,} links'.format(*row))
 
             from_doc = hash(page['title'].lower())
 
@@ -146,9 +148,10 @@ def _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency):
             else:
                 missing_text_count += 1
 
-        print()
-        print('Missing titles: {}'.format(wikipedia.missing_titles))
-        print('Missing texts: {}'.format(wikipedia.missing_texts))
-
         links_conn.commit()
-        print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
+        log('Commit')
+
+        print()
+        print('Stats:')
+        print('\tMissing titles: {}'.format(wikipedia.missing_titles))
+        print('\tMissing texts: {}'.format(wikipedia.missing_texts))
