@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import wikitextparser as wtp
 
@@ -46,55 +47,80 @@ def add_parser_args(parser: ArgumentParser):
 
 
 def run(args: Namespace):
+    """
+    - Print applied config
+    - Check if files already exist
+    - Run actual program
+    """
+
+    wiki_xml = args.wiki_xml
+    links_db = args.links_db
+
+    commit_frequency = args.commit_frequency
+    in_memory = args.in_memory
+    limit_pages = args.limit_pages
+    overwrite = args.overwrite
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Wikipedia XML', args.wiki_xml))
-    print('    {:20} {}'.format('Links DB', args.links_db))
+    print('    {:20} {}'.format('wiki-xml', wiki_xml))
+    print('    {:20} {}'.format('links-db', links_db))
     print()
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Limit pages', args.limit_pages))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print('    {:20} {}'.format('--commit-frequency', commit_frequency))
+    print('    {:20} {}'.format('--in-memory', in_memory))
+    print('    {:20} {}'.format('--limit-pages', limit_pages))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print()
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check for input/output files
+    # Check if files already exist
     #
 
-    if not isfile(args.wiki_xml):
+    if not isfile(wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
-    if isfile(args.links_db):
-        if args.overwrite:
-            remove(args.links_db)
+    if isfile(links_db):
+        if overwrite:
+            remove(links_db)
         else:
-            print('Links DB already exists. Use --overwrite to overwrite it')
+            print('Links DB already exists, use --overwrite to overwrite it')
             exit()
 
     #
-    # Run link extractor
+    # Run actual program
     #
 
-    if args.in_memory:
-        _run_in_memory(args.wiki_xml, args.links_db, args.limit_pages, args.commit_frequency)
+    _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages)
+
+
+def _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages):
+    if in_memory:
+        _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages)
     else:
-        _run_on_disk(args.wiki_xml, args.links_db, args.limit_pages, args.commit_frequency)
+        _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages)
 
 
-def _run_on_disk(wiki_xml, links_db, limit_pages, commit_frequency):
+def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
     with sqlite3.connect(links_db) as links_conn:
         create_links_table(links_conn)
-        _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency)
+
+        _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages)
+
         log('Done')
 
 
 def _run_in_memory(wiki_xml, links_db, limit_pages, commit_frequency):
     with sqlite3.connect(':memory:') as memory_conn:
         create_links_table(memory_conn)
+
         _process_wikipedia(wiki_xml, memory_conn, limit_pages, commit_frequency)
 
         print()

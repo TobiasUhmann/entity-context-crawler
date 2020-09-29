@@ -1,5 +1,6 @@
 import json
 import matplotlib.pyplot as plt
+import os
 import sqlite3
 
 from argparse import ArgumentParser, Namespace
@@ -50,59 +51,79 @@ def add_parser_args(parser: ArgumentParser):
                         help='Build complete matches DB in memory before persisting it')
 
     default_limit_docs = None
-    parser.add_argument('--limit-docs', dest='limit_docs', type=int, metavar='INT', default=default_limit_docs,
-                        help='Early stop after ... docs (default: {})'.format(default_limit_docs))
+    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_docs,
+                        help='Early stop after ... pages (default: {})'.format(default_limit_docs))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite matches DB if it already exists')
 
 
 def run(args: Namespace):
+    """
+    - Print applied config
+    - Check if files already exist
+    - Run actual program
+    """
+
+    freenode_json = args.freenode_json
+    wiki_xml = args.wiki_xml
+    links_db = args.links_db
+    matches_db = args.matches_db
+
+    commit_frequency = args.commit_frequency
+    in_memory = args.in_memory
+    limit_pages = args.limit_pages
+    overwrite = args.overwrite
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Freenode JSON', args.freenode_json))
-    print('    {:20} {}'.format('Wikipedia XML', args.wiki_xml))
-    print('    {:20} {}'.format('Links DB', args.links_db))
-    print('    {:20} {}'.format('Matches DB', args.matches_db))
+    print('    {:20} {}'.format('freenode-json', freenode_json))
+    print('    {:20} {}'.format('wiki-xml', wiki_xml))
+    print('    {:20} {}'.format('links-db', links_db))
+    print('    {:20} {}'.format('matches-db', matches_db))
     print()
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Limit docs', args.limit_docs))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print('    {:20} {}'.format('--commit-frequency', commit_frequency))
+    print('    {:20} {}'.format('--in-memory', in_memory))
+    print('    {:20} {}'.format('--limit-pages', limit_pages))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print()
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check for input/output files
+    # Check if files already exist
     #
 
-    if not isfile(args.freenode_json):
+    if not isfile(freenode_json):
         print('Freenode JSON not found')
         exit()
 
-    if not isfile(args.wiki_xml):
+    if not isfile(wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
-    if not isfile(args.links_db):
+    if not isfile(links_db):
         print('Links DB not found')
         exit()
 
-    if isfile(args.matches_db):
-        if args.overwrite:
-            remove(args.matches_db)
+    if isfile(matches_db):
+        if overwrite:
+            remove(matches_db)
         else:
-            print('Matches DB already exists. Use --overwrite to overwrite it')
+            print('Matches DB already exists, use --overwrite to overwrite it')
             exit()
 
     #
-    # Run entity matcher
+    # Run actual program
     #
 
-    entity_matcher = EntityMatcher(args.freenode_json, args.wiki_xml, args.links_db, args.matches_db,
-                                   args.commit_frequency, args.in_memory, args.limit_docs)
+    entity_matcher = EntityMatcher(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory,
+                                   limit_pages)
 
     entity_matcher.init()
     entity_matcher.run()

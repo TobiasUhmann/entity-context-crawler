@@ -1,6 +1,7 @@
-import argparse
+import os
 import sqlite3
 
+from argparse import  ArgumentParser, Namespace
 from collections import defaultdict, Counter
 from elasticsearch import Elasticsearch
 from os.path import isfile
@@ -10,82 +11,105 @@ from typing import List
 from dao.contexts_db import select_contexts, select_distinct_entities
 
 
-def add_parser_args(parser: argparse.ArgumentParser):
+def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        index-name
+        es-index
         test-contexts-db
+        --es-host
         --limit-contexts
         --limit-entities
         --top-hits
         --verbose
     """
 
-    parser.add_argument('index_name', metavar='index-name',
+    parser.add_argument('es_index', metavar='es-index',
                         help='Name of input Elasticsearch index')
 
     parser.add_argument('test_contexts_db', metavar='test-contexts-db',
                         help='Path to input test contexts DB')
 
+    default_es_host = 'localhost:9200'
+    parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
+                        help='Elasticsearch host (default: {})'.format(default_es_host))
+
     default_limit_contexts = None
     parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
                         default=default_limit_contexts,
-                        help='Process only the first ... contexts for each entity'
+                        help='Process only first ... contexts for each entity'
                              ' (default: {})'.format(default_limit_contexts))
 
     default_limit_entities = None
     parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
                         default=default_limit_entities,
-                        help='Process only the first ... entities'
+                        help='Process only first ... entities'
                              ' (default: {})'.format(default_limit_entities))
 
     default_top_hits = 10
     parser.add_argument('--top-hits', dest='top_hits', type=int, metavar='INT', default=default_top_hits,
-                        help='Evaluate the top ... hits for each query'
+                        help='Evaluate only the top ... hits for each query'
                              ' (default: {})'.format(default_top_hits))
 
     parser.add_argument('--verbose', dest='verbose', action='store_true',
                         help='Print query contexts for each entity')
 
 
-def run(args: argparse.Namespace):
+def run(args: Namespace):
+    """
+    - Print applied config
+    - Check if files already exist
+    - Run actual program
+    """
+
+    es_index = args.es_index
+    test_contexts_db = args.test_contexts_db
+
+    es_host = args.es_host
+    limit_contexts = args.limit_contexts
+    limit_entities = args.limit_entities
+    top_hits = args.top_hits
+    verbose = args.verbose
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
 
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Index name', args.index_name))
-    print('    {:20} {}'.format('Test contexts DB', args.test_contexts_db))
+    print('    {:20} {}'.format('es-index', es_index))
+    print('    {:20} {}'.format('test-contexts-db', test_contexts_db))
     print()
-    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
-    print('    {:20} {}'.format('Limit entities', args.limit_entities))
-    print('    {:20} {}'.format('Top hits', args.limit_entities))
-    print('    {:20} {}'.format('Verbose', args.verbose))
+    print('    {:20} {}'.format('--es-host', es_host))
+    print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--limit-entities', limit_entities))
+    print('    {:20} {}'.format('--top-hits', top_hits))
+    print('    {:20} {}'.format('--verbose', verbose))
+    print()
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check for input/output files
+    # Check if files already exist
     #
 
-    if not isfile(args.test_contexts_db):
+    if not isfile(test_contexts_db):
         print('Test contexts DB not found')
         exit()
 
-    es = Elasticsearch()
-    if not es.indices.exists(index=args.index_name):
+    es = Elasticsearch([es_host])
+    if not es.indices.exists(index=es_index):
         print('Elasticsearch index not found')
         exit()
 
     #
-    # Run program
+    # Run actual program
     #
 
-    query_contexts(es, args.index_name, args.test_contexts_db, args.limit_contexts, args.limit_entities, args.top_hits,
-                   args.verbose)
+    _query_es_test(es, es_index, test_contexts_db, limit_contexts, limit_entities, top_hits, verbose)
 
 
-def query_contexts(es, index_name, test_contexts_db, limit_contexts, limit_entities, top_hits, verbose):
+def _query_es_test(es, index_name, test_contexts_db, limit_contexts, limit_entities, top_hits, verbose):
     with sqlite3.connect(test_contexts_db) as test_contexts_conn:
         stats = defaultdict(Counter)
 

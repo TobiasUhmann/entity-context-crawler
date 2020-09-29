@@ -58,7 +58,7 @@ def add_parser_args(parser: ArgumentParser):
                         help='Early stop after ... entities (default: {})'.format(default_limit_entities))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='Overwrite contexts DB if it already exists')
+                        help='Overwrite contexts DB and CSV file if they already exist')
 
 
 def run(args: Namespace):
@@ -68,53 +68,69 @@ def run(args: Namespace):
     - Run actual program
     """
 
+    matches_db = args.matches_db
+    contexts_db = args.contexts_db
+
+    context_size = args.context_size
+    crop_sentences = args.crop_sentences
+    csv_file = args.csv_file
+    limit_contexts = args.limit_contexts
+    limit_entities = args.limit_entities
+    overwrite = args.overwrite
+    random_seed = args.random_seed
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
+    #
+    # Print applied config
+    #
+
     print('Applied config:')
-    print('    {:20} {}'.format('Matches DB', args.matches_db))
-    print('    {:20} {}'.format('Contexts DB', args.contexts_db))
+    print('    {:20} {}'.format('matches-db', matches_db))
+    print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
-    print('    {:20} {}'.format('Context size', args.context_size))
-    print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
-    print('    {:20} {}'.format('CSV file', args.csv_file))
-    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
-    print('    {:20} {}'.format('Limit entities', args.limit_entities))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
-    print('    {:20} {}'.format('Random seed', args.random_seed))
+    print('    {:20} {}'.format('--context-size', context_size))
+    print('    {:20} {}'.format('--crop-sentences', crop_sentences))
+    print('    {:20} {}'.format('--csv-file', csv_file))
+    print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--limit-entities', limit_entities))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print('    {:20} {}'.format('--random-seed', random_seed))
     print()
-    print('    {:20} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
     # Check if files already exist
     #
 
-    if not isfile(args.matches_db):
+    if not isfile(matches_db):
         print('Matches DB not found')
         exit()
 
-    if isfile(args.contexts_db):
-        if args.overwrite:
-            remove(args.contexts_db)
+    if isfile(contexts_db):
+        if overwrite:
+            remove(contexts_db)
         else:
-            print('Contexts DB already exists. Use --overwrite to overwrite it')
+            print('Contexts DB already exists, use --overwrite to overwrite it')
             exit()
 
-    if isfile(args.csv_file):
-        if args.overwrite:
-            remove(args.csv_file)
+    if isfile(csv_file):
+        if overwrite:
+            remove(csv_file)
         else:
-            print('CSV file already exists. Use --overwrite to overwrite it')
+            print('CSV file already exists, use --overwrite to overwrite it')
             exit()
 
     #
     # Run actual program
     #
 
-    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.csv_file,
-                  args.limit_contexts, args.limit_entities)
+    _build_contexts_db(matches_db, contexts_db, context_size, crop_sentences, csv_file, limit_contexts, limit_entities)
 
 
-def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, csv_file: str,
-                  limit_contexts: int, limit_entities: int):
+def _build_contexts_db(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, csv_file: str,
+                       limit_contexts: int, limit_entities: int):
     """
     - Load English spaCy model
     - Create contexts DB

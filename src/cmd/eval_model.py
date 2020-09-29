@@ -15,20 +15,20 @@ def add_parser_args(parser: ArgumentParser):
     Add arguments to arg parser:
         dataset-dir
         contexts-db
-        --es-instance
+        --es-host
         --limit-entities
         --model
     """
 
     parser.add_argument('dataset_dir', metavar='dataset-dir',
-                        help='Path to directory containing input OpenKE files')
+                        help='Path to OpenKE dataset directory')
 
     parser.add_argument('contexts_db', metavar='contexts-db',
                         help='Path to output contexts DB')
 
-    default_es_instance = 'localhost:9200'
-    parser.add_argument('--es-instance', dest='es_instance', metavar='STR', default=default_es_instance,
-                        help='Address of Elasticsearch instance (default: {})'.format(default_es_instance))
+    default_es_host = 'localhost:9200'
+    parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
+                        help='Elasticsearch host (default: {})'.format(default_es_host))
 
     default_limit_entities = None
     parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
@@ -44,42 +44,48 @@ def add_parser_args(parser: ArgumentParser):
 def run(args: Namespace):
     """
     - Print applied config
-    - Seed random generator
     - Check if files already exist
     - Run actual program
     """
+
+    dataset_dir = args.dataset_dir
+
+    es_host = args.es_host
+    limit_entities = args.limit_entities
+    model = args.model
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
 
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:24} {}'.format('Dataset dir', args.dataset_dir))
+    print('    {:20} {}'.format('dataset-dir', dataset_dir))
     print()
-    print('    {:24} {}'.format('ES instance', args.es_instance))
-    print('    {:24} {}'.format('Limit entities', args.limit_entities))
-    print('    {:24} {}'.format('Model', args.model))
-    print('    {:24} {}'.format('Random seed', args.random_seed))
+    print('    {:20} {}'.format('--es-host', es_host))
+    print('    {:20} {}'.format('--limit-entities', limit_entities))
+    print('    {:20} {}'.format('--model', model))
     print()
-    print('    {:24} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
     # Check if files already exist
     #
 
-    if not isdir(args.dataset_dir):
-        print('Dataset dir not found')
+    if not isdir(dataset_dir):
+        print('OpenKE dataset directory not found')
         exit()
 
     #
     # Run actual program
     #
 
-    evaluate(args.dataset_dir, args.limit_entities, args.es_instance, args.model)
+    _eval_model(dataset_dir, limit_entities, es_host, model)
 
 
-def evaluate(dataset_dir: str, limit_entities: int, es_url: str, model_selection: str):
+def _eval_model(dataset_dir: str, limit_entities: int, es_url: str, model_selection: str):
     """
     - Load dataset
     - Build model
