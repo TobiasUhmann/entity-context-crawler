@@ -6,6 +6,7 @@ from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from os import remove
 from os.path import isfile
+from typing import Dict, Set
 
 from dao.links_db import create_links_table, insert_links
 from util.util import log
@@ -117,11 +118,11 @@ def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
         log('Done')
 
 
-def _run_in_memory(wiki_xml, links_db, limit_pages, commit_frequency):
+def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
     with sqlite3.connect(':memory:') as memory_conn:
         create_links_table(memory_conn)
 
-        _process_wikipedia(wiki_xml, memory_conn, limit_pages, commit_frequency)
+        _process_wikipedia(wiki_xml, memory_conn, commit_frequency, limit_pages)
 
         print()
         log('Persist...')
@@ -134,11 +135,11 @@ def _run_in_memory(wiki_xml, links_db, limit_pages, commit_frequency):
         log('Done')
 
 
-def _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency):
+def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
     link_count = 0
     missing_text_count = 0
 
-    redirects = defaultdict(set)
+    redirects: Dict[Set[str]] = defaultdict(set)
     redirect_count = 0
 
     with open(wiki_xml, 'rb') as wiki_xml:
@@ -158,18 +159,18 @@ def _process_wikipedia(wiki_xml, links_conn, limit_pages, commit_frequency):
                 log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
                     ' | {:,} redirects | {:,} links'.format(*row))
 
-            from_doc = hash(page['title'].lower())
+            from_page = page['title']
 
             if page['redirect']:
-                to_doc = hash(page['redirect'].lower())
-                redirects[from_doc].add(to_doc)
+                to_page = page['redirect']
+                redirects[from_page].add(to_page)
                 redirect_count += 1
 
             elif page['text']:
-                links = wtp.parse(page['text']).wikilinks
-                inserts = [(from_doc, hash(link.title.lower())) for link in links]
-                insert_links(links_conn, inserts)
-                link_count += len(inserts)
+                wiki_links = wtp.parse(page['text']).wikilinks
+                db_links = [(from_page, link.title) for link in wiki_links]
+                insert_links(links_conn, db_links)
+                link_count += len(db_links)
 
             else:
                 missing_text_count += 1

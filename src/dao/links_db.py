@@ -1,34 +1,38 @@
 from sqlite3 import Connection
+from typing import List, Tuple
+
+
+Link = Tuple[str, str]
 
 
 def create_links_table(conn: Connection):
-    sql_create_table = '''
+    create_table = '''
         CREATE TABLE links (
-            from_doc int,      -- hashed lowercase Wikipedia doc title
-            to_doc int         -- hashed lowercase Wikipedia doc title
+            from_page TEXT,
+            to_page TEXT
         )
     '''
 
-    sql_create_index_1 = '''
-        CREATE INDEX idx_from_doc 
-        ON links (from_doc)
+    create_from_page_index = '''
+        CREATE INDEX index_from_page 
+        ON links (from_page)
     '''
 
-    sql_create_index_2 = '''
-        CREATE INDEX idx_to_doc
-        ON links (to_doc)
+    create_to_page_index = '''
+        CREATE INDEX index_to_page
+        ON links (to_page)
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql_create_table)
-    cursor.execute(sql_create_index_1)
-    cursor.execute(sql_create_index_2)
+    cursor.execute(create_table)
+    cursor.execute(create_from_page_index)
+    cursor.execute(create_to_page_index)
     cursor.close()
 
 
-def insert_links(conn, links):
+def insert_links(conn: Connection, links: List[Link]):
     sql = '''
-        INSERT INTO links (from_doc, to_doc)
+        INSERT INTO links (from_page, to_page)
         VALUES(?, ?)
     '''
 
