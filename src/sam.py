@@ -3,7 +3,7 @@ import random
 from argparse import ArgumentParser, HelpFormatter
 
 from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, build_matches_db, eval_es_test, \
-    eval_model, query_es_test
+    eval_model, query_es_test, build_pages_db
 
 
 def main():
@@ -41,6 +41,17 @@ def main():
 
     build_links_db.add_parser_args(build_links_db_parser)
     build_links_db_parser.set_defaults(func=build_links_db.run)
+
+    #
+    # Add build-pages-db sub command
+    #
+
+    build_pages_db_parser = sub_parsers.add_parser(
+        'build-pages-db', formatter_class=get_formatter, parents=[common_parser],
+        description='Build database with plain text Wikipedia pages')
+
+    build_pages_db.add_parser_args(build_pages_db_parser)
+    build_pages_db_parser.set_defaults(func=build_pages_db.run)
 
     #
     # Add build-matches-db sub command

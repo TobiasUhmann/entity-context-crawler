@@ -186,8 +186,3 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
 
         links_conn.commit()
         log('Commit')
-
-        print()
-        print('Stats:')
-        print('\tMissing titles: {}'.format(wikipedia.missing_titles))
-        print('\tMissing texts: {}'.format(wikipedia.missing_texts))
