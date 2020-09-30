@@ -17,6 +17,7 @@ from deepca.dumpr import dumpr
 
 from dao.links_db import select_pages_linking_to, select_pages_linked_from
 from dao.matches_db import insert_page, create_pages_table, create_matches_table, insert_match, Page, Match
+from util.util import log
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -125,196 +126,156 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    entity_matcher = EntityMatcher(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory,
-                                   limit_pages)
-
-    entity_matcher.init()
-    entity_matcher.run()
+    _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_pages)
 
 
-#
-# ENTITY MATCHER
-#
+def _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_pages):
+    if in_memory:
+        _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages)
+    else:
+        _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages)
 
-class EntityMatcher:
-    freenode_to_wikidata_json: str
-    wiki_xml: str
-    links_db: str
-    matches_db: str
 
-    in_memory: bool
-    commit_frequency: int
-    limit: int
+def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages):
+    with sqlite3.connect(matches_db) as matches_conn:
+        create_pages_table(matches_conn)
+        create_matches_table(matches_conn)
 
-    nlp: Language
-    matcher: PhraseMatcher
+        _process_wikipedia(freenode_json, wiki_xml, links_db, matches_conn, commit_frequency, limit_pages)
 
-    entities = defaultdict(set)  # TODO example
-    statistics: dict  # {entity: absolute_frequency}, e.g. {'anarchism': 1234, 'foo': 0, ...}
+        log('Done')
 
-    def __init__(self, freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_docs):
-        self.freenode_to_wikidata_json = freenode_json
-        self.wiki_xml = wiki_xml
-        self.links_db = links_db
-        self.matches_db = matches_db
 
-        self.commit_frequency = commit_frequency
-        self.in_memory = in_memory
-        self.limit = limit_docs
+def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages):
+    with sqlite3.connect(':memory:') as memory_matches_conn:
+        create_pages_table(memory_matches_conn)
+        create_matches_table(memory_matches_conn)
 
-    def init(self):
-        """
-        Create English spaCy object and matcher. Furthermore, load entity labels to create entities dict and
-        initialize statistics.
-        """
+        _process_wikipedia(freenode_json, wiki_xml, links_db, memory_matches_conn, commit_frequency, limit_pages)
 
-        self.nlp = English()
-        self.nlp.vocab.lex_attr_getters = {}
-        self.matcher = PhraseMatcher(self.nlp.vocab)
+        print()
+        log('Persist...')
 
-        with open(self.freenode_to_wikidata_json, 'r') as file:
-            wikidata = json.load(file)
+        with sqlite3.connect(matches_db) as disk_matches_conn:
+            for line in memory_matches_conn.iterdump():
+                if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
+                    disk_matches_conn.execute(line)
 
-        #
-        # self.entities: entity -> {(MID, Wikipedia doc title)...}
-        #
-        # {
-        #     ...
-        #     'Spider-Man': {('/m/06ys2', 'Spider-Man'), ('/m/012s1d', 'Spider-Man (2002 film)')}
-        #     'Spidey': {('/m/06ys2', 'Spider-Man')}
-        #     ...
-        # }
-        #
-        # Homonyms map to multiple Freenode nodes.
-        # Includes alternative names.
-        #
+        log('Done')
 
-        missing_urls = 0
-        for mid in wikidata:
-            labels = {wikidata[mid]['label']}
-            # labels.update(wikidata[mid]['alternatives'])
 
-            wikipedia_url = wikidata[mid]['wikipedia']
-            if wikipedia_url:
-                doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ')
+def _process_wikipedia(freenode_json, wiki_xml, links_db, matches_conn, commit_frequency, limit_pages):
+    nlp = English()
+    nlp.vocab.lex_attr_getters = {}
+    matcher = PhraseMatcher(nlp.vocab)
 
-                for label in labels:
-                    self.entities[label].add((mid, doc_title))
-            else:
-                missing_urls += 1
+    with open(freenode_json, 'r') as file:
+        wikidata = json.load(file)
 
-        print('Missing URLs: %d' % missing_urls)
+    #
+    # self.entities: entity -> {(MID, Wikipedia doc title)...}
+    #
+    # {
+    #     ...
+    #     'Spider-Man': {('/m/06ys2', 'Spider-Man'), ('/m/012s1d', 'Spider-Man (2002 film)')}
+    #     'Spidey': {('/m/06ys2', 'Spider-Man')}
+    #     ...
+    # }
+    #
+    # Homonyms map to multiple Freenode nodes.
 
-        #
-        #
-        #
+    entities = defaultdict(set)
 
-        self.statistics = {entity: 0 for entity in self.entities}
+    missing_urls = 0
+    for mid in wikidata:
+        labels = {wikidata[mid]['label']}
 
-        patterns = list(self.nlp.pipe(self.entities.keys()))
-        self.matcher.add('Entities', None, *patterns)
+        wikipedia_url = wikidata[mid]['wikipedia']
+        if wikipedia_url:
+            doc_title = wikipedia_url.rsplit('/', 1)[-1].replace('_', ' ')
 
-    def run(self):
-        """
-        Find and persist entity matches in Wikipedia documents.
-        """
-
-        if self.in_memory:
-            self.__run_in_memory()
+            for label in labels:
+                entities[label].add((mid, doc_title))
         else:
-            self.__run_on_disk()
+            missing_urls += 1
 
-    def __run_on_disk(self):
-        with sqlite3.connect(self.matches_db) as matches_conn:
-            create_pages_table(matches_conn)
-            create_matches_table(matches_conn)
-            self.__process_wikipedia(matches_conn)
-            print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
+    print('Missing URLs: %d' % missing_urls)
 
-    def __run_in_memory(self):
-        with sqlite3.connect(':memory:') as memory_conn:
-            create_pages_table(memory_conn)
-            create_matches_table(memory_conn)
-            self.__process_wikipedia(memory_conn)
+    patterns = list(nlp.pipe(entities.keys()))
+    matcher.add('Entities', None, *patterns)
 
-            print('{} | PERSIST'.format(datetime.now().strftime('%H:%M:%S')))
-            with sqlite3.connect(self.matches_db) as matches_conn:
-                for line in memory_conn.iterdump():
-                    if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
-                        matches_conn.execute(line)
+    #
+    #
+    #
 
-            print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
+    with sqlite3.connect(links_db) as links_conn, \
+            dumpr.BatchReader(wiki_xml) as reader:
 
-    def __process_wikipedia(self, matches_conn):
-        with sqlite3.connect(self.links_db) as links_conn, \
-                dumpr.BatchReader(self.wiki_xml) as reader:
+        for doc_count, dumpr_doc in enumerate(reader.docs):
+            if limit_pages and doc_count > limit_pages:
+                break
 
-            for doc_count, dumpr_doc in enumerate(reader.docs):
-                if self.limit and doc_count > self.limit:
-                    break
+            if commit_frequency and doc_count % commit_frequency == 0:
+                log('Commit...')
+                matches_conn.commit()
 
-                if self.commit_frequency and doc_count % self.commit_frequency == 0:
-                    print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
-                    matches_conn.commit()
-                    # self.plot_statistics()
-
-                if dumpr_doc.content is None:
-                    continue
-
-                self.process_page(dumpr_doc, matches_conn, links_conn, doc_count)
-
-    def process_page(self, dumpr_doc, matches_conn, links_conn, page_count):
-        current_page = dumpr_doc.meta['title']
-
-        #
-        # Store doc in docs table
-        #
-
-        insert_page(matches_conn, Page(current_page, dumpr_doc.content))
-
-        #
-        # spaCy
-        #
-
-        spacy_doc = self.nlp.make_doc(dumpr_doc.content)
-        matches = self.matcher(spacy_doc)
-
-        #
-        # Query neighbor pages
-        #
-
-        pages_linked_from_current_page = select_pages_linked_from(links_conn, current_page)
-        pages_linking_to_current_page = select_pages_linking_to(links_conn, current_page)
-
-        neighbor_pages = pages_linking_to_current_page | {current_page} | pages_linked_from_current_page
-
-        #
-        # Process all Freenode entities & save if in neighbor docs
-        #
-
-        match_count = 0
-        for match_id, start, end in matches:
-            entity_span = spacy_doc[start:end]
-            entity_labels = entity_span.text
-
-            if not self.entities[entity_labels]:
+            if dumpr_doc.content is None:
                 continue
 
-            entity_page_title = list(self.entities[entity_labels])[0][1]
-            if entity_page_title not in neighbor_pages:
-                continue
+            _process_page(nlp, matcher, entities, dumpr_doc, matches_conn, links_conn, doc_count)
 
-            mid = list(self.entities[entity_labels])[0][0]
 
-            context_start = max(entity_span.start_char - 20, 0)
-            context_end = min(entity_span.end_char + 20, len(dumpr_doc.content))
-            context = dumpr_doc.content[context_start:context_end]
+def _process_page(nlp, matcher, entities, dumpr_doc, matches_conn, links_conn, page_count):
+    current_page = dumpr_doc.meta['title']
 
-            match = Match(mid, entity_labels, current_page, entity_span.start_char, entity_span.end_char, context)
-            insert_match(matches_conn, match)
+    #
+    # Store doc in docs table
+    #
 
-            match_count += 1
-            self.statistics[entity_labels] += 1
+    insert_page(matches_conn, Page(current_page, dumpr_doc.content))
 
-        print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
-            datetime.now().strftime("%H:%M:%S"), page_count, current_page, len(neighbor_pages), match_count))
+    #
+    # spaCy
+    #
+
+    spacy_doc = nlp.make_doc(dumpr_doc.content)
+    matches = matcher(spacy_doc)
+
+    #
+    # Query neighbor pages
+    #
+
+    pages_linked_from_current_page = select_pages_linked_from(links_conn, current_page)
+    pages_linking_to_current_page = select_pages_linking_to(links_conn, current_page)
+
+    neighbor_pages = pages_linking_to_current_page | {current_page} | pages_linked_from_current_page
+
+    #
+    # Process all Freenode entities & save if in neighbor docs
+    #
+
+    match_count = 0
+    for match_id, start, end in matches:
+        entity_span = spacy_doc[start:end]
+        entity_labels = entity_span.text
+
+        if not entities[entity_labels]:
+            continue
+
+        entity_page_title = list(entities[entity_labels])[0][1]
+        if entity_page_title not in neighbor_pages:
+            continue
+
+        mid = list(entities[entity_labels])[0][0]
+
+        context_start = max(entity_span.start_char - 20, 0)
+        context_end = min(entity_span.end_char + 20, len(dumpr_doc.content))
+        context = dumpr_doc.content[context_start:context_end]
+
+        match = Match(mid, entity_labels, current_page, entity_span.start_char, entity_span.end_char, context)
+        insert_match(matches_conn, match)
+
+        match_count += 1
+
+    print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
+        datetime.now().strftime("%H:%M:%S"), page_count, current_page, len(neighbor_pages), match_count))
