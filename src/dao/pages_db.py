@@ -27,7 +27,7 @@ def select_page(conn: Connection, title: str) -> Page:
     sql = '''
         SELECT title, content
         FROM pages
-        where title = ?
+        WHERE title = ?
     '''
 
     cursor = conn.cursor()

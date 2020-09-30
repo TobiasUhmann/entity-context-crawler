@@ -175,18 +175,6 @@ class EntityMatcher:
         with open(self.freenode_to_wikidata_json, 'r') as file:
             wikidata = json.load(file)
 
-        languages = {
-            'Arabic', 'Chinese', 'Japanese', 'Dutch', 'English', 'French', 'German', 'Greek', 'Italian',
-            'Latin', 'Persian', 'Spanish', 'Russian',
-        }
-
-        months = {
-            'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
-            'October', 'November', 'December',
-        }
-
-        blacklist = languages | months
-
         #
         # self.entities: entity -> {(MID, Wikipedia doc title)...}
         #
@@ -330,50 +318,3 @@ class EntityMatcher:
 
         print('{} | {:,} Docs | {} | {:,} neighbors | {:,} matches'.format(
             datetime.now().strftime("%H:%M:%S"), page_count, current_page, len(neighbor_pages), match_count))
-
-    def plot_statistics(self):
-        """
-        Plot bar chart showing the absolute frequency of the entities (in descending order). Limited to
-        the 100 most frequent entities. Interrupts the program.
-        """
-
-        top_statistics = sorted(list(self.statistics.items()), key=lambda item: item[1], reverse=True)[:200]
-        entities = [item[0] for item in top_statistics]
-        frequencies = [item[1] for item in top_statistics]
-
-        visible_bars = 10
-
-        ax_bar_chart = plt.axes([0.1, 0.2, 0.8, 0.6])
-        plt.bar(entities[:visible_bars], frequencies[:visible_bars])
-
-        #
-        # Sliders for scrolling through entities and showing more/less entities at a time. Update
-        # chart on slider change.
-        #
-
-        def update(val):
-            scroll = int(scroll_slider.val)  # new scroll position
-            bars = int(visible_bars_slider.val)  # new visible bars
-
-            ax_bar_chart.clear()
-            plt.sca(ax_bar_chart)
-            plt.xticks(rotation=90)
-
-            ax_bar_chart.bar(entities[scroll:(scroll + bars)],
-                             frequencies[scroll:(scroll + bars)])
-
-        ax_scroll = plt.axes([0.1, 0.9, 0.8, 0.03])
-        scroll_slider = Slider(ax_scroll, '', 0, len(entities), valfmt='%d')
-        scroll_slider.on_changed(update)
-
-        ax_span = plt.axes([0.1, 0.85, 0.8, 0.03])
-        visible_bars_slider = Slider(ax_span, '', 10, 100, valinit=visible_bars, valfmt='%d')
-        visible_bars_slider.on_changed(update)
-
-        #
-        # Initial plotting. Updated on slider change.
-        #
-
-        plt.sca(ax_bar_chart)
-        plt.xticks(rotation=90)
-        plt.show()
