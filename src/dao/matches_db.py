@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 @dataclass
@@ -45,7 +45,7 @@ def create_matches_table(conn: Connection):
             context TEXT,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
 
             FOREIGN KEY (page) REFERENCES pages (title),
-            PRIMARY KEY (mid, page, start_char)
+            PRIMARY KEY (mid, page, start_char, entity_label)
         )
     '''
 
@@ -123,3 +123,18 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
     cursor.close()
 
     return [row[0] for row in rows]
+
+
+def select_page(conn: Connection, title: str) -> Optional[Page]:
+    sql = '''
+        SELECT title, content
+        FROM pages
+        WHERE title = ?
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (title,))
+    row = cursor.fetchone()
+    cursor.close()
+
+    return None if row is None else Page(row[0], row[1])

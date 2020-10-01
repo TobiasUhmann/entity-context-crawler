@@ -104,6 +104,21 @@ def create_aliases_table(conn: Connection):
     cursor.close()
 
 
+def select_aliases(conn: Connection, page: str) -> Set[str]:
+    sql = '''
+        SELECT alias
+        FROM aliases
+        WHERE page = ?
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (page,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return {row[0] for row in rows}
+
+
 def insert_aliases(conn: Connection, aliases: List[Alias]):
     sql = '''
         INSERT OR IGNORE INTO aliases (page, alias)

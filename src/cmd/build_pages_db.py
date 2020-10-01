@@ -134,7 +134,7 @@ def _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages):
 
 
 def _process_wikipedia(wiki_xml, pages_conn, commit_frequency, limit_pages):
-    """ Iterate through all Wikipedia page and save them in pages DB """
+    """ Iterate through all Wikipedia pages and save them in pages DB """
 
     # Use dumpr to iterate through pre-processed Wiki dump
     with dumpr.BatchReader(wiki_xml) as reader:
