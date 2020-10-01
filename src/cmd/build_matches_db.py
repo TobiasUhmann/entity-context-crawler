@@ -24,7 +24,7 @@ def add_parser_args(parser: ArgumentParser):
         matches-db
         --commit-frequency
         --in-memory
-        --limit-docs
+        --limit-pages
         --overwrite
     """
 
