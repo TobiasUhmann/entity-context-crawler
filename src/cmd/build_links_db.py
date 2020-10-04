@@ -129,11 +129,6 @@ def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
         print()
         log('Persist...')
 
-        with open('dump.sql', 'w', encoding='utf-8') as dump_sql_fh:
-            for line in memory_links_conn.iterdump():
-                print(line)
-                print(line, file=dump_sql_fh)
-
         with sqlite3.connect(links_db) as disk_links_conn:
             for line in memory_links_conn.iterdump():
                 if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
