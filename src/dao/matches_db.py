@@ -93,7 +93,7 @@ def create_matches_table(conn: Connection):
 def insert_match(conn: Connection, match: Match):
     sql = '''
         INSERT INTO matches (mid, entity_label, mention, page, start_char, end_char, context)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     '''
 
     cursor = conn.cursor()

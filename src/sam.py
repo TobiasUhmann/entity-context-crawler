@@ -3,7 +3,7 @@ import random
 from argparse import ArgumentParser, HelpFormatter
 
 from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, build_matches_db, eval_es_test, \
-    eval_model, query_es_test, build_pages_db
+    eval_model, query_es_test
 
 
 def main():
