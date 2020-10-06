@@ -267,7 +267,7 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
                     context_end = min(match_span.end_char + 20, len(page_content))
                     context = page_content[context_start:context_end]
 
-                    match = Match(mid, match_text, page_title, start_char, end_char, context)
+                    match = Match(mid, entity_label, match_text, page_title, start_char, end_char, context)
                     insert_match(matches_conn, match)
                     match_count += 1
 
