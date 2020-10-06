@@ -25,6 +25,7 @@ def add_parser_args(parser: ArgumentParser):
         matches-db
         --commit-frequency
         --in-memory
+        --limit-entities
         --limit-pages
         --overwrite
     """
@@ -50,9 +51,14 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('--in-memory', dest='in_memory', action='store_true',
                         help='Build complete matches DB in memory before persisting it')
 
-    default_limit_docs = None
-    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_docs,
-                        help='Early stop after ... pages (default: {})'.format(default_limit_docs))
+    default_limit_entities = None
+    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
+                        default=default_limit_entities,
+                        help='Early stop after ... entities (default: {})'.format(default_limit_entities))
+
+    default_limit_pages = None
+    parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_pages,
+                        help='Early stop after ... pages (default: {})'.format(default_limit_pages))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite matches DB if it already exists')
@@ -72,6 +78,7 @@ def run(args: Namespace):
 
     commit_frequency = args.commit_frequency
     in_memory = args.in_memory
+    limit_entities = args.limit_entities
     limit_pages = args.limit_pages
     overwrite = args.overwrite
 
@@ -89,6 +96,7 @@ def run(args: Namespace):
     print()
     print('    {:20} {}'.format('--commit-frequency', commit_frequency))
     print('    {:20} {}'.format('--in-memory', in_memory))
+    print('    {:20} {}'.format('--limit-entities', limit_entities))
     print('    {:20} {}'.format('--limit-pages', limit_pages))
     print('    {:20} {}'.format('--overwrite', overwrite))
     print()
@@ -122,34 +130,36 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_pages)
+    _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_entities,
+                      limit_pages)
 
 
-def _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_pages):
+def _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_entities,
+                      limit_pages):
     if in_memory:
-        _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages)
+        _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages)
     else:
-        _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages)
+        _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages)
 
 
-def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages):
+def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
         create_pages_table(matches_conn)
         create_matches_table(matches_conn)
 
         _persist_pages(matches_conn, wiki_xml, commit_frequency, limit_pages)
-        _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_pages)
+        _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities)
 
         log('Done')
 
 
-def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_pages):
+def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
         create_pages_table(memory_matches_conn)
         create_matches_table(memory_matches_conn)
 
         _persist_pages(memory_matches_conn, wiki_xml, commit_frequency, limit_pages)
-        _process_entities(freenode_json, links_db, memory_matches_conn, commit_frequency, limit_pages)
+        _process_entities(freenode_json, links_db, memory_matches_conn, commit_frequency, limit_entities)
 
         print()
         log('Persist...')
@@ -193,7 +203,7 @@ def _persist_pages(matches_conn, wiki_xml, commit_frequency, limit_pages):
             insert_page(matches_conn, Page(page_title, page_content))
 
 
-def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_pages):
+def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities):
     """
     Iterate through all Freebase entities. For each entity, get its Wikipedia page as well
     as the directly linked pages. On those pages, search for the entity label and its aliases.
@@ -212,6 +222,9 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
 
     with sqlite3.connect(links_db) as links_conn:
         for entity_count, freenode_data_item in enumerate(freenode_data.items()):
+            if limit_entities and entity_count == limit_entities:
+                break
+
             mid, entity_data = freenode_data_item
 
             entity_label = entity_data['label']
@@ -271,7 +284,7 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
 
                     if keep_span:
                         kept_spans.append(span)
-                    
+
                 for start, end in kept_spans:
                     match_span = spacy_doc[start:end]
                     match_text = match_span.text
@@ -290,5 +303,7 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
             row = (entity_count, entity_label, len(neighbor_pages) - 1, match_count)
             log('{} | {} | {} neighbors | {} matches'.format(*row))
 
+        print()
         print('Stats')
         print('\tEntities without Wikipedia page: {}'.format(missing_urls))
+        print()
