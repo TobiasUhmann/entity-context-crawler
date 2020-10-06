@@ -5,6 +5,7 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
+from typing import Tuple
 
 from deepca.dumpr import dumpr
 from spacy.lang.en import English
@@ -256,7 +257,22 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
                 spacy_doc = nlp.make_doc(page_content)
                 matches = matcher(spacy_doc)
 
-                for match_id, start, end in matches:
+                def contains(x, y):
+                    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
+
+                spans = {(start, end) for match_id, start, end in matches}
+                kept_spans = []
+                for span in spans:
+                    keep_span = True
+                    for other_span in spans.difference({span}):
+                        if contains(other_span, span):
+                            keep_span = False
+                            break
+
+                    if keep_span:
+                        kept_spans.append(span)
+                    
+                for start, end in kept_spans:
                     match_span = spacy_doc[start:end]
                     match_text = match_span.text
 
