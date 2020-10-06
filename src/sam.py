@@ -43,17 +43,6 @@ def main():
     build_links_db_parser.set_defaults(func=build_links_db.run)
 
     #
-    # Add build-pages-db sub command
-    #
-
-    build_pages_db_parser = sub_parsers.add_parser(
-        'build-pages-db', formatter_class=get_formatter, parents=[common_parser],
-        description='Build database with plain text Wikipedia pages')
-
-    build_pages_db.add_parser_args(build_pages_db_parser)
-    build_pages_db_parser.set_defaults(func=build_pages_db.run)
-
-    #
     # Add build-matches-db sub command
     #
 
