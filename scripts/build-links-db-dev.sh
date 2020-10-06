@@ -3,7 +3,7 @@
 PYTHONPATH=src/ PYTHONHASHSEED=0 \
 nohup python -u src/sam.py build-links-db \
   data/enwiki-20200920.xml \
-  data/enwiki-20200920-links-dev.db \
+  data/links-v1-enwiki-20200920-dev.db \
   --limit-pages 1000 \
   --overwrite \
   --random-seed 0 \
