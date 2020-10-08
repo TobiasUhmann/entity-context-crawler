@@ -5,7 +5,6 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
-from typing import Tuple
 
 from deepca.dumpr import dumpr
 from spacy.lang.en import English

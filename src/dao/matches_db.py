@@ -102,32 +102,6 @@ def insert_match(conn: Connection, match: Match):
     cursor.close()
 
 
-def select_mids_with_labels(conn: Connection, limit: int = None) -> List[Tuple[str, str]]:
-    """
-    Select distinct MIDs with their associated labels
-
-    :return: [(MID, entity label)]
-    """
-
-    sql = '''
-        SELECT DISTINCT mid, entity_label
-        FROM matches
-    '''
-
-    cursor = conn.cursor()
-
-    if limit:
-        sql += ' LIMIT ?'
-        cursor.execute(sql, (limit,))
-    else:
-        cursor.execute(sql)
-
-    rows = cursor.fetchall()
-    cursor.close()
-
-    return [(row[0], row[1]) for row in rows]
-
-
 #
 # Pages & Matches
 #
