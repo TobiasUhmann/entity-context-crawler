@@ -6,7 +6,7 @@ from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 from typing import List, Tuple, Set, Optional
 
-from dao.contexts import select_contexts
+from dao.contexts_db import select_contexts
 from eval.model import Model
 from util.custom_types import Entity, Triple
 
@@ -61,7 +61,7 @@ class BaselineModel(Model):
 
                 query_entity_name = self.id2ent[query_entity]
                 query_entity_contexts = select_contexts(query_contexts_conn, query_entity)
-                query_entity_contexts = [context.replace('[MASK]', '') for context in query_entity_contexts]
+                query_entity_contexts = [context.replace('#', '') for context in query_entity_contexts]
 
                 # random.shuffle(query_entity_contexts)
 

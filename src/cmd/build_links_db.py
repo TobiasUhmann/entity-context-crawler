@@ -1,11 +1,15 @@
+import os
 import sqlite3
 import wikitextparser as wtp
 
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from datetime import datetime
 from os import remove
 from os.path import isfile
+from typing import Dict, Set
+
+from dao.links_db import create_links_table, insert_links, create_aliases_table, Link, Alias, insert_aliases
+from util.util import log
 from util.wikipedia import Wikipedia
 
 
@@ -44,173 +48,141 @@ def add_parser_args(parser: ArgumentParser):
 
 
 def run(args: Namespace):
+    """
+    - Print applied config
+    - Check if files already exist
+    - Run actual program
+    """
+
+    wiki_xml = args.wiki_xml
+    links_db = args.links_db
+
+    commit_frequency = args.commit_frequency
+    in_memory = args.in_memory
+    limit_pages = args.limit_pages
+    overwrite = args.overwrite
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Wikipedia XML', args.wiki_xml))
-    print('    {:20} {}'.format('Links DB', args.links_db))
+    print('    {:20} {}'.format('wiki-xml', wiki_xml))
+    print('    {:20} {}'.format('links-db', links_db))
     print()
-    print('    {:20} {}'.format('Commit frequency', args.commit_frequency))
-    print('    {:20} {}'.format('In memory', args.in_memory))
-    print('    {:20} {}'.format('Limit pages', args.limit_pages))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print('    {:20} {}'.format('--commit-frequency', commit_frequency))
+    print('    {:20} {}'.format('--in-memory', in_memory))
+    print('    {:20} {}'.format('--limit-pages', limit_pages))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print()
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check for input/output files
+    # Check if files already exist
     #
 
-    if not isfile(args.wiki_xml):
+    if not isfile(wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
-    if isfile(args.links_db):
-        if args.overwrite:
-            remove(args.links_db)
+    if isfile(links_db):
+        if overwrite:
+            remove(links_db)
         else:
-            print('Links DB already exists. Use --overwrite to overwrite it')
+            print('Links DB already exists, use --overwrite to overwrite it')
             exit()
 
     #
-    # Run link extractor
+    # Run actual program
     #
 
-    link_extractor = LinkExtractor(args.wiki_xml, args.links_db, args.commit_frequency, args.in_memory,
-                                   args.limit_pages)
-    link_extractor.run()
+    _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages)
 
 
-#
-# LINK EXTRACTOR
-#
-
-class LinkExtractor:
-    wikipedia_xml: str
-    links_db: str
-
-    commit_frequency: int
-    in_memory: bool
-    limit_pages: int
-
-    def __init__(self, wikipedia_xml, links_db, commit_frequency, in_memory, limit_pages):
-        self.wikipedia_xml = wikipedia_xml
-        self.links_db = links_db
-
-        self.commit_frequency = commit_frequency
-        self.in_memory = in_memory
-        self.limit_pages = limit_pages
-
-    def run(self):
-        if self.in_memory:
-            self.__run_in_memory()
-        else:
-            self.__run_on_disk()
-
-    def __run_on_disk(self):
-        with sqlite3.connect(self.links_db) as links_conn:
-            create_links_table(links_conn)
-            self.__process_wikipedia(links_conn)
-            print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
-
-    def __run_in_memory(self):
-        with sqlite3.connect(':memory:') as memory_conn:
-            create_links_table(memory_conn)
-            self.__process_wikipedia(memory_conn)
-
-            print('{} | PERSIST'.format(datetime.now().strftime('%H:%M:%S')))
-            with sqlite3.connect(self.links_db) as conn_links:
-                for line in memory_conn.iterdump():
-                    if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
-                        conn_links.execute(line)
-
-            print('{} | DONE'.format(datetime.now().strftime('%H:%M:%S')))
-
-    def __process_wikipedia(self, links_conn):
-        link_count = 0
-        missing_text_count = 0
-
-        redirects = defaultdict(set)
-        redirect_count = 0
-
-        with open(self.wikipedia_xml, 'rb') as wikipedia_xml:
-            wikipedia = Wikipedia(wikipedia_xml, tag='page')
-            for page_count, page in enumerate(wikipedia):
-
-                if self.limit_pages and page_count > self.limit_pages:
-                    break
-
-                if self.commit_frequency:
-                    if page_count % self.commit_frequency == 0:
-                        print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
-                        links_conn.commit()
-
-                if page_count % 1000 == 0:
-                    row = (datetime.now().strftime("%H:%M:%S"), page_count, wikipedia.missing_titles,
-                           wikipedia.missing_texts, wikipedia.skipped_templates, redirect_count, link_count)
-                    print('{} | {:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
-                          ' | {:,} redirects | {:,} links'.format(*row))
-
-                from_doc = hash(page['title'].lower())
-
-                if page['redirect']:
-                    to_doc = hash(page['redirect'].lower())
-                    redirects[from_doc].add(to_doc)
-                    redirect_count += 1
-
-                elif page['text']:
-                    links = wtp.parse(page['text']).wikilinks
-                    inserts = [(from_doc, hash(link.title.lower())) for link in links]
-                    insert_links(links_conn, inserts)
-                    link_count += len(inserts)
-
-                else:
-                    missing_text_count += 1
-
-            print()
-            print('Missing titles: {}'.format(wikipedia.missing_titles))
-            print('Missing texts: {}'.format(wikipedia.missing_texts))
-
-            links_conn.commit()
-            print('{} | COMMIT'.format(datetime.now().strftime('%H:%M:%S')))
+def _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages):
+    if in_memory:
+        _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages)
+    else:
+        _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages)
 
 
-#
-# DATABASE FUNCTIONS
-#
+def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
+    with sqlite3.connect(links_db) as links_conn:
+        create_links_table(links_conn)
+        create_aliases_table(links_conn)
 
-def create_links_table(conn):
-    sql_create_table = '''
-        CREATE TABLE links (
-            from_doc int,      -- hashed lowercase Wikipedia doc title
-            to_doc int         -- hashed lowercase Wikipedia doc title
-        )
-    '''
+        _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages)
 
-    sql_create_index_1 = '''
-        CREATE INDEX idx_from_doc 
-        ON links (from_doc)
-    '''
-
-    sql_create_index_2 = '''
-        CREATE INDEX idx_to_doc
-        ON links (to_doc)
-    '''
-
-    cursor = conn.cursor()
-    cursor.execute(sql_create_table)
-    cursor.execute(sql_create_index_1)
-    cursor.execute(sql_create_index_2)
-    cursor.close()
+        log('Done')
 
 
-def insert_links(conn, links):
-    sql = '''
-        INSERT INTO links (from_doc, to_doc)
-        VALUES(?, ?)
-    '''
+def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
+    with sqlite3.connect(':memory:') as memory_links_conn:
+        create_links_table(memory_links_conn)
+        create_aliases_table(memory_links_conn)
 
-    cursor = conn.cursor()
-    cursor.executemany(sql, links)
-    cursor.close()
+        _process_wikipedia(wiki_xml, memory_links_conn, commit_frequency, limit_pages)
+
+        print()
+        log('Persist...')
+
+        with sqlite3.connect(links_db) as disk_links_conn:
+            for line in memory_links_conn.iterdump():
+                if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
+                    disk_links_conn.execute(line)
+
+        log('Done')
+
+
+def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
+    link_count = 0
+    alias_count = 0
+    missing_text_count = 0
+
+    redirects: Dict[Set[str]] = defaultdict(set)
+    redirect_count = 0
+
+    with open(wiki_xml, 'rb') as wiki_xml:
+        wikipedia = Wikipedia(wiki_xml, tag='page')
+        for page_count, page in enumerate(wikipedia):
+
+            if limit_pages and page_count == limit_pages:
+                break
+
+            if commit_frequency and page_count % commit_frequency == 0:
+                log('Commit')
+                links_conn.commit()
+
+            if page_count % 1000 == 0:
+                row = (page_count, wikipedia.missing_titles, wikipedia.missing_texts, wikipedia.skipped_templates,
+                       redirect_count, link_count, alias_count)
+                log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
+                    ' | {:,} redirects | {:,} links | {:,} aliases'.format(*row))
+
+            page_title = page['title']
+            redirect_page_title = page['redirect']
+            page_markup = page['text']
+
+            if redirect_page_title:
+                redirects[page_title].add(redirect_page_title)
+                redirect_count += 1
+
+            elif page_markup:
+                wiki_links = wtp.parse(page_markup).wikilinks
+
+                db_links = [Link(page_title, link.title) for link in wiki_links]
+                insert_links(links_conn, db_links)
+                link_count += len(db_links)
+
+                db_aliases = [Alias(link.title, link.text) for link in wiki_links if link.text]
+                insert_aliases(links_conn, db_aliases)
+                alias_count += len(db_aliases)
+
+            else:
+                missing_text_count += 1
+
+        links_conn.commit()
+        log('Commit')

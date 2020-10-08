@@ -2,9 +2,9 @@
 
 PYTHONPATH=src/ \
 nohup python -u src/sam.py build-baseline \
-  data/enwiki-20200920-contexts-100-500.db \
+  data/contexts-v1-enwiki-20200920-100-500.db \
   data/oke.fb15k237_30061990_50/ \
-  enwiki-20200920-cw-contexts-10-500-qa \
-  data/enwiki-20200920-ow-contexts-10-500-qa.db \
+  cw-contexts-v1-enwiki-20200920-10-500-qa \
+  data/ow-contexts-v1-enwiki-20200920-10-500-qa.db \
   --limit-contexts 10 \
-> log/build-baseline-10_$(date +"%Y-%m-%d_%H-%M-%S").stdout &
+> log/build-baseline-10_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

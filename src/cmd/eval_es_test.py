@@ -1,9 +1,9 @@
-from argparse import ArgumentParser, Namespace
-
 import matplotlib.pyplot as plt
+import os
 import re
 import sqlite3
 
+from argparse import ArgumentParser, Namespace
 from collections import Counter, defaultdict
 from elasticsearch import Elasticsearch
 from matplotlib.widgets import Slider
@@ -40,55 +40,73 @@ def add_parser_args(parser: ArgumentParser):
     default_limit_contexts = None
     parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
                         default=default_limit_contexts,
-                        help='Process only the first ... contexts for each entity'
+                        help='Process only first ... contexts for each entity'
                              ' (default: {})'.format(default_limit_contexts))
 
     default_limit_entities = None
     parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
                         default=default_limit_entities,
-                        help='Process only the first ... entities (default: {})'.format(default_limit_entities))
+                        help='Process only first ... entities (default: {})'.format(default_limit_entities))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite contexts DB if it already exists')
 
 
 def run(args: Namespace):
+    """
+    - Print applied config
+    - Check if files already exist
+    - Run actual program
+    """
+
+    matches_db = args.matches_db
+    contexts_db = args.contexts_db
+
+    context_size = args.context_size
+    crop_sentences = args.crop_sentences
+    limit_contexts = args.limit_contexts
+    limit_entities = args.limit_entities
+    overwrite = args.overwrite
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Matches DB', args.matches_db))
-    print('    {:20} {}'.format('Contexts DB', args.contexts_db))
+    print('    {:20} {}'.format('matches-db', matches_db))
+    print('    {:20} {}'.format('contexts-db', contexts_db))
     print()
-    print('    {:20} {}'.format('Context size', args.context_size))
-    print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
-    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
-    print('    {:20} {}'.format('Limit entities', args.limit_entities))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
+    print('    {:20} {}'.format('--context-size', context_size))
+    print('    {:20} {}'.format('--crop-sentences', crop_sentences))
+    print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--limit-entities', limit_entities))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print()
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check for input/output files
+    # Check if files already exist
     #
 
-    if not isfile(args.matches_db):
+    if not isfile(matches_db):
         print('Matches DB not found')
         exit()
 
-    if isfile(args.contexts_db):
-        if args.overwrite:
-            remove(args.contexts_db)
+    if isfile(contexts_db):
+        if overwrite:
+            remove(contexts_db)
         else:
-            print('Contexts DB already exists. Use --overwrite to overwrite it')
+            print('Contexts DB already exists, use --overwrite to overwrite it')
             exit()
 
     #
-    # Run entity linker
+    # Run actual program
     #
 
-    entity_linker = EntityLinker(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences,
-                                 args.limit_contexts, args.limit_entities)
+    entity_linker = EntityLinker(matches_db, contexts_db, context_size, crop_sentences, limit_contexts, limit_entities)
     entity_linker.run()
 
 

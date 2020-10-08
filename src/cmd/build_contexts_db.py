@@ -1,23 +1,28 @@
 import csv
+import json
 import os
 import random
-import spacy
 import sqlite3
 
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
-from typing import List, Tuple
 
-from dao.contexts import create_contexts_table, insert_contexts
-from dao.mid2ent import load_mid2ent
-from dao.matches import select_contexts, select_mids_with_labels
+import spacy
+from spacy.matcher import PhraseMatcher
+
+from dao.contexts_db import create_contexts_table, insert_contexts
+from dao.links_db import select_aliases
+from dao.matches_db import select_contexts
+from dao.mid2ent_txt import load_mid2ent
 from util.util import log
 
 
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
+        freenode-json
+        links-db
         matches-db
         contexts-db
         --context-size
@@ -27,6 +32,12 @@ def add_parser_args(parser: ArgumentParser):
         --limit-entities
         --overwrite
     """
+
+    parser.add_argument('freenode_json', metavar='freenode-json',
+                        help='Path to input Freenode JSON')
+
+    parser.add_argument('links_db', metavar='links-db',
+                        help='Path to input links DB')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to input matches DB')
@@ -58,7 +69,7 @@ def add_parser_args(parser: ArgumentParser):
                         help='Early stop after ... entities (default: {})'.format(default_limit_entities))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='Overwrite contexts DB if it already exists')
+                        help='Overwrite contexts DB and CSV file if they already exist')
 
 
 def run(args: Namespace):
@@ -68,53 +79,82 @@ def run(args: Namespace):
     - Run actual program
     """
 
+    freenode_json = args.freenode_json
+    links_db = args.links_db
+    matches_db = args.matches_db
+    contexts_db = args.contexts_db
+
+    context_size = args.context_size
+    crop_sentences = args.crop_sentences
+    csv_file = args.csv_file
+    limit_contexts = args.limit_contexts
+    limit_entities = args.limit_entities
+    overwrite = args.overwrite
+    random_seed = args.random_seed
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
+    #
+    # Print applied config
+    #
+
     print('Applied config:')
-    print('    {:20} {}'.format('Matches DB', args.matches_db))
-    print('    {:20} {}'.format('Contexts DB', args.contexts_db))
+    print('    {:20} {}'.format('freenode-json', freenode_json))
+    print('    {:20} {}'.format('links-db', links_db))
+    print('    {:20} {}'.format('matches-db', matches_db))
+    print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
-    print('    {:20} {}'.format('Context size', args.context_size))
-    print('    {:20} {}'.format('Crop sentences', args.crop_sentences))
-    print('    {:20} {}'.format('CSV file', args.csv_file))
-    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
-    print('    {:20} {}'.format('Limit entities', args.limit_entities))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
-    print('    {:20} {}'.format('Random seed', args.random_seed))
+    print('    {:20} {}'.format('--context-size', context_size))
+    print('    {:20} {}'.format('--crop-sentences', crop_sentences))
+    print('    {:20} {}'.format('--csv-file', csv_file))
+    print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--limit-entities', limit_entities))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print('    {:20} {}'.format('--random-seed', random_seed))
     print()
-    print('    {:20} {}'.format('PYTHONHASHSEED', os.getenv('PYTHONHASHSEED')))
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
     # Check if files already exist
     #
 
-    if not isfile(args.matches_db):
+    if not isfile(freenode_json):
+        print('Freenode JSON not found')
+        exit()
+
+    if not isfile(links_db):
+        print('Links DB not found')
+        exit()
+
+    if not isfile(matches_db):
         print('Matches DB not found')
         exit()
 
-    if isfile(args.contexts_db):
-        if args.overwrite:
-            remove(args.contexts_db)
+    if isfile(contexts_db):
+        if overwrite:
+            remove(contexts_db)
         else:
-            print('Contexts DB already exists. Use --overwrite to overwrite it')
+            print('Contexts DB already exists, use --overwrite to overwrite it')
             exit()
 
-    if isfile(args.csv_file):
-        if args.overwrite:
-            remove(args.csv_file)
+    if isfile(csv_file):
+        if overwrite:
+            remove(csv_file)
         else:
-            print('CSV file already exists. Use --overwrite to overwrite it')
+            print('CSV file already exists, use --overwrite to overwrite it')
             exit()
 
     #
     # Run actual program
     #
 
-    crop_contexts(args.matches_db, args.contexts_db, args.context_size, args.crop_sentences, args.csv_file,
-                  args.limit_contexts, args.limit_entities)
+    _build_contexts_db(freenode_json, links_db, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+                       limit_contexts, limit_entities)
 
 
-def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sentences: bool, csv_file: str,
-                  limit_contexts: int, limit_entities: int):
+def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, contexts_db: str, context_size: int,
+                       crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
     - Load English spaCy model
     - Create contexts DB
@@ -127,8 +167,14 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
         - Log progress
     """
 
-    with sqlite3.connect(matches_db) as matches_conn, \
+    with sqlite3.connect(links_db) as links_conn, \
+            sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
+
+        print()
+        log('Load Freenode JSON...')
+        freenode_data = json.load(open(freenode_json, 'r'))
+        log('Done')
 
         print('Load spaCy model...', end='')
         nlp = spacy.load('en_core_web_lg')
@@ -137,12 +183,23 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
         create_contexts_table(contexts_conn)
         mid2ent = load_mid2ent(r'data/entity2id.txt')
 
-        print('Select MIDs...', end='')
-        mids_with_labels: List[Tuple[str, str]] = select_mids_with_labels(matches_conn, limit_entities)
-        print(' done')
+        for entity_count, freenode_data_item in enumerate(freenode_data.items()):
+            if limit_entities and entity_count == limit_entities:
+                break
 
-        for i, mid_with_label, in enumerate(mids_with_labels):
-            mid, entity_label = mid_with_label
+            mid, entity_data = freenode_data_item
+
+            entity_label = entity_data['label']
+            wiki_url = entity_data['wikipedia']
+
+            if not wiki_url:
+                continue
+
+            page_title = wiki_url.rsplit('/', 1)[-1].replace('_', ' ')
+
+            #
+            # Get contexts
+            #
 
             contexts = select_contexts(matches_conn, mid, context_size)
             random.shuffle(contexts)
@@ -170,23 +227,54 @@ def crop_contexts(matches_db: str, contexts_db: str, context_size: int, crop_sen
             # Mask and persist contexts
             #
 
-            masked_contexts = [context.replace(entity_label, '[MASK]') for context in cropped_contexts]
+            aliases = select_aliases(links_conn, page_title)
 
-            contexts_data = [(mid2ent[mid], masked_context, entity_label) for masked_context in masked_contexts]
-            insert_contexts(contexts_conn, contexts_data)
+            matcher = PhraseMatcher(nlp.vocab)
+            patterns = list(nlp.pipe({entity_label} | aliases))
+            matcher.add('Entities', None, *patterns)
 
+            contexts_batch = []
+            for context in cropped_contexts:
+                spacy_doc = nlp.make_doc(context)
+                matches = matcher(spacy_doc)
+
+                def contains(x, y):
+                    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
+
+                spans = {(start, end) for match_id, start, end in matches}
+                kept_spans = []
+                for span in spans:
+                    keep_span = True
+                    for other_span in spans.difference({span}):
+                        if contains(other_span, span):
+                            keep_span = False
+                            break
+
+                    if keep_span:
+                        kept_spans.append(span)
+
+                mutable_context = list(context)
+                for start, end in kept_spans:
+                    match_span = spacy_doc[start:end]
+
+                    start_char = match_span.start_char
+                    end_char = match_span.end_char
+
+                    for i in range(start_char, end_char):
+                        mutable_context[i] = '#'
+
+                masked_context = ''.join(mutable_context)
+                contexts_batch.append((mid2ent[mid], masked_context, entity_label))
+
+            insert_contexts(contexts_conn, contexts_batch)
             contexts_conn.commit()
 
             #
             # Log progress
             #
 
-            log('{:,} | {} | {:,}/{:,} contexts'.format(i, entity_label, len(limited_contexts), len(contexts)))
+            log('{:,} | {} | {:,}/{:,} contexts'.format(entity_count, entity_label, len(limited_contexts), len(contexts)))
 
             if csv_file:
                 with open(csv_file, 'a', newline='') as csv_fh:
                     csv.writer(csv_fh).writerow([entity_label, len(contexts)])
-
-
-if __name__ == '__main__':
-    run()

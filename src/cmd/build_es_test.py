@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 from argparse import ArgumentParser, Namespace
@@ -8,15 +9,16 @@ from os.path import isfile
 from ryn.app.splits import load_dataset
 from typing import List
 
-from dao.contexts import create_contexts_table, insert_context, select_contexts, select_distinct_entities
+from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities
 
 
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         contexts-db
-        es-url
+        es-index
         test-contexts-db
+        --es-host
         --limit-contexts
         --overwrite
         --verbose
@@ -25,11 +27,15 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('contexts_db', metavar='contexts-db',
                         help='Path to input contexts DB')
 
-    parser.add_argument('es_url', metavar='es-url',
-                        help='URL of output Elasticsearch index')
+    parser.add_argument('es_index', metavar='es-index',
+                        help='Elasticsearch index')
 
     parser.add_argument('test_contexts_db', metavar='test-contexts-db',
                         help='Path to output test contexts DB')
+
+    default_es_host = 'localhost:9200'
+    parser.add_argument('--es-host', dest='es_host', metavar='STR',
+                        help='Elasticsearch host (default: {})'.format(default_es_host))
 
     default_limit_contexts = None
     parser.add_argument('--limit-contexts', dest='limit_contexts', type=int, metavar='INT',
@@ -45,55 +51,77 @@ def add_parser_args(parser: ArgumentParser):
 
 
 def run(args: Namespace):
+    """
+    - Print applied config
+    - Check if files already exist
+    - Run actual program
+    """
+
+    contexts_db = args.contexts_db
+    es_index = args.es_index
+    test_contexts_db = args.test_contexts_db
+
+    es_host = args.es_host
+    limit_contexts = args.limit_contexts
+    overwrite = args.overwrite
+    random_seed = args.random_seed
+    verbose = args.verbose
+
+    python_hash_seed = os.getenv('PYTHONHASHSEED')
+
     #
     # Print applied config
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('Contexts DB', args.contexts_db))
-    print('    {:20} {}'.format('Elasticsearch URL', args.es_url))
-    print('    {:20} {}'.format('Test contexts DB', args.test_contexts_db))
+    print('    {:20} {}'.format('contexts-db', contexts_db))
+    print('    {:20} {}'.format('es-index', es_index))
+    print('    {:20} {}'.format('test-contexts-db', test_contexts_db))
     print()
-    print('    {:20} {}'.format('Limit contexts', args.limit_contexts))
-    print('    {:20} {}'.format('Overwrite', args.overwrite))
-    print('    {:20} {}'.format('Verbose', args.verbose))
+    print('    {:20} {}'.format('--es-host', es_host))
+    print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--overwrite', overwrite))
+    print('    {:20} {}'.format('--random-seed', random_seed))
+    print('    {:20} {}'.format('--verbose', verbose))
+    print()
+    print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check for input/output files and Elasticsearch index
+    # Check if files already exist
     #
 
-    if not isfile(args.contexts_db):
+    if not isfile(contexts_db):
         print('Contexts DB not found')
         exit()
 
-    es = Elasticsearch([args.es_url])
+    es = Elasticsearch([es_host])
     if es.indices.exists():
-        if args.overwrite:
-            es.indices.delete(index=args.index_name, ignore=[400, 404])
+        if overwrite:
+            es.indices.delete(index=es_index, ignore=[400, 404])
         else:
-            print('Elasticsearch index already exists. Use --overwrite to overwrite it')
+            print('Elasticsearch index already exists, use --overwrite to overwrite it')
             exit()
 
-    if isfile(args.test_contexts_db):
-        if args.overwrite:
-            remove(args.test_contexts_db)
+    if isfile(test_contexts_db):
+        if overwrite:
+            remove(test_contexts_db)
         else:
-            print('Test contexts DB already exists. Use --overwrite to overwrite it')
+            print('Test contexts DB already exists, use --overwrite to overwrite it')
             exit()
 
     #
-    # Run program
+    # Run actual program
     #
 
-    build_index(es, args.contexts_db, args.index_name, args.test_contexts_db, args.limit_contexts, args.verbose)
+    _build_es_test(es, contexts_db, es_index, test_contexts_db, limit_contexts, verbose)
 
 
 #
 # BUILD INDEX
 #
 
-def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, verbose):
+def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts, verbose):
     with sqlite3.connect(contexts_db) as contexts_conn, \
             sqlite3.connect(test_contexts_db) as test_contexts_conn:
 
@@ -110,7 +138,7 @@ def build_index(es, contexts_db, index_name, test_contexts_db, limit_contexts, v
             print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
             masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
-            masked_contexts = [masked_context.replace('[MASK]', '') for masked_context in masked_contexts]
+            masked_contexts = [masked_context.replace('#', '') for masked_context in masked_contexts]
 
             train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
 
