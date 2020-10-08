@@ -253,15 +253,18 @@ def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, conte
                     if keep_span:
                         kept_spans.append(span)
 
+                mutable_context = list(context)
                 for start, end in kept_spans:
                     match_span = spacy_doc[start:end]
 
                     start_char = match_span.start_char
                     end_char = match_span.end_char
 
-                    context[start_char:end_char] = '[MASK]'
+                    for i in range(start_char, end_char):
+                        mutable_context[i] = '#'
 
-                contexts_batch.append((mid2ent[mid], context, entity_label))
+                masked_context = ''.join(mutable_context)
+                contexts_batch.append((mid2ent[mid], masked_context, entity_label))
 
             insert_contexts(contexts_conn, contexts_batch)
             contexts_conn.commit()
