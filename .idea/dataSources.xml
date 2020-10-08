@@ -34,5 +34,16 @@
         </library>
       </libraries>
     </data-source>
+    <data-source source="LOCAL" name="matches-v1-enwiki-20200920" uuid="287f25c9-4bec-4eeb-a4bd-fa540902c7d0">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\matches-v1-enwiki-20200920.db</jdbc-url>
+      <libraries>
+        <library>
+          <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>
+        </library>
+      </libraries>
+    </data-source>
   </component>
 </project>
