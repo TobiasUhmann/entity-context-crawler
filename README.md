@@ -54,20 +54,6 @@ Furthermore, the project contains an evaluation framework for comparing other mo
 
 7. Set up Elasticsearch.
 
-### Build the Baseline Model
-
-Essentially, the baseline model consists of the closed world knowledge graph and the Elasticsearch index that stores text contexts for all the closed world entities. The knowledge graph must be given. This section shows how to build the Elasticsearch index. At the same time, contexts for the open world entities are sampled as well. They are stored in a database and are used later for prediction.
-
-To be able to sample the text contexts of an entity, first the mentions of the entity in Wikipedia must be found. An entity can be described with different words. For example "Angela Merkel" could be mentioned by her name or as "the chancellor". For the text search we use the Wikidata label of the entity as well as all the link texts that are used to link the entity's Wikipedia article from other articles. We limit our search to adjacent Wikipedia articles because the search terms' meaning will often vary on distant Wikipedia articles. To know which articles are adjacent we build a link graph in the first step.
-
-Thus, from start to finish, building the baseline model includes the following steps:
-1. Build the link graph
-2. Find an entity's matches in it's corresponding Wikipedia article and the adjacent articles
-3. Sample contexts for the matches
-4. Optionally, conduct a test experiment to verify the contexts' expressiveness
-5. Concatenate the closed world entities' contexts and store them in the Elasticsearch index
-6. Concatenate the open world entities' contexts and store them in a database
-
 # Overview
 
 Currently, the sentence sampler consists of the following components:
@@ -87,6 +73,25 @@ Currently, the sentence sampler consists of the following components:
   contexts.
 
 ![Architecture](doc/architecture.png)
+
+### Matches DB
+
+
+
+### Build the Baseline Model
+
+Essentially, the baseline model consists of the closed world knowledge graph and the Elasticsearch index that stores text contexts for all the closed world entities. The knowledge graph must be given. This section shows how to build the Elasticsearch index. At the same time, contexts for the open world entities are sampled as well. They are stored in a database and are used later for prediction.
+
+To be able to sample the text contexts of an entity, first the mentions of the entity in Wikipedia must be found. An entity can be described with different words. For example "Angela Merkel" could be mentioned by her name or as "the chancellor". For the text search we use the Wikidata label of the entity as well as all the link texts that are used to link the entity's Wikipedia article from other articles. We limit our search to adjacent Wikipedia articles because the search terms' meaning will often vary on distant Wikipedia articles. To know which articles are adjacent we build a link graph in the first step.
+
+Thus, from start to finish, building the baseline model includes the following steps:
+1. Build the link graph
+2. Find an entity's matches in it's corresponding Wikipedia article and the adjacent articles
+3. Sample contexts for the matches
+4. Optionally, conduct a test experiment to verify the contexts' expressiveness
+5. Concatenate the closed world entities' contexts and store them in the Elasticsearch index
+6. Concatenate the open world entities' contexts and store them in a database
+
 
 # Usage
 
