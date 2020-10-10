@@ -82,7 +82,7 @@ def run(args: Namespace):
     #
 
     if not isfile(wiki_xml):
-        print('Wiki XML not found')
+        print('Wikipedia XML not found')
         exit()
 
     if isfile(pages_db):
@@ -113,7 +113,7 @@ def _run_on_disk(wiki_xml, pages_db, commit_frequency, limit_pages):
     with sqlite3.connect(pages_db) as pages_conn:
         create_pages_table(pages_conn)
 
-        _process_wiki_xml(pages_conn, wiki_xml, commit_frequency, limit_pages)
+        _process_wikipedia(pages_conn, wiki_xml, commit_frequency, limit_pages)
 
 
 def _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages):
@@ -122,7 +122,7 @@ def _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages):
     with sqlite3.connect(':memory:') as memory_pages_conn:
         create_pages_table(memory_pages_conn)
 
-        _process_wiki_xml(memory_pages_conn, wiki_xml, commit_frequency, limit_pages)
+        _process_wikipedia(memory_pages_conn, wiki_xml, commit_frequency, limit_pages)
 
         log()
         log('Persist...')
@@ -135,7 +135,7 @@ def _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages):
         log('Done')
 
 
-def _process_wiki_xml(pages_conn, wiki_xml, commit_frequency, limit_pages):
+def _process_wikipedia(pages_conn, wiki_xml, commit_frequency, limit_pages):
     """ Iterate through all Wiki pages and store them in the pages DB """
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:

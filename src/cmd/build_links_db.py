@@ -1,14 +1,13 @@
 import os
 import sqlite3
-import wikitextparser as wtp
 
 from argparse import ArgumentParser, Namespace
-from collections import defaultdict
 from os import remove
 from os.path import isfile
-from typing import Dict, Set
 
-from dao.links_db import create_links_table, insert_links, create_aliases_table, Link, Alias, insert_aliases
+import wikitextparser as wtp
+
+from dao.links_db import create_links_table, insert_links, Link
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -112,21 +111,22 @@ def _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages
 def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
     with sqlite3.connect(links_db) as links_conn:
         create_links_table(links_conn)
-        create_aliases_table(links_conn)
 
         _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages)
 
-        log('Done')
+        log()
+        log('Finished successfully')
 
 
 def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
+    """ Create pages DB in memory. Persist it in the end. """
+
     with sqlite3.connect(':memory:') as memory_links_conn:
         create_links_table(memory_links_conn)
-        create_aliases_table(memory_links_conn)
 
         _process_wikipedia(wiki_xml, memory_links_conn, commit_frequency, limit_pages)
 
-        print()
+        log()
         log('Persist...')
 
         with sqlite3.connect(links_db) as disk_links_conn:
@@ -138,12 +138,7 @@ def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
 
 
 def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
-    link_count = 0
-    alias_count = 0
-    missing_text_count = 0
-
-    redirects: Dict[Set[str]] = defaultdict(set)
-    redirect_count = 0
+    total_link_count = 0
 
     with open(wiki_xml, 'rb') as wiki_xml:
         wikipedia = Wikipedia(wiki_xml, tag='page')
@@ -153,36 +148,34 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
                 break
 
             if commit_frequency and page_count % commit_frequency == 0:
-                log('Commit')
+                log('Commit...')
                 links_conn.commit()
+                log()
 
             if page_count % 1000 == 0:
                 row = (page_count, wikipedia.missing_titles, wikipedia.missing_texts, wikipedia.skipped_templates,
-                       redirect_count, link_count, alias_count)
-                log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates'
-                    ' | {:,} redirects | {:,} links | {:,} aliases'.format(*row))
+                       total_link_count)
+                log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates | {:,} links'
+                    .format(*row))
 
-            page_title = page['title']
-            redirect_page_title = page['redirect']
-            page_markup = page['text']
+            link_count = _process_page(links_conn, page)
+            total_link_count += link_count
 
-            if redirect_page_title:
-                redirects[page_title].add(redirect_page_title)
-                redirect_count += 1
-
-            elif page_markup:
-                wiki_links = wtp.parse(page_markup).wikilinks
-
-                db_links = [Link(page_title, link.title) for link in wiki_links]
-                insert_links(links_conn, db_links)
-                link_count += len(db_links)
-
-                db_aliases = [Alias(link.title, link.text) for link in wiki_links if link.text]
-                insert_aliases(links_conn, db_aliases)
-                alias_count += len(db_aliases)
-
-            else:
-                missing_text_count += 1
-
+        log('Commit...')
         links_conn.commit()
-        log('Commit')
+        log('Done')
+
+
+def _process_page(links_conn, page):
+    page_title = page['title']
+    page_markup = page['text']
+
+    if not page_markup:
+        return 0
+
+    wiki_links = wtp.parse(page_markup).wikilinks
+
+    db_links = [Link(page_title, link.title) for link in wiki_links]
+    insert_links(links_conn, db_links)
+
+    return len(db_links)
