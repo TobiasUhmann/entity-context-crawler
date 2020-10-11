@@ -5,8 +5,10 @@ from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
 
-from dao.links_db import select_distinct_pages
-from dao.pages_db import create_pages_table, insert_page, Page
+from deepca.dumpr import dumpr
+
+from dao.pages_db import create_raw_pages_table, insert_raw_page, RawPage, TextPage, insert_text_page, \
+    create_text_pages_table
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -14,39 +16,28 @@ from util.wikipedia import Wikipedia
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        wiki-xml
-        links-db
+        raw-wiki-xml
+        text-wiki-xml
         pages-db
-        --commit-frequency
-        --in-memory
         --limit-pages
         --overwrite
     """
 
-    parser.add_argument('wiki_xml', metavar='wiki-xml',
-                        help='Path to input Wiki XML')
+    parser.add_argument('raw_wiki_xml', metavar='raw-wiki-xml',
+                        help='Path to (input) raw Wiki XML')
 
-    parser.add_argument('links_db', metavar='links-db',
-                        help='Path to input links DB')
+    parser.add_argument('text_wiki_xml', metavar='text-wiki-xml',
+                        help='Path to (input) pre-processed text Wiki XML')
 
     parser.add_argument('pages_db', metavar='pages-db',
-                        help='Path to output pages DB')
-
-    default_commit_frequency = None
-    parser.add_argument('--commit-frequency', dest='commit_frequency', type=int, metavar='INT',
-                        default=default_commit_frequency,
-                        help='Commit to database every ... pages instead of committing at the end only'
-                             ' (default: {})'.format(default_commit_frequency))
-
-    parser.add_argument('--in-memory', dest='in_memory', action='store_true',
-                        help='Build complete matches DB in memory before persisting it')
+                        help='Path to (output) pages DB')
 
     default_limit_pages = None
     parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_pages,
                         help='Early stop after ... pages (default: {})'.format(default_limit_pages))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
-                        help='Overwrite matches DB if it already exists')
+                        help='Overwrite pages DB if it already exists')
 
 
 def run(args: Namespace):
@@ -56,12 +47,10 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    wiki_xml = args.wiki_xml
-    links_db = args.links_db
+    raw_wiki_xml = args.raw_wiki_xml
+    text_wiki_xml = args.text_wiki_xml
     pages_db = args.pages_db
 
-    commit_frequency = args.commit_frequency
-    in_memory = args.in_memory
     limit_pages = args.limit_pages
     overwrite = args.overwrite
 
@@ -72,28 +61,25 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('wiki-xml', wiki_xml))
-    print('    {:20} {}'.format('links-db', links_db))
+    print('    {:20} {}'.format('raw-wiki-xml', raw_wiki_xml))
+    print('    {:20} {}'.format('text-wiki-xml', text_wiki_xml))
     print('    {:20} {}'.format('pages-db', pages_db))
     print()
-    print('    {:20} {}'.format('--commit-frequency', commit_frequency))
-    print('    {:20} {}'.format('--in-memory', in_memory))
     print('    {:20} {}'.format('--limit-pages', limit_pages))
     print('    {:20} {}'.format('--overwrite', overwrite))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
-    print()
 
     #
     # Check if files already exist
     #
 
-    if not isfile(wiki_xml):
-        print('Wikipedia XML not found')
+    if not isfile(raw_wiki_xml):
+        print('Raw Wiki XML not found')
         exit()
 
-    if not isfile(links_db):
-        print('Links DB not found')
+    if not isfile(text_wiki_xml):
+        print('Text Wiki XML not found')
         exit()
 
     if isfile(pages_db):
@@ -107,71 +93,57 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_pages_db(wiki_xml, links_db, pages_db, commit_frequency, in_memory, limit_pages)
+    _build_pages_db(raw_wiki_xml, text_wiki_xml, pages_db, limit_pages)
 
 
-def _build_pages_db(wiki_xml, links_db, pages_db, commit_frequency, in_memory, limit_pages):
-    if in_memory:
-        _run_in_memory(wiki_xml, links_db, pages_db, commit_frequency, limit_pages)
-    else:
-        _run_on_disk(wiki_xml, links_db, pages_db, commit_frequency, limit_pages)
+def _build_pages_db(wiki_xml, wiki_text_xml, pages_db, limit_pages):
+    with sqlite3.connect(pages_db) as pages_conn:
+
+        create_raw_pages_table(pages_conn)
+        _process_raw_wiki_xml(wiki_xml, pages_conn, limit_pages)
+
+        create_text_pages_table(pages_conn)
+        _process_text_wiki_xml(wiki_text_xml, pages_conn, limit_pages)
+
+
+def _process_raw_wiki_xml(raw_wiki_xml, pages_conn, limit_pages):
+    """ Iterate through all raw Wiki pages and store them in the pages DB """
 
     log()
-    log('Finished successfully')
 
-
-def _run_on_disk(wiki_xml, links_db, pages_db, commit_frequency, limit_pages):
-    with sqlite3.connect(pages_db) as pages_conn:
-        create_pages_table(pages_conn)
-
-        _process_wikipedia(wiki_xml, links_db, pages_conn, commit_frequency, limit_pages)
-
-
-def _run_in_memory(wiki_xml, links_db, pages_db, commit_frequency, limit_pages):
-    """ Create pages DB in memory. Persist it in the end. """
-
-    with sqlite3.connect(':memory:') as memory_pages_conn:
-        create_pages_table(memory_pages_conn)
-
-        _process_wikipedia(wiki_xml, links_db, memory_pages_conn, commit_frequency, limit_pages)
-
-        log()
-        log('Persist...')
-
-        with sqlite3.connect(pages_db) as disk_pages_conn:
-            for line in memory_pages_conn.iterdump():
-                if line not in ('BEGIN;', 'COMMIT;'):  # let python handle the transactions
-                    disk_pages_conn.execute(line)
-
-        log('Done')
-
-
-def _process_wikipedia(wiki_xml, links_db, pages_conn, commit_frequency, limit_pages):
-    """ Iterate through all Wiki pages and store them in the pages DB """
-
-    with sqlite3.connect(links_db) as links_conn:
-        log()
-        log('Select relevant pages...')
-        relevant_page_titles = select_distinct_pages(links_conn)
-        log('Done')
-
-    with open(wiki_xml, 'rb') as wiki_xml_fh:
-        wikipedia = Wikipedia(wiki_xml_fh, tag='page')
+    with open(raw_wiki_xml, 'rb') as raw_wiki_xml_fh:
+        wikipedia = Wikipedia(raw_wiki_xml_fh, tag='page')
         for page_count, page in enumerate(wikipedia):
 
             if limit_pages and page_count == limit_pages:
                 break
 
             if page_count % 1000 == 0:
-                log('{:,}'.format(page_count))
-
-            if commit_frequency and page_count % commit_frequency == 0:
-                log('Commit...')
                 pages_conn.commit()
-                log('Done')
+                log('{:,} raw pages'.format(page_count))
 
             page_title = page['title']
             page_markup = page['text']
 
-            if page_title in relevant_page_titles:
-                insert_page(pages_conn, Page(page_title, page_markup))
+            insert_raw_page(pages_conn, RawPage(page_title, page_markup))
+
+
+def _process_text_wiki_xml(text_wiki_xml, pages_conn, limit_pages):
+    """ Iterate through all text Wiki pages and store them in the pages DB """
+
+    log()
+
+    with dumpr.BatchReader(text_wiki_xml) as reader:
+        for page_count, dumpr_doc in enumerate(reader.docs):
+
+            if limit_pages and page_count == limit_pages:
+                break
+
+            if page_count % 1000 == 0:
+                pages_conn.commit()
+                log('{:,} text pages'.format(page_count))
+
+            page_title = dumpr_doc.meta['title']
+            page_text = dumpr_doc.content
+
+            insert_text_page(pages_conn, TextPage(page_title, page_text))

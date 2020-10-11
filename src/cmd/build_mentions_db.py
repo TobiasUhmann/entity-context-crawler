@@ -12,7 +12,7 @@ from spacy.matcher import PhraseMatcher
 
 from dao.links_db import select_pages_linking_to, select_pages_linked_from
 from dao.mentions_db import insert_mentions, Mention, create_mentions_table
-from dao.pages_db import select_page
+from dao.pages_db import select_raw_page
 from util.util import log
 
 
@@ -218,7 +218,7 @@ def _process_entity(freebase_data, links_db, pages_db, mentions_conn, mid, nlp):
 
 def _find_mentions(pages_db, page_title, search_terms, nlp, mid, entity_label):
     with sqlite3.connect(pages_db) as pages_conn:
-        page = select_page(pages_conn, page_title)
+        page = select_raw_page(pages_conn, page_title)
 
     if not page:
         return []
@@ -258,7 +258,7 @@ def _find_mentions(pages_db, page_title, search_terms, nlp, mid, entity_label):
 
 def _find_aliases(pages_db, page_title):
     with sqlite3.connect(pages_db) as pages_conn:
-        page = select_page(pages_conn, page_title)
+        page = select_raw_page(pages_conn, page_title)
 
     if not page:
         return []
