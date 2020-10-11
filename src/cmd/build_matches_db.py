@@ -6,12 +6,11 @@ from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
 
-from deepca.dumpr import dumpr
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
 
 from dao.links_db import select_pages_linking_to, select_pages_linked_from, select_aliases
-from dao.matches_db import insert_page, create_pages_table, create_matches_table, insert_match, Page, Match, select_page
+from dao.matches_db import create_matches_table, insert_match, Match
 from util.util import log
 
 
@@ -143,10 +142,8 @@ def _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_freq
 
 def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
-        create_pages_table(matches_conn)
         create_matches_table(matches_conn)
 
-        _persist_pages(matches_conn, wiki_xml, commit_frequency, limit_pages)
         _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities)
 
         log('Done')
@@ -154,10 +151,8 @@ def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency
 
 def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
-        create_pages_table(memory_matches_conn)
         create_matches_table(memory_matches_conn)
 
-        _persist_pages(memory_matches_conn, wiki_xml, commit_frequency, limit_pages)
         _process_entities(freenode_json, links_db, memory_matches_conn, commit_frequency, limit_entities)
 
         print()
@@ -169,37 +164,6 @@ def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequen
                     disk_matches_conn.execute(line)
 
         log('Done')
-
-
-def _persist_pages(matches_conn, wiki_xml, commit_frequency, limit_pages):
-    """ Iterate through all Wikipedia pages and save them in pages table """
-
-    # Use dumpr to iterate through pre-processed Wiki dump
-    with dumpr.BatchReader(wiki_xml) as reader:
-        for page_count, dumpr_doc in enumerate(reader.docs):
-
-            # Get relevant values from dumpr doc
-            page_title = dumpr_doc.meta['title']
-            page_content = dumpr_doc.content
-
-            # Early stop if --limit-pages was specified
-            if limit_pages and page_count == limit_pages:
-                break
-
-            # Commit regularly instead of once at the end if --commit-frequency is set
-            if commit_frequency and page_count % commit_frequency == 0:
-                log('Commit...')
-                matches_conn.commit()
-
-            # Log progress
-            log('{} | {}'.format(page_count, page_title))
-
-            # Skip pages without content, happens sometimes, maybe pages marked for deletion (?)
-            if page_content is None:
-                continue
-
-            # Persist page in pages DB
-            insert_page(matches_conn, Page(page_title, page_content))
 
 
 def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities):
@@ -246,7 +210,7 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
 
             neighbor_pages = []
             for neighbor_page in neighbor_page_titles:
-                neighbor_page = select_page(matches_conn, neighbor_page)
+                # neighbor_page = select_page(matches_conn, neighbor_page)
                 if neighbor_page is not None:
                     neighbor_pages.append(neighbor_page)
 
