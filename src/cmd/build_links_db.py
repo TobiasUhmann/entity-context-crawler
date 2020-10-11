@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 
@@ -15,6 +16,7 @@ from util.wikipedia import Wikipedia
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
+        freebase-json
         wiki-xml
         links-db
         --commit-frequency
@@ -22,6 +24,9 @@ def add_parser_args(parser: ArgumentParser):
         --limit-pages
         --overwrite
     """
+
+    parser.add_argument('freebase_json', metavar='freebase-json',
+                        help='Path to input Freebase JSON')
 
     parser.add_argument('wiki_xml', metavar='wiki-xml',
                         help='Path to input Wikipedia XML')
@@ -53,6 +58,7 @@ def run(args: Namespace):
     - Run actual program
     """
 
+    freebase_json = args.freebase_json
     wiki_xml = args.wiki_xml
     links_db = args.links_db
 
@@ -68,6 +74,7 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
+    print('    {:20} {}'.format('freebase-json', freebase_json))
     print('    {:20} {}'.format('wiki-xml', wiki_xml))
     print('    {:20} {}'.format('links-db', links_db))
     print()
@@ -82,6 +89,10 @@ def run(args: Namespace):
     #
     # Check if files already exist
     #
+
+    if not isfile(freebase_json):
+        print('Freebase JSON not found')
+        exit()
 
     if not isfile(wiki_xml):
         print('Wikipedia XML not found')
@@ -98,33 +109,33 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages)
+    _build_links_db(freebase_json, wiki_xml, links_db, commit_frequency, in_memory, limit_pages)
 
 
-def _build_links_db(wiki_xml, links_db, commit_frequency, in_memory, limit_pages):
+def _build_links_db(freebase_json, wiki_xml, links_db, commit_frequency, in_memory, limit_pages):
     if in_memory:
-        _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages)
+        _run_in_memory(freebase_json, wiki_xml, links_db, commit_frequency, limit_pages)
     else:
-        _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages)
+        _run_on_disk(freebase_json, wiki_xml, links_db, commit_frequency, limit_pages)
 
 
-def _run_on_disk(wiki_xml, links_db, commit_frequency, limit_pages):
+def _run_on_disk(freebase_json, wiki_xml, links_db, commit_frequency, limit_pages):
     with sqlite3.connect(links_db) as links_conn:
         create_links_table(links_conn)
 
-        _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages)
+        _process_wikipedia(freebase_json, wiki_xml, links_conn, commit_frequency, limit_pages)
 
         log()
         log('Finished successfully')
 
 
-def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
+def _run_in_memory(freebase_json, wiki_xml, links_db, commit_frequency, limit_pages):
     """ Create pages DB in memory. Persist it in the end. """
 
     with sqlite3.connect(':memory:') as memory_links_conn:
         create_links_table(memory_links_conn)
 
-        _process_wikipedia(wiki_xml, memory_links_conn, commit_frequency, limit_pages)
+        _process_wikipedia(freebase_json, wiki_xml, memory_links_conn, commit_frequency, limit_pages)
 
         log()
         log('Persist...')
@@ -137,8 +148,9 @@ def _run_in_memory(wiki_xml, links_db, commit_frequency, limit_pages):
         log('Done')
 
 
-def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
+def _process_wikipedia(freebase_json, wiki_xml, links_conn, commit_frequency, limit_pages):
     total_link_count = 0
+    valid_page_titles = _get_valid_page_titles(freebase_json)
 
     with open(wiki_xml, 'rb') as wiki_xml:
         wikipedia = Wikipedia(wiki_xml, tag='page')
@@ -158,7 +170,7 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
                 log('{:,} <page>s | {:,} missing titles | {:,} missing texts | {:,} skipped templates | {:,} links'
                     .format(*row))
 
-            link_count = _process_page(links_conn, page)
+            link_count = _process_page(links_conn, page, valid_page_titles)
             total_link_count += link_count
 
         log('Commit...')
@@ -166,7 +178,20 @@ def _process_wikipedia(wiki_xml, links_conn, commit_frequency, limit_pages):
         log('Done')
 
 
-def _process_page(links_conn, page):
+def _get_valid_page_titles(freebase_json):
+    freebase_data = json.load(open(freebase_json, 'r'))
+
+    valid_page_titles = set()
+    for mid, entity_data in freebase_data.items():
+        page_url = entity_data['wikipedia']
+        if page_url:
+            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
+            valid_page_titles.add(page_title)
+
+    return valid_page_titles
+
+
+def _process_page(links_conn, page, valid_page_titles):
     page_title = page['title']
     page_markup = page['text']
 
@@ -175,7 +200,8 @@ def _process_page(links_conn, page):
 
     wiki_links = wtp.parse(page_markup).wikilinks
 
-    db_links = [Link(page_title, link.title) for link in wiki_links]
+    db_links = [Link(page_title, link.title) for link in wiki_links
+                if page_title in valid_page_titles or link.title in valid_page_titles]
     insert_links(links_conn, db_links)
 
     return len(db_links)
