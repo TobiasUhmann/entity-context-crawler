@@ -74,7 +74,59 @@ Currently, the sentence sampler consists of the following components:
 
 ![Architecture](doc/architecture.png)
 
-### Matches DB
+## Build the links DB
+
+The links DB stores which Wikipedia page is linked to another page in a simple table.
+
+```sql
+CREATE TABLE links (
+    from_page TEXT,
+    to_page TEXT
+);
+
+CREATE INDEX index_from_page 
+ON links (from_page);
+
+CREATE INDEX index_to_page
+ON links (to_page);
+```
+
+The English Wikipedia contains 400mio links which would lead to a database
+that is 50GB in size. As the following pipeline steps only require the pages directly
+linked to the pages associated with Freebase entities, the other pages are filtered out
+during processing. The resulting links DB contains 43mio links and has a size
+of 4.3GB. Building the links DB takes 5h on `supergpu`.
+
+### Usage
+
+```
+usage: sam.py build-links-db [-h] [--commit-frequency INT] [--in-memory] [--limit-pages INT] [--overwrite] wiki-xml links-db
+
+Build Wikipedia link graph
+
+positional arguments:
+  wiki-xml                Path to input Wikipedia XML
+  links-db                Path to output links DB
+
+optional arguments:
+  -h, --help              show this help message and exit
+  --commit-frequency INT  Commit to database every ... pages instead of committing at the end only (default: None)
+  --in-memory             Build complete links DB in memory before persisting it
+  --limit-pages INT       Early stop after ... pages (default: None)
+  --overwrite             Overwrite links DB if it already exists
+```
+
+
+**Example**
+
+```
+PYTHONPATH=src/ \
+nohup python -u src/sam.py build-links-db \
+  data/enwiki-20200920.xml \
+  data/enwiki-20200920-links.db \
+  --in-memory \
+> log/build-links-db_$(date +'%Y-%m-%d_%H-%M-%S').stdout &
+```
 
 
 
