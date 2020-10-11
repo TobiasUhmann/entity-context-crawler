@@ -169,7 +169,7 @@ def _process_entities(freebase_json, links_db, pages_db, mentions_conn, commit_f
     nlp.vocab.lex_attr_getters = {}
 
     for entity_count, mid in enumerate(freebase_data):
-        if limit_entities and limit_entities:
+        if limit_entities and entity_count == limit_entities:
             break
 
         if commit_frequency and entity_count & commit_frequency == 0:
@@ -220,6 +220,9 @@ def _find_mentions(pages_db, page_title, search_terms, nlp, mid, entity_label):
     with sqlite3.connect(pages_db) as pages_conn:
         page = select_page(pages_conn, page_title)
 
+    if not page:
+        return []
+
     page_markup = _get_core_markup(page.markup)
     if not page_markup:
         return []
@@ -257,6 +260,9 @@ def _find_aliases(pages_db, page_title):
     with sqlite3.connect(pages_db) as pages_conn:
         page = select_page(pages_conn, page_title)
 
+    if not page:
+        return []
+
     page_markup = _get_core_markup(page.markup)
     if not page_markup:
         return []
@@ -273,7 +279,7 @@ def _get_core_markup(markup: str) -> str:
     section_blacklist = {'References', 'Further Reading', 'External Links'}
     filtered_sections = [section for section in sections if section.title.strip() not in section_blacklist]
 
-    return '\n'.join([section.content for section in filtered_sections])
+    return '\n'.join([section.contents for section in filtered_sections])
 
 
 def _filter_spans(spans):

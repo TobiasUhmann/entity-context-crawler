@@ -128,3 +128,22 @@ def insert_aliases(conn: Connection, aliases: List[Alias]):
     cursor = conn.cursor()
     cursor.executemany(sql, [(alias.page, alias.alias) for alias in aliases])
     cursor.close()
+
+
+def select_distinct_pages(conn: Connection) -> Set[str]:
+    sql = '''
+        SELECT DISTINCT from_page
+        FROM links
+
+        UNION
+
+        SELECT DISTINCT to_page
+        FROM links
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return {row[0] for row in rows}

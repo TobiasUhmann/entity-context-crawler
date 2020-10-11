@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import Optional
+from typing import Optional, Set
 
 
 @dataclass
@@ -10,23 +10,27 @@ class Page:
 
 
 def create_pages_table(conn: Connection):
-    sql = '''
+    create_table_sql = '''
         CREATE TABLE pages (
             title TEXT,
-            markup TEXT,
-
-            PRIMARY KEY (title)
+            markup TEXT
         )
     '''
 
+    create_title_index = '''
+        CREATE INDEX index_title 
+        ON pages (title)
+    '''
+
     cursor = conn.cursor()
-    cursor.execute(sql)
+    cursor.execute(create_table_sql)
+    cursor.execute(create_title_index)
     cursor.close()
 
 
 def select_page(conn: Connection, title: str) -> Optional[Page]:
     sql = '''
-        SELECT title, content
+        SELECT title, markup
         FROM pages
         WHERE title = ?
     '''

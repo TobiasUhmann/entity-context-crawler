@@ -78,7 +78,7 @@ Currently, the sentence sampler consists of the following components:
 
 The links DB stores which Wikipedia page is linked to another page in a simple table.
 
-```sql
+```sqlite
 CREATE TABLE links (
     from_page TEXT,
     to_page TEXT
@@ -97,7 +97,7 @@ linked to the pages associated with Freebase entities, the other pages are filte
 during processing. The resulting links DB contains 43mio links and has a size
 of 4.3GB. Building the links DB takes 5h on `supergpu`.
 
-### Usage
+**Usage**
 
 ```
 usage: sam.py build-links-db [-h] [--commit-frequency INT] [--in-memory] [--limit-pages INT] [--overwrite] wiki-xml links-db
@@ -116,8 +116,7 @@ optional arguments:
   --overwrite             Overwrite links DB if it already exists
 ```
 
-
-**Example**
+**Example invocation**
 
 ```
 PYTHONPATH=src/ \
@@ -128,7 +127,91 @@ nohup python -u src/sam.py build-links-db \
 > log/build-links-db_$(date +'%Y-%m-%d_%H-%M-%S').stdout &
 ```
 
+**Example data**
 
+```
+from_page   to_page
+----------  --------------------
+Anarchism   political philosophy
+Anarchism   Political movement
+Anarchism   hierarchy
+Anarchism   State (polity)
+```
+
+## Build the pages DB
+
+The pages DB stores the Wikipedia pages from the XML dump in a database to
+allow random access during later stages. It contains each page's title and markup.
+
+```sqlite
+CREATE TABLE pages (
+    title TEXT,
+    markup TEXT,
+
+    PRIMARY KEY (title)
+)
+```
+
+The English Wikipedia dump contains 20mio pages that include the actual 6mio
+articles plus other pages like disambiguation pages. Similar to the links DB,
+pages that aren't used in later stages are filtered. The resulting pages DB
+contains the pages associated with Freebase entities as well as pages linking to
+or linked from those entity pages. The pages DB contains 1mio pages and is 5GB
+in size. Building it on `supergpu` takes 2h.
+
+**Usage**
+
+```
+usage: sam.py build-pages-db [-h] [--random-seed RANDOM_SEED] [--commit-frequency INT] [--in-memory] [--limit-pages INT] [--overwrite] wiki-xml pages-db
+
+Build pages DB
+
+positional arguments:
+  wiki-xml                   Path to input Wiki XML
+  pages-db                   Path to output pages DB
+
+optional arguments:
+  -h, --help                 show this help message and exit
+  --random-seed RANDOM_SEED  Use together with PYTHONHASHSEED for reproducibility
+  --commit-frequency INT     Commit to database every ... pages instead of committing at the end only (default: None)
+  --in-memory                Build complete matches DB in memory before persisting it
+  --limit-pages INT          Early stop after ... pages (default: None)
+  --overwrite                Overwrite matches DB if it already exists
+```
+
+**Example invocation**
+
+```
+PYTHONPATH=src/ \
+nohup python -u src/sam.py build-pages-db \
+  data/enwiki-20200920.xml \
+  data/pages-v1-enwiki-20200920.db \
+> log/build-pages-db_$(date +'%Y-%m-%d_%H-%M-%S').stdout &
+```
+
+**Example data**
+
+<!-- 
+sqlite> .mode box
+sqlite> SELECT title, SUBSTR(REPLACE(markup, X'0A', '\n'), 0, 80) as markup FROM pages LIMIT 10 OFFSET 10;
+-->
+
+```
++----------------------+---------------------------------------------------------------------------------+
+|        title         |                                     markup                                      |
++----------------------+---------------------------------------------------------------------------------+
+| AmoeboidTaxa         | #REDIRECT [[Amoeba]]\n\n{{Redirect category shell|1=\n{{R from CamelCase}}\n}}  |
+| Autism               | {{about|the classic autistic disorder|other conditions sometimes called "autism |
+| AlbaniaHistory       | #REDIRECT [[History of Albania]]\n\n{{Redirect category shell|1=\n{{R from Came |
+| AlbaniaPeople        | #REDIRECT [[Demographics of Albania]]\n\n{{Redirect category shell|1=\n{{R from |
+| AsWeMayThink         | #REDIRECT [[As_We_May_Think]]\n\n{{Redirect category shell|1=\n {{R from CamelC |
+| AlbaniaGovernment    | #REDIRECT [[Politics of Albania]]\n\n{{Redirect category shell|1=\n{{R from Cam |
+| AlbaniaEconomy       | #REDIRECT [[Economy of Albania]]\n\n{{Redirect category shell|1=\n{{R from Came |
+| Albedo               | {{short description|Ratio of reflected radiation to incident radiation}}\n{{Oth |
+| AfroAsiaticLanguages | #REDIRECT [[Afroasiatic languages]]\n\n{{Redirect category shell|1=\n{{R from C |
+| ArtificalLanguages   | #REDIRECT [[Constructed language]]\n\n{{Rcat shell|\n{{R from move}}\n{{R from  |
++----------------------+---------------------------------------------------------------------------------+
+```
 
 ### Build the Baseline Model
 

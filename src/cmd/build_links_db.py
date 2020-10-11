@@ -150,7 +150,7 @@ def _run_in_memory(freebase_json, wiki_xml, links_db, commit_frequency, limit_pa
 
 def _process_wikipedia(freebase_json, wiki_xml, links_conn, commit_frequency, limit_pages):
     total_link_count = 0
-    valid_page_titles = _get_valid_page_titles(freebase_json)
+    valid_page_titles = _get_entity_page_titles(freebase_json)
 
     with open(wiki_xml, 'rb') as wiki_xml:
         wikipedia = Wikipedia(wiki_xml, tag='page')
@@ -178,7 +178,7 @@ def _process_wikipedia(freebase_json, wiki_xml, links_conn, commit_frequency, li
         log('Done')
 
 
-def _get_valid_page_titles(freebase_json):
+def _get_entity_page_titles(freebase_json):
     freebase_data = json.load(open(freebase_json, 'r'))
 
     valid_page_titles = set()

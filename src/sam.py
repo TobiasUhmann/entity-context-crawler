@@ -61,8 +61,8 @@ def main():
         'build-matches-db', formatter_class=get_formatter, parents=[common_parser],
         description='Match the Freenode entities (considering the link graph)')
 
-    build_matches_db.add_parser_args(build_matches_db_parser)
-    build_matches_db_parser.set_defaults(func=build_matches_db.run)
+    build_mentions_db.add_parser_args(build_matches_db_parser)
+    build_matches_db_parser.set_defaults(func=build_mentions_db.run)
 
     #
     # Add build-contexts-db sub command

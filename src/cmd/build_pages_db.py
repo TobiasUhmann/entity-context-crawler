@@ -5,6 +5,7 @@ from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
 
+from dao.links_db import select_distinct_pages
 from dao.pages_db import create_pages_table, insert_page, Page
 from util.util import log
 from util.wikipedia import Wikipedia
@@ -14,6 +15,7 @@ def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         wiki-xml
+        links-db
         pages-db
         --commit-frequency
         --in-memory
@@ -23,6 +25,9 @@ def add_parser_args(parser: ArgumentParser):
 
     parser.add_argument('wiki_xml', metavar='wiki-xml',
                         help='Path to input Wiki XML')
+
+    parser.add_argument('links_db', metavar='links-db',
+                        help='Path to input links DB')
 
     parser.add_argument('pages_db', metavar='pages-db',
                         help='Path to output pages DB')
@@ -52,6 +57,7 @@ def run(args: Namespace):
     """
 
     wiki_xml = args.wiki_xml
+    links_db = args.links_db
     pages_db = args.pages_db
 
     commit_frequency = args.commit_frequency
@@ -67,6 +73,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('wiki-xml', wiki_xml))
+    print('    {:20} {}'.format('links-db', links_db))
     print('    {:20} {}'.format('pages-db', pages_db))
     print()
     print('    {:20} {}'.format('--commit-frequency', commit_frequency))
@@ -85,6 +92,10 @@ def run(args: Namespace):
         print('Wikipedia XML not found')
         exit()
 
+    if not isfile(links_db):
+        print('Links DB not found')
+        exit()
+
     if isfile(pages_db):
         if overwrite:
             remove(pages_db)
@@ -96,33 +107,33 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_pages_db(wiki_xml, pages_db, commit_frequency, in_memory, limit_pages)
+    _build_pages_db(wiki_xml, links_db, pages_db, commit_frequency, in_memory, limit_pages)
 
 
-def _build_pages_db(wiki_xml, pages_db, commit_frequency, in_memory, limit_pages):
+def _build_pages_db(wiki_xml, links_db, pages_db, commit_frequency, in_memory, limit_pages):
     if in_memory:
-        _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages)
+        _run_in_memory(wiki_xml, links_db, pages_db, commit_frequency, limit_pages)
     else:
-        _run_on_disk(wiki_xml, pages_db, commit_frequency, limit_pages)
+        _run_on_disk(wiki_xml, links_db, pages_db, commit_frequency, limit_pages)
 
     log()
     log('Finished successfully')
 
 
-def _run_on_disk(wiki_xml, pages_db, commit_frequency, limit_pages):
+def _run_on_disk(wiki_xml, links_db, pages_db, commit_frequency, limit_pages):
     with sqlite3.connect(pages_db) as pages_conn:
         create_pages_table(pages_conn)
 
-        _process_wikipedia(pages_conn, wiki_xml, commit_frequency, limit_pages)
+        _process_wikipedia(wiki_xml, links_db, pages_conn, commit_frequency, limit_pages)
 
 
-def _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages):
+def _run_in_memory(wiki_xml, links_db, pages_db, commit_frequency, limit_pages):
     """ Create pages DB in memory. Persist it in the end. """
 
     with sqlite3.connect(':memory:') as memory_pages_conn:
         create_pages_table(memory_pages_conn)
 
-        _process_wikipedia(memory_pages_conn, wiki_xml, commit_frequency, limit_pages)
+        _process_wikipedia(wiki_xml, links_db, memory_pages_conn, commit_frequency, limit_pages)
 
         log()
         log('Persist...')
@@ -135,8 +146,14 @@ def _run_in_memory(wiki_xml, pages_db, commit_frequency, limit_pages):
         log('Done')
 
 
-def _process_wikipedia(pages_conn, wiki_xml, commit_frequency, limit_pages):
+def _process_wikipedia(wiki_xml, links_db, pages_conn, commit_frequency, limit_pages):
     """ Iterate through all Wiki pages and store them in the pages DB """
+
+    with sqlite3.connect(links_db) as links_conn:
+        log()
+        log('Select relevant pages...')
+        relevant_page_titles = select_distinct_pages(links_conn)
+        log('Done')
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, tag='page')
@@ -156,4 +173,5 @@ def _process_wikipedia(pages_conn, wiki_xml, commit_frequency, limit_pages):
             page_title = page['title']
             page_markup = page['text']
 
-            insert_page(pages_conn, Page(page_title, page_markup))
+            if page_title in relevant_page_titles:
+                insert_page(pages_conn, Page(page_title, page_markup))
