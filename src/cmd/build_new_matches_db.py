@@ -1,10 +1,12 @@
 import json
 import os
 import sqlite3
+import wikitextparser as wtp
 
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
+from typing import List
 
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
@@ -12,47 +14,31 @@ from spacy.matcher import PhraseMatcher
 from dao.links_db import select_pages_linking_to, select_pages_linked_from, select_aliases
 from dao.matches_db import create_matches_table, insert_match, Match
 from util.util import log
+from util.wikipedia import Wikipedia
 
 
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        freenode-json
+        freebase-json
         wiki-xml
-        links-db
         matches-db
-        --commit-frequency
         --in-memory
-        --limit-entities
         --limit-pages
         --overwrite
     """
 
-    parser.add_argument('freenode_json', metavar='freenode-json',
-                        help='Path to input Freenode JSON')
+    parser.add_argument('freebase_json', metavar='freebase-json',
+                        help='Path to input Freebase JSON')
 
     parser.add_argument('wiki_xml', metavar='wiki-xml',
-                        help='Path to input pre-processed Wikipedia XML')
-
-    parser.add_argument('links_db', metavar='links-db',
-                        help='Path to input links DB')
+                        help='Path to input Wikipedia XML')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to output matches DB')
 
-    default_commit_frequency = None
-    parser.add_argument('--commit-frequency', dest='commit_frequency', type=int, metavar='INT',
-                        default=default_commit_frequency,
-                        help='Commit to database every ... pages instead of committing at the end only'
-                             ' (default: {})'.format(default_commit_frequency))
-
     parser.add_argument('--in-memory', dest='in_memory', action='store_true',
                         help='Build complete matches DB in memory before persisting it')
-
-    default_limit_entities = None
-    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
-                        default=default_limit_entities,
-                        help='Early stop after ... entities (default: {})'.format(default_limit_entities))
 
     default_limit_pages = None
     parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_pages,
@@ -69,14 +55,11 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    freenode_json = args.freenode_json
+    freebase_json = args.freebase_json
     wiki_xml = args.wiki_xml
-    links_db = args.links_db
     matches_db = args.matches_db
 
-    commit_frequency = args.commit_frequency
     in_memory = args.in_memory
-    limit_entities = args.limit_entities
     limit_pages = args.limit_pages
     overwrite = args.overwrite
 
@@ -87,14 +70,11 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('freenode-json', freenode_json))
+    print('    {:20} {}'.format('freebase-json', freebase_json))
     print('    {:20} {}'.format('wiki-xml', wiki_xml))
-    print('    {:20} {}'.format('links-db', links_db))
     print('    {:20} {}'.format('matches-db', matches_db))
     print()
-    print('    {:20} {}'.format('--commit-frequency', commit_frequency))
     print('    {:20} {}'.format('--in-memory', in_memory))
-    print('    {:20} {}'.format('--limit-entities', limit_entities))
     print('    {:20} {}'.format('--limit-pages', limit_pages))
     print('    {:20} {}'.format('--overwrite', overwrite))
     print()
@@ -105,16 +85,12 @@ def run(args: Namespace):
     # Check if files already exist
     #
 
-    if not isfile(freenode_json):
-        print('Freenode JSON not found')
+    if not isfile(freebase_json):
+        print('Freebase JSON not found')
         exit()
 
     if not isfile(wiki_xml):
         print('Wikipedia XML not found')
-        exit()
-
-    if not isfile(links_db):
-        print('Links DB not found')
         exit()
 
     if isfile(matches_db):
@@ -128,34 +104,33 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_entities,
-                      limit_pages)
+    _build_matches_db(freebase_json, wiki_xml, matches_db, in_memory, limit_pages)
 
 
-def _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_entities,
-                      limit_pages):
+def _build_matches_db(freebase_json, wiki_xml, matches_db, in_memory, limit_pages):
     if in_memory:
-        _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages)
+        _run_in_memory(freebase_json, matches_db, limit_pages)
     else:
-        _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages)
+        _run_on_disk(freebase_json, wiki_xml, matches_db, limit_pages)
+
+        log()
+        log('Finished successfully')
 
 
-def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
+def _run_on_disk(freebase_json, wiki_xml, matches_db, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
         create_matches_table(matches_conn)
 
-        _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities)
-
-        log('Done')
+        _process_wikipedia(freebase_json, wiki_xml, matches_conn, limit_pages)
 
 
-def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
+def _run_in_memory(freebase_json, wiki_xml, matches_db, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
         create_matches_table(memory_matches_conn)
 
-        _process_entities(freenode_json, links_db, memory_matches_conn, commit_frequency, limit_entities)
+        _process_wikipedia(freebase_json, wiki_xml, memory_matches_conn, limit_pages)
 
-        print()
+        log()
         log('Persist...')
 
         with sqlite3.connect(matches_db) as disk_matches_conn:
@@ -166,89 +141,47 @@ def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequen
         log('Done')
 
 
-def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities):
-    """
-    Iterate through all Freebase entities. For each entity, get its Wikipedia page as well
-    as the directly linked pages. On those pages, search for the entity label and its aliases.
-    Persist the matches in the matches DB.
-    """
+def _process_wikipedia(freebase_json, wiki_xml, matches_conn, limit_pages):
 
-    print()
-    log('Load Freenode JSON...')
-    freenode_data = json.load(open(freenode_json, 'r'))
+    log()
+    log('Load Freebase JSON...')
+    freebase_data = json.load(open(freebase_json, 'r'))
     log('Done')
+
+    page_title_to_mid = {}
+    for mid, entity_data in freebase_data.items():
+        page_url = entity_data['wikipedia']
+        if page_url:
+            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
+            page_title_to_mid[page_title] = mid
 
     nlp = English()
     nlp.vocab.lex_attr_getters = {}
 
-    missing_urls = 0
+    with open(wiki_xml, 'rb') as wiki_xml_fh:
+        wikipedia = Wikipedia(wiki_xml_fh, tag='page')
+        for page_count, page in enumerate(wikipedia):
 
-    with sqlite3.connect(links_db) as links_conn:
-        for entity_count, freenode_data_item in enumerate(freenode_data.items()):
-            if limit_entities and entity_count == limit_entities:
+            if limit_pages and page_count == limit_pages:
                 break
 
-            mid, entity_data = freenode_data_item
+            page_title = page['title']
+            page_markup = page['text']
 
-            entity_label = entity_data['label']
-            wiki_url = entity_data['wikipedia']
+            mid = page_title_to_mid[page_title]
+            if mid:
+                entity_label = freebase_data[mid]['label']
+                entity_label_matcher = _build_phrase_matcher(nlp, [entity_label])
 
-            if not wiki_url:
-                missing_urls += 1
-                continue
-
-            page_title = wiki_url.rsplit('/', 1)[-1].replace('_', ' ')
-
-            #
-            # Query neighbor pages and entity aliases
-            #
-
-            pages_linked_from_current_page = select_pages_linked_from(links_conn, page_title)
-            pages_linking_to_current_page = select_pages_linking_to(links_conn, page_title)
-
-            neighbor_page_titles = pages_linking_to_current_page | {page_title} | pages_linked_from_current_page
-
-            neighbor_pages = []
-            for neighbor_page in neighbor_page_titles:
-                # neighbor_page = select_page(matches_conn, neighbor_page)
-                if neighbor_page is not None:
-                    neighbor_pages.append(neighbor_page)
-
-            aliases = select_aliases(links_conn, page_title)
-
-            #
-            # Search neighbor pages
-            #
-
-            matcher = PhraseMatcher(nlp.vocab)
-
-            patterns = list(nlp.pipe({entity_label} | aliases))
-            matcher.add('Entities', None, *patterns)
-
-            match_count = 0
-            for neighbor_page in neighbor_pages:
-                page_title = neighbor_page.title
-                page_content = neighbor_page.content
-
-                spacy_doc = nlp.make_doc(page_content)
-                matches = matcher(spacy_doc)
-
-                def contains(x, y):
-                    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
+                page_text = wtp.parse(page_markup).plain_text()
+                spacy_doc = nlp.make_doc(page_text)
+                matches = entity_label_matcher(spacy_doc)
 
                 spans = {(start, end) for match_id, start, end in matches}
-                kept_spans = []
-                for span in spans:
-                    keep_span = True
-                    for other_span in spans.difference({span}):
-                        if contains(other_span, span):
-                            keep_span = False
-                            break
+                filtered_spans = _filter_spans(spans)
 
-                    if keep_span:
-                        kept_spans.append(span)
-
-                for start, end in kept_spans:
+                db_matches: List[Match] = []
+                for start, end in filtered_spans:
                     match_span = spacy_doc[start:end]
                     match_text = match_span.text
 
@@ -256,17 +189,38 @@ def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, l
                     end_char = match_span.end_char
 
                     context_start = max(match_span.start_char - 20, 0)
-                    context_end = min(match_span.end_char + 20, len(page_content))
-                    context = page_content[context_start:context_end]
+                    context_end = min(match_span.end_char + 20, len(page_text))
+                    context = page_text[context_start:context_end]
 
-                    match = Match(mid, entity_label, match_text, page_title, start_char, end_char, context)
-                    insert_match(matches_conn, match)
-                    match_count += 1
+                    db_match = Match(mid, entity_label, match_text, page_title, start_char, end_char, context)
+                    db_matches.append(db_match)
 
-            row = (entity_count, entity_label, len(neighbor_pages) - 1, match_count)
-            log('{} | {} | {} neighbors | {} matches'.format(*row))
+                for m in db_matches:
+                    insert_match(matches_conn, m)
 
-        print()
-        print('Stats')
-        print('\tEntities without Wikipedia page: {}'.format(missing_urls))
-        print()
+
+def _build_phrase_matcher(nlp: English, patterns: List[str]) -> PhraseMatcher:
+    matcher = PhraseMatcher(nlp.vocab)
+    spacy_patterns = list(nlp.pipe(patterns))
+    matcher.add('Patterns', None, *spacy_patterns)
+
+    return matcher
+
+
+def _filter_spans(spans):
+    filtered_spans = []
+    for span in spans:
+        keep_span = True
+        for other_span in spans.difference({span}):
+            if _contains(other_span, span):
+                keep_span = False
+                break
+
+        if keep_span:
+            filtered_spans.append(span)
+
+    return filtered_spans
+
+
+def _contains(x, y):
+    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
