@@ -1,18 +1,16 @@
 import json
 import os
 import sqlite3
-import wikitextparser as wtp
 
 from argparse import ArgumentParser, Namespace
 from multiprocessing import Pool
 from os import remove
 from os.path import isfile
+from typing import Dict
 
-from spacy.lang.en import English
-from spacy.matcher import PhraseMatcher
+import wikitextparser as wtp
 
-from dao.links_db import select_pages_linking_to, select_pages_linked_from, select_aliases
-from dao.matches_db import create_matches_table, insert_match, Match
+from dao.matches_db import create_matches_table
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -140,36 +138,67 @@ def _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages):
         log('Done')
 
 
-def _process_wiki_xml(wiki_xml, freenode_json, matches_conn, limit_pages):
+def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     """
     Iterate through all Freebase entities. For each entity, get its Wikipedia page as well
     as the directly linked pages. On those pages, search for the entity label and its aliases.
     Persist the matches in the matches DB.
     """
 
+    freebase_data = json.load(open(freebase_json, 'r'))
+    entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
+
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, tag='page')
 
-        with Pool(4) as pool:
+        init_args = (entity_page_title_to_mid,)
+        with Pool(4, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result, in enumerate(pool.imap(_process_page, wikipedia)):
-                page_title, page_links = page_result
-                log('{} | {} | {}'.format(page_count, page_title, page_links))
+
+                page_title, page_links, entity_page_links = page_result
+                log('{} | {} | {}/{}'.format(page_count, page_title, entity_page_links, page_links))
+
+
+def _get_entity_page_title_to_mid(freebase_data):
+    entity_page_title_to_mid = {}
+    for mid, entity_data in freebase_data.items():
+        page_url = entity_data['wikipedia']
+        if page_url:
+            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
+            entity_page_title_to_mid[page_title] = mid
+
+    return entity_page_title_to_mid
+
+
+entity_page_title_to_mid: Dict[str, str]
+
+
+def _init_worker(entity_page_title_to_mid_arg):
+    global entity_page_title_to_mid
+
+    entity_page_title_to_mid = entity_page_title_to_mid_arg
 
 
 def _process_page(page):
+    global entity_page_title_to_mid
+
     page_title = page['title']
     page_markup = page['text']
 
     core_markup = _get_core_markup(page_markup)
+    parsed = wtp.parse(core_markup)
+
+    links = parsed.wikilinks
+    entity_links = [link for link in links if link.title in entity_page_title_to_mid]
 
     try:
-        parsed = wtp.parse(core_markup)
-        links = parsed.wikilinks
         text = parsed.plain_text()
     except:
-        links = []
+        pass
 
-    return (page_title, len(links))
+
+
+    return page_title, len(links), len(entity_links)
 
 
 def _get_core_markup(markup: str) -> str:
