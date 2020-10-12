@@ -1,9 +1,8 @@
 import random
-
 from argparse import ArgumentParser, HelpFormatter
 
-from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, build_matches_db, eval_es_test, \
-    eval_model, query_es_test, build_pages_db, build_mentions_db, build_new_matches_db
+from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, eval_es_test, \
+    eval_model, query_es_test, build_pages_db, build_mentions_db, build_new_matches_db, build_matches_db
 
 
 def main():
@@ -72,8 +71,8 @@ def main():
         'build-matches-db', formatter_class=get_formatter, parents=[common_parser],
         description='Match the Freenode entities (considering the link graph)')
 
-    build_mentions_db.add_parser_args(build_matches_db_parser)
-    build_matches_db_parser.set_defaults(func=build_mentions_db.run)
+    build_matches_db.add_parser_args(build_matches_db_parser)
+    build_matches_db_parser.set_defaults(func=build_matches_db.run)
 
     #
     # Add build-contexts-db sub command

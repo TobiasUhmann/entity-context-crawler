@@ -14,9 +14,12 @@ def _process_raw_wiki_xml(raw_wiki_xml):
             page_markup = page['text']
             core_markup = _get_core_markup(page_markup)
 
-            wtp.parse(core_markup)
+            try:
+                wtp.parse(page_markup).plain_text()
+            except:
+                print(page_count)
 
-            if page_count % 1000 == 0:
+            if page_count % 100 == 0:
                 log(str(page_count))
 
 

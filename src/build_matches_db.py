@@ -116,12 +116,12 @@ def _build_matches_db(wiki_xml, freebase_json, matches_db, in_memory, limit_page
 
 def _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
-
         create_matches_table(matches_conn)
         _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages)
 
         log()
         log('Finished successfully')
+
 
 def _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
@@ -153,7 +153,7 @@ def _process_wiki_xml(wiki_xml, freenode_json, matches_conn, limit_pages):
         with Pool(4) as pool:
             for page_count, page_result, in enumerate(pool.imap(_process_page, wikipedia)):
                 page_title, page_links = page_result
-                log('{} {}'.format(page_title, page_title, page_links))
+                log('{} | {} | {}'.format(page_count, page_title, page_links))
 
 
 def _process_page(page):
@@ -189,3 +189,11 @@ def _get_core_markup(markup: str) -> str:
     markups.extend(section_markups)
 
     return '\n'.join(markups)
+
+
+if __name__ == '__main__':
+    _build_matches_db('data/enwiki-20200920.xml',
+                      'data/entity2wikidata.json',
+                      'data/matches-v2-enwiki-20200920-dev.db',
+                      False,
+                      None)
