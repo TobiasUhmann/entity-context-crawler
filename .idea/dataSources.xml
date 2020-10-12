@@ -100,5 +100,16 @@
         </library>
       </libraries>
     </data-source>
+    <data-source source="LOCAL" name="matches-v2-enwiki-20200920-dev" uuid="c5e1bdc1-294a-43e6-b4df-0ed2b04bb336">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\matches-v2-enwiki-20200920-dev.db</jdbc-url>
+      <libraries>
+        <library>
+          <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>
+        </library>
+      </libraries>
+    </data-source>
   </component>
 </project>

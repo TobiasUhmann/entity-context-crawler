@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataSource name="matches-v2-enwiki-20200920-dev">
+  <database-model serializer="dbm" dbms="SQLITE" family-id="SQLITE" format-version="4.19">
+    <root id="1">
+      <ServerVersion>3.31.1</ServerVersion>
+    </root>
+    <schema id="2" parent="1" name="main">
+      <Current>1</Current>
+    </schema>
+    <collation id="3" parent="1" name="BINARY"/>
+    <collation id="4" parent="1" name="NOCASE"/>
+    <collation id="5" parent="1" name="RTRIM"/>
+    <table id="6" parent="2" name="matches"/>
+    <table id="7" parent="2" name="sqlite_master">
+      <System>1</System>
+    </table>
+    <column id="8" parent="6" name="mid">
+      <Position>1</Position>
+      <DataType>TEXT|0s</DataType>
+    </column>
+    <column id="9" parent="6" name="entity_label">
+      <Position>2</Position>
+      <DataType>TEXT|0s</DataType>
+    </column>
+    <column id="10" parent="6" name="mention">
+      <Position>3</Position>
+      <DataType>TEXT|0s</DataType>
+    </column>
+    <column id="11" parent="6" name="page">
+      <Position>4</Position>
+      <DataType>TEXT|0s</DataType>
+    </column>
+    <column id="12" parent="6" name="start_char">
+      <Position>5</Position>
+      <DataType>INT|0s</DataType>
+    </column>
+    <column id="13" parent="6" name="end_char">
+      <Position>6</Position>
+      <DataType>INT|0s</DataType>
+    </column>
+    <column id="14" parent="6" name="context">
+      <Position>7</Position>
+      <DataType>TEXT|0s</DataType>
+    </column>
+    <index id="15" parent="6" name="sqlite_autoindex_matches_1">
+      <NameSurrogate>1</NameSurrogate>
+      <ColNames>mid
+page
+start_char
+mention</ColNames>
+      <ColumnCollations></ColumnCollations>
+      <Unique>1</Unique>
+    </index>
+    <key id="16" parent="6">
+      <ColNames>mid
+page
+start_char
+mention</ColNames>
+      <Primary>1</Primary>
+      <UnderlyingIndexName>sqlite_autoindex_matches_1</UnderlyingIndexName>
+    </key>
+    <foreign-key id="17" parent="6">
+      <ColNames>page</ColNames>
+      <RefTableName>pages</RefTableName>
+      <RefColNames>title</RefColNames>
+    </foreign-key>
+    <column id="18" parent="7" name="type">
+      <Position>1</Position>
+      <DataType>text|0s</DataType>
+    </column>
+    <column id="19" parent="7" name="name">
+      <Position>2</Position>
+      <DataType>text|0s</DataType>
+    </column>
+    <column id="20" parent="7" name="tbl_name">
+      <Position>3</Position>
+      <DataType>text|0s</DataType>
+    </column>
+    <column id="21" parent="7" name="rootpage">
+      <Position>4</Position>
+      <DataType>int|0s</DataType>
+    </column>
+    <column id="22" parent="7" name="sql">
+      <Position>5</Position>
+      <DataType>text|0s</DataType>
+    </column>
+  </database-model>
+</dataSource>

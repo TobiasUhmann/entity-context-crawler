@@ -3,14 +3,17 @@ import os
 import sqlite3
 
 from argparse import ArgumentParser, Namespace
+from collections import defaultdict
 from multiprocessing import Pool
 from os import remove
 from os.path import isfile
 from typing import Dict
 
 import wikitextparser as wtp
+from spacy.lang.en import English
+from spacy.matcher import PhraseMatcher
 
-from dao.matches_db import create_matches_table
+from dao.matches_db import create_matches_table, Match, insert_match
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -146,17 +149,21 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     """
 
     freebase_data = json.load(open(freebase_json, 'r'))
-    entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, tag='page')
 
-        init_args = (entity_page_title_to_mid,)
-        with Pool(4, initializer=_init_worker, initargs=init_args) as pool:
-            for page_count, page_result, in enumerate(pool.imap(_process_page, wikipedia)):
+        init_args = (freebase_data,)
+        with Pool(32, initializer=_init_worker, initargs=init_args) as pool:
+            for page_count, page_result in enumerate(pool.imap(_process_page, wikipedia)):
 
-                page_title, page_links, entity_page_links = page_result
-                log('{} | {} | {}/{}'.format(page_count, page_title, entity_page_links, page_links))
+                page_title, db_matches, = page_result
+
+                for db_match in db_matches:
+                    insert_match(matches_conn, db_match)
+                matches_conn.commit()
+
+                log('{} | {} | {}'.format(page_count, page_title, len(db_matches)))
 
 
 def _get_entity_page_title_to_mid(freebase_data):
@@ -170,17 +177,27 @@ def _get_entity_page_title_to_mid(freebase_data):
     return entity_page_title_to_mid
 
 
+freebase_data: Dict[str, Dict]
 entity_page_title_to_mid: Dict[str, str]
+nlp: any
 
 
-def _init_worker(entity_page_title_to_mid_arg):
+def _init_worker(freebase_data_arg):
+    global freebase_data
     global entity_page_title_to_mid
+    global nlp
 
-    entity_page_title_to_mid = entity_page_title_to_mid_arg
+    freebase_data = freebase_data_arg
+    entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
+
+    nlp = English()
+    nlp.vocab.lex_attr_getters = {}
 
 
 def _process_page(page):
+    global freebase_data
     global entity_page_title_to_mid
+    global nlp
 
     page_title = page['title']
     page_markup = page['text']
@@ -191,14 +208,44 @@ def _process_page(page):
     links = parsed.wikilinks
     entity_links = [link for link in links if link.title in entity_page_title_to_mid]
 
+    mention_to_mids = defaultdict(list)
+    for link in entity_links:
+        mention = link.text if link.text else link.title
+        mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
+
+    mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
+
+    matcher = PhraseMatcher(nlp.vocab)
+    mentions = list(nlp.pipe(mention_to_mid.keys()))
+    matcher.add('Patterns', None, *mentions)
+
     try:
-        text = parsed.plain_text()
+        page_text = parsed.plain_text()
     except:
-        pass
+        return page_title, []
 
+    spacy_doc = nlp.make_doc(page_text)
+    matches = matcher(spacy_doc)
 
+    db_matches = []
+    for _, start, end in matches:
+        match_span = spacy_doc[start:end]
+        mention = match_span.text
 
-    return page_title, len(links), len(entity_links)
+        mid = mention_to_mid[mention]
+        entity_label = freebase_data[mid]['label']
+
+        start_char = match_span.start_char
+        end_char = match_span.end_char
+
+        context_start = max(match_span.start_char - 20, 0)
+        context_end = min(match_span.end_char + 20, len(page_text))
+        context = page_text[context_start:context_end]
+
+        db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
+        db_matches.append(db_match)
+
+    return page_title, db_matches
 
 
 def _get_core_markup(markup: str) -> str:
@@ -224,5 +271,5 @@ if __name__ == '__main__':
     _build_matches_db('data/enwiki-20200920.xml',
                       'data/entity2wikidata.json',
                       'data/matches-v2-enwiki-20200920-dev.db',
-                      False,
+                      True,
                       None)
