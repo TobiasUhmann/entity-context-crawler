@@ -35,7 +35,7 @@ def create_raw_pages_table(conn: Connection):
 def select_raw_page(conn: Connection, title: str) -> Optional[RawPage]:
     sql = '''
         SELECT title, markup
-        FROM raw_pages
+        FROM pages
         WHERE title = ?
     '''
 
