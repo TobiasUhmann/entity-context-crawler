@@ -156,11 +156,12 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
 
         init_args = (freebase_data,)
         with Pool(4, initializer=_init_worker, initargs=init_args) as pool:
-            for page_count, page_result in enumerate(pool.imap(_process_page, wikipedia)):
+            for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
 
-                db_page, db_matches, db_mentions, = page_result
+                db_page, db_matches, db_mentions, exception = page_result
 
-                if not (db_page or db_matches or db_mentions):
+                if exception:
+                    log('ERROR | {} | {}'.format(page_count, str(exception)))
                     continue
 
                 insert_page(matches_conn, db_page)
@@ -173,7 +174,7 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
 
                 matches_conn.commit()
 
-                log('{} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
+                log('INFO  | {} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
 
 
 worker_globals: Tuple
@@ -204,59 +205,59 @@ def _get_entity_page_title_to_mid(freebase_data):
 def _process_page(page):
     global worker_globals
 
-    freebase_data, entity_page_title_to_mid, nlp = worker_globals
-
-    page_title = page['title']
-    page_markup = page['text']
-
-    core_markup = _get_core_markup(page_markup)
-    parsed = wtp.parse(core_markup)
-
-    links = parsed.wikilinks
-    entity_links = [link for link in links if link.title in entity_page_title_to_mid]
-
-    mention_to_mids = defaultdict(list)
-    for link in entity_links:
-        mention = link.text if link.text else link.title
-        mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
-
-    mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
-
-    mentions = list(nlp.pipe(mention_to_mid.keys()))
-    db_mentions = [Mention(mid, freebase_data[mid]['label'], mention) for mention, mid in mention_to_mid.items()]
-
-    matcher = PhraseMatcher(nlp.vocab)
-    matcher.add('Patterns', None, *mentions)
-
     try:
+        freebase_data, entity_page_title_to_mid, nlp = worker_globals
+
+        page_title = page['title']
+        page_markup = page['text']
+
+        core_markup = _get_core_markup(page_markup)
+        parsed = wtp.parse(core_markup)
+
+        links = parsed.wikilinks
+        entity_links = [link for link in links if link.title in entity_page_title_to_mid]
+
+        mention_to_mids = defaultdict(list)
+        for link in entity_links:
+            mention = link.text if link.text else link.title
+            mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
+
+        mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
+
+        mentions = list(nlp.pipe(mention_to_mid.keys()))
+        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention) for mention, mid in mention_to_mid.items()]
+
+        matcher = PhraseMatcher(nlp.vocab)
+        matcher.add('Patterns', None, *mentions)
+
         page_text = parsed.plain_text()
-    except:
-        return None, None, None
+        spacy_doc = nlp.make_doc(page_text)
+        matches = matcher(spacy_doc)
 
-    spacy_doc = nlp.make_doc(page_text)
-    matches = matcher(spacy_doc)
+        db_matches = []
+        for _, start, end in matches:
+            match_span = spacy_doc[start:end]
+            mention = match_span.text
 
-    db_matches = []
-    for _, start, end in matches:
-        match_span = spacy_doc[start:end]
-        mention = match_span.text
+            mid = mention_to_mid[mention]
+            entity_label = freebase_data[mid]['label']
 
-        mid = mention_to_mid[mention]
-        entity_label = freebase_data[mid]['label']
+            start_char = match_span.start_char
+            end_char = match_span.end_char
 
-        start_char = match_span.start_char
-        end_char = match_span.end_char
+            context_start = max(match_span.start_char - 20, 0)
+            context_end = min(match_span.end_char + 20, len(page_text))
+            context = page_text[context_start:context_end]
 
-        context_start = max(match_span.start_char - 20, 0)
-        context_end = min(match_span.end_char + 20, len(page_text))
-        context = page_text[context_start:context_end]
+            db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
+            db_matches.append(db_match)
 
-        db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
-        db_matches.append(db_match)
+        db_page = Page(page_title, page_text)
 
-    db_page = Page(page_title, page_text)
+        return db_page, db_matches, db_mentions, None
 
-    return db_page, db_matches, db_mentions
+    except Exception as e:
+        return None, None, None, e
 
 
 def _get_core_markup(markup: str) -> str:
