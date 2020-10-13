@@ -2,7 +2,7 @@ import random
 from argparse import ArgumentParser, HelpFormatter
 
 from cmd import build_baseline, build_contexts_db, build_es_test, build_links_db, eval_es_test, \
-    eval_model, query_es_test, build_new_matches_db, build_matches_db
+    eval_model, query_es_test, build_matches_db
 
 
 def main():
@@ -29,17 +29,6 @@ def main():
 
     common_parser.add_argument('--random-seed', dest='random_seed',
                                help='Use together with PYTHONHASHSEED for reproducibility')
-
-    #
-    # Add build-new-matches-db sub command
-    #
-
-    build_new_matches_db_parser = sub_parsers.add_parser(
-        'build-new-matches-db', formatter_class=get_formatter, parents=[common_parser],
-        description='Build the new matches DB')
-
-    build_new_matches_db.add_parser_args(build_new_matches_db_parser)
-    build_new_matches_db_parser.set_defaults(func=build_new_matches_db.run)
 
     #
     # Add build-links-db sub command
