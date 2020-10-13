@@ -74,7 +74,7 @@ Currently, the sentence sampler consists of the following components:
 - The `LinkExtractor` creates a link graph from a full Wikipedia dump
   and stores it in the links database.
 - The `EntityMatcher` searches a pre-processed Wikipedia dump for
-  Freenode entities. To minimize false positives (e.g. find the movie
+  Freebase entities. To minimize false positives (e.g. find the movie
   "2012" in many unrelated articles), entities are only searched in
   articles linked to their main article. The entitie's occurrences
   are stored in the matches database.
@@ -121,11 +121,11 @@ Thus, from start to finish, building the baseline model includes the following s
    20:08:27 | DONE
    ```
 
-2. Match the Freenode entities. <br>
+2. Match the Freebase entities. <br>
    ```
    ~/sentence-sampler/bin$ ./entity-matcher --doc-limit 1000
    Applied config:
-      Freenode JSON        ../data/entity2wikidata.json
+      Freebase JSON        ../data/entity2wikidata.json
       Wikipedia XML        ../data/enwiki-2018-09.full.xml
       Links DB             ../data/links.db
       Matches DB           ../data/matches.db
@@ -203,15 +203,15 @@ optional arguments:
 ## Entity Matcher
 
 ```
-usage: entity-matcher.py [-h] [--freenode-json FREENODE_JSON] [--wikipedia-xml WIKIPEDIA_XML] [--links-db LINKS_DB]
+usage: entity-matcher.py [-h] [--freebase-json FREEBASE_JSON] [--wikipedia-xml WIKIPEDIA_XML] [--links-db LINKS_DB]
                          [--matches-db MATCHES_DB] [--in-memory] [--commit-frequency COMMIT_FREQUENCY]
                          [--doc-limit DOC_LIMIT]
 
-Match the Freenode entities (considering the Wikipedia link graph)
+Match the Freebase entities (considering the Wikipedia link graph)
 
 optional arguments:
   -h, --help                           show this help message and exit
-  --freenode-json FREENODE_JSON        path to Freenode JSON (default: "../data/entity2wikidata.json")
+  --freebase-json FREEBASE_JSON        path to Freebase JSON (default: "../data/entity2wikidata.json")
   --wikipedia-xml WIKIPEDIA_XML        path to Wikipedia XML (default: "../data/enwiki-2018-09.full.xml")
   --links-db LINKS_DB                  path to links DB (default: "../data/links.db")
   --matches-db MATCHES_DB              path to matches DB (default: "../data/matches.db")
@@ -310,7 +310,7 @@ CREATE TABLE links (
 )
 ```
 
-## Freenode JSON
+## Freebase JSON
 
 ```
 {
