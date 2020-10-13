@@ -68,14 +68,14 @@ def render_show_entity_triples_page():
         return "color: white; background-color: %s" % color
 
     selected_entity_triples = [triple for triple in all_triples if triple[0] == selected_entity]
-    dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
-    dataFrame = dataFrame.style.applymap(highlight)
-    st.dataframe(dataFrame)
+    df = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
+    df = df.style.applymap(highlight)
+    st.dataframe(df)
 
     selected_entity_triples = [triple for triple in all_triples if triple[1] == selected_entity]
-    dataFrame = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
-    dataFrame = dataFrame.style.applymap(highlight)
-    st.dataframe(dataFrame)
+    df = pd.DataFrame(selected_entity_triples, columns=['From', 'To', 'Rel'])
+    df = df.style.applymap(highlight)
+    st.dataframe(df)
 
     #
     # Misc

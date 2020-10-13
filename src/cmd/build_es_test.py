@@ -158,7 +158,7 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
             es.indices.refresh(index=index_name)
 
             test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
-            for i, test_context in enumerate(test_contexts):
+            for test_context in test_contexts:
                 insert_context(test_contexts_conn, entity, test_context, entity_label)
 
             test_contexts_conn.commit()

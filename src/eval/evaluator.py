@@ -78,6 +78,6 @@ class Evaluator:
             result_batch.append(Result(eval_triples, precision, recall, f1, ap, pred_cw_entity, eval_triples_hits))
 
         aps = [result.ap for result in result_batch]
-        mAP = sum(aps) / (len(aps) + 1e-10)
+        mean_ap = sum(aps) / (len(aps) + 1e-10)
 
-        return TotalResult(result_batch, mAP)
+        return TotalResult(result_batch, mean_ap)

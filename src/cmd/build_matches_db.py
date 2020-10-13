@@ -1,13 +1,12 @@
 import json
 import os
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from multiprocessing import Pool
 from os import remove
 from os.path import isfile
-from typing import Dict
+from typing import Tuple
 
 import wikitextparser as wtp
 from spacy.lang.en import English
@@ -177,21 +176,18 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
                 log('{} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
 
 
-freebase_data: Dict[str, Dict]
-entity_page_title_to_mid: Dict[str, str]
-nlp: any
+worker_globals: Tuple
 
 
-def _init_worker(freebase_data_arg):
-    global freebase_data
-    global entity_page_title_to_mid
-    global nlp
+def _init_worker(freebase_data):
+    global worker_globals
 
-    freebase_data = freebase_data_arg
     entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
 
     nlp = English()
     nlp.vocab.lex_attr_getters = {}
+
+    worker_globals = (freebase_data, entity_page_title_to_mid, nlp)
 
 
 def _get_entity_page_title_to_mid(freebase_data):
@@ -206,9 +202,9 @@ def _get_entity_page_title_to_mid(freebase_data):
 
 
 def _process_page(page):
-    global freebase_data
-    global entity_page_title_to_mid
-    global nlp
+    global worker_globals
+
+    freebase_data, entity_page_title_to_mid, nlp = worker_globals
 
     page_title = page['title']
     page_markup = page['text']

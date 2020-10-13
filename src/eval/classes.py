@@ -14,6 +14,7 @@ class Result:
     pred_cw_entity: str
     pred_ow_triples_hits: List[str]
 
+
 @dataclass
 class TotalResult:
     results: List[Result]

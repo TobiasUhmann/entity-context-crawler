@@ -1,12 +1,11 @@
 import os
-import pandas as pd
 import random
 import re
-import streamlit as st
-
-from elasticsearch import Elasticsearch
-from ryn.graphs.split import Dataset
 from typing import Set
+
+import pandas as pd
+import streamlit as st
+from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
 from eval.baseline_model import BaselineModel
@@ -64,6 +63,9 @@ def render_predict_entity_triples_page():
         ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
         model = BaselineModel(dataset, es, es_index, ow_contexts_db)
 
+    else:
+        raise AssertionError()
+
     #
     # Entity prefix input & Entity name selection
     #
@@ -115,5 +117,5 @@ def render_predict_entity_triples_page():
     st.dataframe(df)
 
 
-def truncate(str, max_len):
-    return (str[:max_len - 3] + '...') if len(str) > max_len else str
+def truncate(text, max_len):
+    return (text[:max_len - 3] + '...') if len(text) > max_len else text

@@ -36,7 +36,7 @@ class Wikipedia:
         """
         Iterate all '<tag>...</tag>' Element Trees yielded from self._parse()
 
-        :return: Dict var 'entity' {tag1, value, tag2, value, ... ,tagn, value}}
+        :return: Dict var 'entity' {tag_1, value, tag_2, value, ... ,tag_n, value}}
         """
 
         self.missing_titles = 0

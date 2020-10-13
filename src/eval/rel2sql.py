@@ -53,8 +53,8 @@ def rel2sql(dataset_dir, sqlite_db):
     dataset = Dataset.load(dataset_dir)
     print(' done')
 
-    ent2id = dataset.ent2id
-    rel2id = dataset.rel2id
+    ent2id = dataset.id2ent
+    rel2id = dataset.id2rel
 
     # replace IDs with texts
     cw_train_triples = {(ent2id[head], ent2id[tail], rel2id[rel]) for head, tail, rel in dataset.cw_train.triples}

@@ -8,7 +8,7 @@ This is referred to as an *open world scenario*: A knowledge graph exists for th
 
 ### Project Scope
 
-This project provides tools for setting up a baseline model that follows a primitive approach to predict an open world entity's triples: It looks up the closed world entity most similar to the open world entity using Elasticseach, which uses TF-IDF as a measure of similarity, and assumes that the closed world entity's triples also apply to the open world entity. For example, if *"Emmanuel Macron"* is an open world entity whose most similar closed world entity is *"Angela Merkel"* for who the relation *"has profession"* towards the entity *"politician"* is true, the model assumes that this also applies to *"Emmanuel Macron"*.
+This project provides tools for setting up a baseline model that follows a primitive approach to predict an open world entity's triples: It looks up the closed world entity most similar to the open world entity using Elasticsearch, which uses TF-IDF as a measure of similarity, and assumes that the closed world entity's triples also apply to the open world entity. For example, if *"Emmanuel Macron"* is an open world entity whose most similar closed world entity is *"Angela Merkel"* for who the relation *"has profession"* towards the entity *"politician"* is true, the model assumes that this also applies to *"Emmanuel Macron"*.
 
 Furthermore, the project contains an evaluation framework for comparing other models to the baseline, tools for running a grid search to find the best hyperparameters to train these models, as well as a browser UI that allows browsing the data.
 
@@ -76,13 +76,13 @@ Currently, the sentence sampler consists of the following components:
 - The `EntityMatcher` searches a pre-processed Wikipedia dump for
   Freebase entities. To minimize false positives (e.g. find the movie
   "2012" in many unrelated articles), entities are only searched in
-  articles linked to their main article. The entitie's occurrences
+  articles linked to their main article. The entity's occurrences
   are stored in the matches database.
 - The `EntityLinker` determines how closely entities are linked to each
   other by comparing their contexts. In particular, it splits the
   entity matches' contexts into training and test contexts, stores
   the training contexts in Elasticsearch and subsequently queries 
-  Elasticsearch for the contexts that best match the outheld test 
+  Elasticsearch for the contexts that best match the held out test 
   contexts.
 
 ![Architecture](doc/architecture.png)
