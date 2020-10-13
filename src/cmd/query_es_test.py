@@ -5,7 +5,7 @@ from argparse import  ArgumentParser, Namespace
 from collections import defaultdict, Counter
 from elasticsearch import Elasticsearch
 from os.path import isfile
-from ryn.app.splits import load_dataset
+from ryn.graphs.split import Dataset
 from typing import List
 
 from dao.contexts_db import select_contexts, select_distinct_entities
@@ -114,7 +114,7 @@ def _query_es_test(es, index_name, test_contexts_db, limit_contexts, limit_entit
         stats = defaultdict(Counter)
 
         entities: List[int] = select_distinct_entities(test_contexts_conn)[:limit_entities]
-        dataset = load_dataset()
+        dataset = Dataset.load('')  # TODO
         id2ent = dataset.id2ent
 
         for entity in entities:

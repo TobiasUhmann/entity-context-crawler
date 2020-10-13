@@ -13,7 +13,8 @@ import wikitextparser as wtp
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
 
-from dao.matches_db import create_matches_table, Match, insert_match
+from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
+    Page, create_pages_table, create_mentions_table
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -117,7 +118,6 @@ def _build_matches_db(wiki_xml, freebase_json, matches_db, in_memory, limit_page
 
 def _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
-        create_matches_table(matches_conn)
         _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages)
 
         log()
@@ -126,8 +126,6 @@ def _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages):
 
 def _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
-
-        create_matches_table(memory_matches_conn)
         _process_wiki_xml(wiki_xml, freebase_json, memory_matches_conn, limit_pages)
 
         log()
@@ -148,33 +146,35 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     Persist the matches in the matches DB.
     """
 
+    create_pages_table(matches_conn)
+    create_matches_table(matches_conn)
+    create_mentions_table(matches_conn)
+
     freebase_data = json.load(open(freebase_json, 'r'))
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, tag='page')
 
         init_args = (freebase_data,)
-        with Pool(32, initializer=_init_worker, initargs=init_args) as pool:
+        with Pool(4, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap(_process_page, wikipedia)):
 
-                page_title, db_matches, = page_result
+                db_page, db_matches, db_mentions, = page_result
+
+                if not (db_page or db_matches or db_mentions):
+                    continue
+
+                insert_page(matches_conn, db_page)
 
                 for db_match in db_matches:
                     insert_match(matches_conn, db_match)
+
+                for db_mention in db_mentions:
+                    insert_or_ignore_mention(matches_conn, db_mention)
+
                 matches_conn.commit()
 
-                log('{} | {} | {}'.format(page_count, page_title, len(db_matches)))
-
-
-def _get_entity_page_title_to_mid(freebase_data):
-    entity_page_title_to_mid = {}
-    for mid, entity_data in freebase_data.items():
-        page_url = entity_data['wikipedia']
-        if page_url:
-            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
-            entity_page_title_to_mid[page_title] = mid
-
-    return entity_page_title_to_mid
+                log('{} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
 
 
 freebase_data: Dict[str, Dict]
@@ -192,6 +192,17 @@ def _init_worker(freebase_data_arg):
 
     nlp = English()
     nlp.vocab.lex_attr_getters = {}
+
+
+def _get_entity_page_title_to_mid(freebase_data):
+    entity_page_title_to_mid = {}
+    for mid, entity_data in freebase_data.items():
+        page_url = entity_data['wikipedia']
+        if page_url:
+            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
+            entity_page_title_to_mid[page_title] = mid
+
+    return entity_page_title_to_mid
 
 
 def _process_page(page):
@@ -215,14 +226,16 @@ def _process_page(page):
 
     mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
 
-    matcher = PhraseMatcher(nlp.vocab)
     mentions = list(nlp.pipe(mention_to_mid.keys()))
+    db_mentions = [Mention(mid, freebase_data[mid]['label'], mention) for mention, mid in mention_to_mid.items()]
+
+    matcher = PhraseMatcher(nlp.vocab)
     matcher.add('Patterns', None, *mentions)
 
     try:
         page_text = parsed.plain_text()
     except:
-        return page_title, []
+        return None, None, None
 
     spacy_doc = nlp.make_doc(page_text)
     matches = matcher(spacy_doc)
@@ -245,7 +258,9 @@ def _process_page(page):
         db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
         db_matches.append(db_match)
 
-    return page_title, db_matches
+    db_page = Page(page_title, page_text)
+
+    return db_page, db_matches, db_mentions
 
 
 def _get_core_markup(markup: str) -> str:
@@ -265,11 +280,3 @@ def _get_core_markup(markup: str) -> str:
     markups.extend(section_markups)
 
     return '\n'.join(markups)
-
-
-if __name__ == '__main__':
-    _build_matches_db('data/enwiki-20200920.xml',
-                      'data/entity2wikidata.json',
-                      'data/matches-v2-enwiki-20200920-dev.db',
-                      True,
-                      None)

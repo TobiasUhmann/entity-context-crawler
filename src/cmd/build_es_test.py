@@ -6,7 +6,7 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile
-from ryn.app.splits import load_dataset
+from ryn.graphs.split import Dataset
 from typing import List
 
 from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities
@@ -129,7 +129,7 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
 
         entities: List[int] = select_distinct_entities(contexts_conn)
 
-        dataset = load_dataset()
+        dataset = Dataset.load('')  # TODO
         id2ent = dataset.id2ent
 
         for i, entity in enumerate(entities):
