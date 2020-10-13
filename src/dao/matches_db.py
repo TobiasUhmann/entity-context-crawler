@@ -4,6 +4,42 @@ from typing import List
 
 
 #
+# Pages
+#
+
+@dataclass
+class Page:
+    title: str
+    text: str
+
+
+def create_pages_table(conn: Connection):
+    sql = '''
+        CREATE TABLE pages (
+            title TEXT,
+            text TEXT,
+            
+            PRIMARY KEY (title)
+        )
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
+
+def insert_page(conn: Connection, page: Page):
+    sql = '''
+        INSERT INTO pages (title, text)
+        VALUES (?, ?)
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (page.title, page.text))
+    cursor.close()
+
+
+#
 # Matches
 #
 
@@ -52,7 +88,43 @@ def insert_match(conn: Connection, match: Match):
 
 
 #
-# Pages & Matches
+# Mentions
+#
+
+@dataclass
+class Mention:
+    mid: str
+    mention: str
+
+
+def create_mentions_table(conn: Connection):
+    sql = '''
+        CREATE TABLE mentions (
+            mid TEXT,
+            mention TEXT,
+
+            PRIMARY KEY (mid)
+        )
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
+
+def insert_or_ignore_mention(conn: Connection, mention: Mention):
+    sql = '''
+        INSERT OR IGNORE INTO mentions (mid, mention)
+        VALUES (?, ?)
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (mention.mid, mention.mention))
+    cursor.close()
+
+
+#
+# Pages x Matches
 #
 
 def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
