@@ -3,7 +3,7 @@ import os
 import sqlite3
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from os import remove
 from os.path import isfile
 from typing import Tuple
@@ -155,7 +155,7 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
         wikipedia = Wikipedia(wiki_xml_fh, tag='page')
 
         init_args = (freebase_data,)
-        with Pool(4, initializer=_init_worker, initargs=init_args) as pool:
+        with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
 
                 db_page, db_matches, db_mentions, exception = page_result
