@@ -154,7 +154,7 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
         wikipedia = Wikipedia(wiki_xml_fh, tag='page')
 
         init_args = (freebase_data,)
-        with Pool(32, initializer=_init_worker, initargs=init_args) as pool:
+        with Pool(4, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap(_process_page, wikipedia)):
 
                 page_title, db_matches, = page_result
@@ -271,5 +271,5 @@ if __name__ == '__main__':
     _build_matches_db('data/enwiki-20200920.xml',
                       'data/entity2wikidata.json',
                       'data/matches-v2-enwiki-20200920-dev.db',
-                      True,
+                      False,
                       None)
