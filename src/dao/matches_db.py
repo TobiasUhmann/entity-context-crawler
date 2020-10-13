@@ -94,6 +94,7 @@ def insert_match(conn: Connection, match: Match):
 @dataclass
 class Mention:
     mid: str
+    entity_label: str
     mention: str
 
 
@@ -101,6 +102,7 @@ def create_mentions_table(conn: Connection):
     sql = '''
         CREATE TABLE mentions (
             mid TEXT,
+            entity_label TEXT,
             mention TEXT,
 
             PRIMARY KEY (mid)
@@ -114,12 +116,12 @@ def create_mentions_table(conn: Connection):
 
 def insert_or_ignore_mention(conn: Connection, mention: Mention):
     sql = '''
-        INSERT OR IGNORE INTO mentions (mid, mention)
-        VALUES (?, ?)
+        INSERT OR IGNORE INTO mentions (mid, entity_label, mention)
+        VALUES (?, ?, ?)
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (mention.mid, mention.mention))
+    cursor.execute(sql, (mention.mid, mention.entity_label, mention.mention))
     cursor.close()
 
 
