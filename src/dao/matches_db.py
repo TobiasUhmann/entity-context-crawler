@@ -125,6 +125,21 @@ def insert_or_ignore_mention(conn: Connection, mention: Mention):
     cursor.close()
 
 
+def select_distinct_mentions(conn: Connection, mid: str):
+    sql = '''
+        SELECT DISTINCT mention
+        FROM mentions
+        WHERE mid = ?
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (mid,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return [row[0] for row in rows]
+
+
 #
 # Pages x Matches
 #
