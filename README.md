@@ -54,6 +54,19 @@ Furthermore, the project contains an evaluation framework for comparing other mo
 
 7. Set up Elasticsearch.
 
+<hr> <!-- TODO -->
+
+```
+conda create -p conda/ python=3.8
+conda activate conda/
+pip install -e ../deepca/
+pip install -r ../deepca/requirements/all.txt
+pip install -e ../ryn/
+pip install -r ../ryn/requirements.txt
+pip install -r requirements.txt
+python -m spacy download en_core_web_lg
+```
+
 # Overview
 
 Currently, the sentence sampler consists of the following components:
