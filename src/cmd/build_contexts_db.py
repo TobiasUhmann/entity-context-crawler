@@ -217,7 +217,7 @@ def _build_contexts_db(freenode_json: str, matches_db: str, contexts_db: str, co
             aliases = select_distinct_mentions(matches_conn, mid)
 
             matcher = PhraseMatcher(nlp.vocab)
-            patterns = list(nlp.pipe({entity_label} | aliases))
+            patterns = list(nlp.pipe({entity_label} | set(aliases)))
             matcher.add('Entities', None, *patterns)
 
             contexts_batch = []

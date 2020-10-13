@@ -152,9 +152,9 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
     sql = '''
         -- SELECT context = [max <size> chars] + [entity] + [max <size> chars]
 
-        SELECT SUBSTR(content,
+        SELECT SUBSTR(text,
                       MAX(start_char + 1 - ?, 1), 
-                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(content)))
+                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(text)))
         FROM pages INNER JOIN matches ON pages.title = matches.page
         WHERE mid = ?
     '''
