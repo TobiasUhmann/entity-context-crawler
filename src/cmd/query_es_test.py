@@ -1,7 +1,7 @@
 import os
 import sqlite3
 
-from argparse import  ArgumentParser, Namespace
+from argparse import ArgumentParser, Namespace
 from collections import defaultdict, Counter
 from elasticsearch import Elasticsearch
 from os.path import isfile
@@ -24,10 +24,10 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('es_index', metavar='es-index',
-                        help='Name of input Elasticsearch index')
+                        help='Name of (input) Elasticsearch index')
 
     parser.add_argument('test_contexts_db', metavar='test-contexts-db',
-                        help='Path to input test contexts DB')
+                        help='Path to (input) test contexts DB')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,

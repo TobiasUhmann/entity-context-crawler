@@ -24,10 +24,10 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('matches_db', metavar='matches-db',
-                        help='Path to input matches DB')
+                        help='Path to (input) matches DB')
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to output contexts DB')
+                        help='Path to (output) contexts DB')
 
     default_context_size = 100
     parser.add_argument('--context-size', dest='context_size', type=int, metavar='INT', default=default_context_size,

@@ -25,13 +25,13 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to input contexts DB')
+                        help='Path to (input) contexts DB')
 
     parser.add_argument('es_index', metavar='es-index',
-                        help='Elasticsearch index')
+                        help='Name of (output) Elasticsearch index')
 
     parser.add_argument('test_contexts_db', metavar='test-contexts-db',
-                        help='Path to output test contexts DB')
+                        help='Path to (output) test contexts DB')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR',
