@@ -152,7 +152,7 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     freebase_data = json.load(open(freebase_json, 'r'))
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
-        wikipedia = Wikipedia(wiki_xml_fh, tag='page')
+        wikipedia = Wikipedia(wiki_xml_fh, limit_pages)
 
         init_args = (freebase_data,)
         with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
