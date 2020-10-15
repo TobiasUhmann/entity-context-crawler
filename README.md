@@ -1,4 +1,4 @@
-### Introduction
+## Introduction
 
 Knowledge graphs represent entities and their relationship to each other as a graph. The graph's nodes represent entities like *"Angela Merkel"* and *"Germany"*. The graph's directed edges represent relations between entities like *"is chancellor of"* which holds true for *"Angela Merkel"* and *"Germany"* as of 2020.
 
@@ -6,13 +6,13 @@ There are well maintained knowledge graphs for general knowledge as described in
 
 This is referred to as an *open world scenario*: A knowledge graph exists for the known *closed world entities* and the relations between them. In addition, there are the known *open world entities*, whose relations are unknown. However, these relations can be derived from the existing, unstructured data that describes the open world entities.
 
-### Project Scope
+## Project Scope
 
 This project provides tools for setting up a baseline model that follows a primitive approach to predict an open world entity's triples: It looks up the closed world entity most similar to the open world entity using Elasticsearch, which uses TF-IDF as a measure of similarity, and assumes that the closed world entity's triples also apply to the open world entity. For example, if *"Emmanuel Macron"* is an open world entity whose most similar closed world entity is *"Angela Merkel"* for who the relation *"has profession"* towards the entity *"politician"* is true, the model assumes that this also applies to *"Emmanuel Macron"*.
 
 Furthermore, the project contains an evaluation framework for comparing other models to the baseline, tools for running a grid search to find the best hyperparameters to train these models, as well as a browser UI that allows browsing the data.
 
-### Setup
+## Setup
 
 1. Make sure that you have at least 150GB of free disk space.
 
@@ -67,25 +67,27 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_lg
 ```
 
-# Overview
+## Commands Overview
 
-Currently, the sentence sampler consists of the following components:
+The following diagram gives an overview how the available commands (yellow) are related and what documents (green) and databases are produced and consumed:
 
-- The `LinkExtractor` creates a link graph from a full Wikipedia dump
-  and stores it in the links database.
-- The `EntityMatcher` searches a pre-processed Wikipedia dump for
-  Freebase entities. To minimize false positives (e.g. find the movie
-  "2012" in many unrelated articles), entities are only searched in
-  articles linked to their main article. The entity's occurrences
-  are stored in the matches database.
-- The `EntityLinker` determines how closely entities are linked to each
-  other by comparing their contexts. In particular, it splits the
-  entity matches' contexts into training and test contexts, stores
-  the training contexts in Elasticsearch and subsequently queries 
-  Elasticsearch for the contexts that best match the held out test 
-  contexts.
+![Commands Overview](doc/commands_overview.png)
 
-![Architecture](doc/architecture.png)
+The upper part of the pipeline samples the Freebase entities' contexts in two steps:
+
+- `build-matches-db` takes the `Wiki XML dump` and the `Freebase JSON `containing the mapping from the entities' Freebase MIDs to the respective Wikidata and produces the `Matches DB` that stores all matches of Freebase entities in the Wikipedia.
+- `build-contexts-db` takes the matches from the `Matches DB` and samples a limited number of contexts for each entity. It also requires the `MID -> ryn ID TXT` mapping as it also stores the entities' ryn IDs. The result is the `Contexts DB`.
+
+The expressiveness of the contexts in the `Contexts DB` can be tested by building and subsequently quering the "Elasticsearch test":
+
+- `build-es-test` stores 30% of the contexts from the `Contexts DB` in a database and the other 70% in an Elasticsearch index.
+- `query-es-test` is called with an entity that must be present in the `30% contexts DB` and queries the `70% Contexts ES Index` for the entity's contexts. The resulting entity should be similar to the query entity.
+- `eval-es-test` queries the `70% Contexts ES Index` for all the entities from the `30% Contexts DB` and yields metrics that indicate the overall expressiveness of the contexts.
+
+The lower part of the actual pipeline builds the baseline model from the `Contexts DB` which can then be queried:
+
+- `build-baseline` splits the contexts from the `Contexts DB` into open and closed world entities using the information fromt the `OpenKE dataset`. As a result, the `OW Contexts DB` contains the contexts of the open world entities while the `CW Contexts ES Index` contains the contexts of the closed world entities.
+- `eval-model` can be used to evaluate link prediction models, including the baseline model. `eval-model` generally requires the `OpenKE dataset` to differentiate between open and closed world entities. In order to be able to run the baseline model it furthermore requires the `OW Contexts DB` and the `CW Contexts ES Index` built by `build-baseline`.
 
 ### Build the Baseline Model
 
