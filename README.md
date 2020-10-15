@@ -346,11 +346,76 @@ optional arguments:
 ```
 
 
-# Files
+# Data Files
 
-## Full Wikipedia XML
+The example used in this documentation assume the following structure of the data directory:
 
 ```
+data/
+    oke.fb15k237_30061990_50/                   # OpenKE dataset directory
+    contexts-v1-enwiki-20200920-100-500.db      # Contexts DB
+    entity2wikidata.json                        # Freebase JSON
+    enwiki-20200920.xml                         # Wiki XML dump
+    matches-v2-enwiki-20200920.db               # Matches DB
+```
+
+## OpenKE dataset directory
+
+This directory should contain the following files:
+
+```
+cfg.pkl
+concepts.txt
+cw.train2id.txt
+cw.valid2id.txt
+entity2id.txt
+graph.pkl
+ow.test2id.txt
+ow.valid2id.txt
+relation2id.txt
+```
+
+## Contexts DB
+
+```sqlite
+CREATE TABLE contexts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    
+    entity INTEGER,
+    context TEXT,
+    
+    entity_label TEXT
+)
+```
+
+## Freebase JSON
+
+```json
+{
+  "/m/010016": {
+    "alternatives": [
+      "Denton, Texas"
+    ],
+    "description": "city in Texas, United States",
+    "label": "Denton",
+    "wikidata_id": "Q128306",
+    "wikipedia": "https://en.wikipedia.org/wiki/Denton,_Texas"
+  },
+  "/m/0100mt": {
+    "alternatives": [
+      "El Paso, Texas"
+    ],
+    "description": "county seat of El Paso County, Texas, United States",
+    "label": "El Paso",
+    "wikidata_id": "Q16562",
+    "wikipedia": "https://en.wikipedia.org/wiki/El_Paso,_Texas"
+  },
+  [...]
+```
+
+## Wiki XML Dump
+
+```xml
 <mediawiki xmlns="http://www.mediawiki.org/xml/export-0.10/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.10/ http://www.mediawiki.org/xml/export-0.10.xsd" version="0.10" xml:lang="en">
   <siteinfo>
     <sitename>Wikipedia</sitename>
@@ -409,76 +474,44 @@ optional arguments:
 {{Anarchism sidebar}}
 {{Basic forms of government}}
 '''Anarchism''' is a [[political philosophy]]&lt;ref&gt; [...]
-```
-
-## Links DB
-
-```
-CREATE TABLE links (
-    from_doc int,      -- hashed lowercase Wikipedia doc title
-    to_doc int         -- hashed lowercase Wikipedia doc title
-)
-```
-
-## Freebase JSON
-
-```
-{
-  "/m/010016": {
-    "alternatives": [
-      "Denton, Texas"
-    ],
-    "description": "city in Texas, United States",
-    "label": "Denton",
-    "wikidata_id": "Q128306",
-    "wikipedia": "https://en.wikipedia.org/wiki/Denton,_Texas"
-  },
-  "/m/0100mt": {
-    "alternatives": [
-      "El Paso, Texas"
-    ],
-    "description": "county seat of El Paso County, Texas, United States",
-    "label": "El Paso",
-    "wikidata_id": "Q16562",
-    "wikipedia": "https://en.wikipedia.org/wiki/El_Paso,_Texas"
-  },
-[...]
-```
-
-## dumpr Wikipedia XML
-
-```
-<documents
-    xmlns="https://lavis.cs.hs-rm.de"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="https://lavis.cs.hs-rm.de documents.xsd">
-
-<doc>
-  <meta name="title">Anarchism</meta>
-  <content>Anarchism is a political philosophy [...]
+      </text>
+    </revision>
+  </page>
+</mediawiki>
 ```
 
 ## Matches DB
 
-```
-CREATE TABLE docs (
-    title text,         -- Lowercase Wikipedia title
-    content text,       -- Truecase article content
-
+```sqlite
+CREATE TABLE pages (
+    title TEXT,
+    text TEXT,
+    
     PRIMARY KEY (title)
 )
 ```
 
-```
+```sqlite
 CREATE TABLE matches (
-    mid text,           -- MID = Freebase ID, e.g. '/m/012s1d'
-    entity text,        -- Wikipedia label for MID, not unique, e.g. 'Spider-Man', for debugging
-    doc text,           -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-    start_char integer, -- Start char position of entity match within document
-    end_char integer,   -- End char position (exclusive) of entity match within document
-    context text,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
+    mid TEXT,           -- MID = Freebase ID, e.g. '/m/012s1d'
+    entity_label TEXT,  -- Wikidata label for MID, not unique, e.g. 'Spider-Man'
+    mention TEXT,       -- Matched mention in Wikipedia, e.g. 'Spidey'
+    page TEXT,          -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
+    start_char INT,     -- Start char position of entity match within document
+    end_char INT,       -- End char position (exclusive) of entity match within document
+    context TEXT,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
 
-    FOREIGN KEY (doc) REFERENCES docs (title),
-    PRIMARY KEY (mid, doc, start_char)
+    FOREIGN KEY (page) REFERENCES pages (title),
+    PRIMARY KEY (mid, page, start_char, mention)
+)
+```
+
+```sqlite
+CREATE TABLE mentions (
+    mid TEXT,
+    entity_label TEXT,
+    mention TEXT,
+
+    PRIMARY KEY (mid)
 )
 ```
