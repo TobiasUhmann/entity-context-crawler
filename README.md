@@ -94,7 +94,7 @@ The lower part of the actual pipeline builds the baseline model from the `Contex
 
 
 Further information can be found in the wiki:
-- [build-matches-db](../../wiki/Commands/build-matches-db.md)
+- [build-matches-db](../../wiki/Commands/build-matches-db)
 
 ## build-matches-db
 
