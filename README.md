@@ -93,56 +93,10 @@ The lower part of the actual pipeline builds the baseline model from the `Contex
 - `eval-model` can be used to evaluate link prediction models, including the baseline model. `eval-model` generally requires the `OpenKE dataset` to differentiate between open and closed world entities. In order to be able to run the baseline model it furthermore requires the `OW Contexts DB` and the `CW Contexts ES Index` built by `build-baseline`.
 
 
-### Build the Baseline Model
-
-Essentially, the baseline model consists of the closed world knowledge graph and the Elasticsearch index that stores text contexts for all the closed world entities. The knowledge graph must be given. This section shows how to build the Elasticsearch index. At the same time, contexts for the open world entities are sampled as well. They are stored in a database and are used later for prediction.
-
-To be able to sample the text contexts of an entity, first the mentions of the entity in Wikipedia must be found. An entity can be described with different words. For example "Angela Merkel" could be mentioned by her name or as "the chancellor". For the text search we use the Wikidata label of the entity as well as all the link texts that are used to link the entity's Wikipedia article from other articles. We limit our search to adjacent Wikipedia articles because the search terms' meaning will often vary on distant Wikipedia articles. To know which articles are adjacent we build a link graph in the first step.
-
-Thus, from start to finish, building the baseline model includes the following steps:
-1. Build the link graph
-2. Find an entity's matches in it's corresponding Wikipedia article and the adjacent articles
-3. Sample contexts for the matches
-4. Optionally, conduct a test experiment to verify the contexts' expressiveness
-5. Concatenate the closed world entities' contexts and store them in the Elasticsearch index
-6. Concatenate the open world entities' contexts and store them in a database
-
-
-# Commands
+Further information can be found in the wiki:
+- [build-matches-db](../../wiki/Commands/build-matches-db.md)
 
 ## build-matches-db
-
-### Usage
-
-```
-usage: sam.py build-matches-db [-h] [--random-seed RANDOM_SEED] [--in-memory] [--limit-pages INT] [--overwrite] wiki-xml freebase-json matches-db
-
-Match the Freebase entities (considering the link graph)
-
-positional arguments:
-  wiki-xml                   Path to (input) Wikipedia XML
-  freebase-json              Path to (input) Freebase JSON
-  matches-db                 Path to (output) matches DB
-
-optional arguments:
-  -h, --help                 show this help message and exit
-  --random-seed RANDOM_SEED  Use together with PYTHONHASHSEED for reproducibility
-  --in-memory                Build complete matches DB in memory before persisting it
-  --limit-pages INT          Early stop after ... pages (default: None)
-  --overwrite                Overwrite matches DB if it already exists
-```
-
-### Example
-
-```bash
-PYTHONPATH=src/ \
-nohup python -u src/sam.py build-matches-db \
-  data/enwiki-20200920.xml \
-  data/entity2wikidata.json \
-  data/matches-v2-enwiki-20200920.db \
-  --in-memory \
-> log/build-matches-db_$(date +'%Y-%m-%d_%H-%M-%S').stdout &
-```
 
 ## build-contexts-db
 
@@ -365,3 +319,18 @@ Further details can be found in the wiki:
 - [Freebase JSON](../../wikis/Data-Files/Freebase-JSON)
 - [Wiki XML Dump](../../wikis/Data-Files/Wiki-XML-Dump)
 - [Matches DB](../../wikis/Data-Files/Matches-DB)
+
+
+### Build the Baseline Model
+
+Essentially, the baseline model consists of the closed world knowledge graph and the Elasticsearch index that stores text contexts for all the closed world entities. The knowledge graph must be given. This section shows how to build the Elasticsearch index. At the same time, contexts for the open world entities are sampled as well. They are stored in a database and are used later for prediction.
+
+To be able to sample the text contexts of an entity, first the mentions of the entity in Wikipedia must be found. An entity can be described with different words. For example "Angela Merkel" could be mentioned by her name or as "the chancellor". For the text search we use the Wikidata label of the entity as well as all the link texts that are used to link the entity's Wikipedia article from other articles. We limit our search to adjacent Wikipedia articles because the search terms' meaning will often vary on distant Wikipedia articles. To know which articles are adjacent we build a link graph in the first step.
+
+Thus, from start to finish, building the baseline model includes the following steps:
+1. Build the link graph
+2. Find an entity's matches in it's corresponding Wikipedia article and the adjacent articles
+3. Sample contexts for the matches
+4. Optionally, conduct a test experiment to verify the contexts' expressiveness
+5. Concatenate the closed world entities' contexts and store them in the Elasticsearch index
+6. Concatenate the open world entities' contexts and store them in a database
