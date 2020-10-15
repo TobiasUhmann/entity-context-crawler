@@ -18,56 +18,47 @@ Furthermore, the project contains an evaluation framework for comparing other mo
 
 1. Make sure that you have at least 150GB of free disk space.
 
-2. Clone the repository and mark the scripts as executable: <br>
+1. Clone the `sentence-sampler` repository and mark the scripts as executable:
    ```
    ~$ git clone https://gitlab.cs.hs-rm.de/tuhma001/sentence-sampler.git
-   ~$ chmod +x sentence-sampler/bin/*.sh
+   ~$ chmod +x sentence-sampler/bash/*.sh
    ```
 
-3. Put `deepca` next to the `sentence-sampler` clone.
+1. Clone the `deepca` and the `ryn` repositories next to the `sentence-sampler` directory:
    ```
+   ~$ git clone https://git.ramlimit.de/deepca/deepca.git
+   ~$ git clone https://git.ramlimit.de/deepkg/ryn.git
    ~$ ls
    deepca/
+   ryn/
    sentence-sampler/
    ```
 
-4. Optionally, set up a local Python environment. Run the following
-   commands to set up a local Anaconda environment: <br>
+1. Optionally, set up a local Python environment. Run the following
+   commands to set up a local Anaconda environment:
    ```
-   ~/sentence-sampler$ conda create -p ./envs python=3.7
-   ~/sentence-sampler$ conda activate ./envs
+   ~/sentence-sampler$ conda create -p conda/ python=3.8
+   ~/sentence-sampler$ conda activate conda/
    ```
 
-5. Install the dependencies, including `deepca` from its editable
-   source: <br>
+1. Install the dependencies, including `deepca` from its editable
+   source:
    ```
+   ~/sentence-sampler$ pip install -e ../deepca/
+   ~/sentence-sampler$ pip install -r ../deepca/requirements/all.txt
+   ~/sentence-sampler$ pip install -e ../ryn/
+   ~/sentence-sampler$ pip install -e ../ryn/requirements.txt
    ~/sentence-sampler$ pip install -r requirements.txt
-   ~/sentence-sampler$ pip install -e ../deepca
    ```
 
-6. By default the data files are expected to be in a `data/`
-   subdirectory:
+1. Download the spaCy model:
    ```
-   ~/sentence-sampler$ ls data/
-   entity2wikidata.json
-   enwiki-2018-09.full.xml
-   enwiki-latest-pages-articles.xml
+   ~$ python -m spacy download en_core_web_lg
    ```
 
-7. Set up Elasticsearch.
+1. Provide the required data files in the `data/` directory as described below in section [Data Files](#data-files).
 
-<hr> <!-- TODO -->
-
-```
-conda create -p conda/ python=3.8
-conda activate conda/
-pip install -e ../deepca/
-pip install -r ../deepca/requirements/all.txt
-pip install -e ../ryn/
-pip install -r ../ryn/requirements.txt
-pip install -r requirements.txt
-python -m spacy download en_core_web_lg
-```
+1. Set up Elasticsearch.
 
 
 # Commands Overview
