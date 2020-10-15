@@ -359,21 +359,9 @@ data/
     matches-v2-enwiki-20200920.db               # Matches DB
 ```
 
-## OpenKE dataset directory
-
-This directory should contain the following files:
-
-```
-cfg.pkl
-concepts.txt
-cw.train2id.txt
-cw.valid2id.txt
-entity2id.txt
-graph.pkl
-ow.test2id.txt
-ow.valid2id.txt
-relation2id.txt
-```
+Further details can be found in the wiki:
+- [Matches DB](https://gitlab.cs.hs-rm.de/tuhma001/sentence-sampler/-/wikis/Data-Files/Matches-DB)
+- [OpenKE Dataset Directory](https://gitlab.cs.hs-rm.de/tuhma001/sentence-sampler/-/wikis/Data-Files/OpenKE-Dataset-Directory)
 
 ## Contexts DB
 
@@ -478,40 +466,4 @@ CREATE TABLE contexts (
     </revision>
   </page>
 </mediawiki>
-```
-
-## Matches DB
-
-```sqlite
-CREATE TABLE pages (
-    title TEXT,
-    text TEXT,
-    
-    PRIMARY KEY (title)
-)
-```
-
-```sqlite
-CREATE TABLE matches (
-    mid TEXT,           -- MID = Freebase ID, e.g. '/m/012s1d'
-    entity_label TEXT,  -- Wikidata label for MID, not unique, e.g. 'Spider-Man'
-    mention TEXT,       -- Matched mention in Wikipedia, e.g. 'Spidey'
-    page TEXT,          -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-    start_char INT,     -- Start char position of entity match within document
-    end_char INT,       -- End char position (exclusive) of entity match within document
-    context TEXT,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
-
-    FOREIGN KEY (page) REFERENCES pages (title),
-    PRIMARY KEY (mid, page, start_char, mention)
-)
-```
-
-```sqlite
-CREATE TABLE mentions (
-    mid TEXT,
-    entity_label TEXT,
-    mention TEXT,
-
-    PRIMARY KEY (mid)
-)
 ```
