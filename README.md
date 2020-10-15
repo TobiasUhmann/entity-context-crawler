@@ -71,7 +71,7 @@ python -m spacy download en_core_web_lg
 
 The following diagram gives an overview how the available commands (yellow) are related and what documents (green) and databases are produced and consumed:
 
-<img align="right" src="doc/commands_overview.png">
+![Commands Overview](doc/commands_overview.png)
 
 The upper part of the pipeline samples the Freebase entities' contexts in two steps:
 
