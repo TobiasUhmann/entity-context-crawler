@@ -30,7 +30,7 @@ def create_pages_table(conn: Connection):
 
 def insert_page(conn: Connection, page: Page):
     sql = '''
-        INSERT INTO pages (title, text)
+        INSERT OR IGNORE INTO pages (title, text)
         VALUES (?, ?)
     '''
 
