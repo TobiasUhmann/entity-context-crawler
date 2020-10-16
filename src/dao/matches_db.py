@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import List, Tuple, Optional
+from typing import List
 
 
 #
@@ -10,15 +10,15 @@ from typing import List, Tuple, Optional
 @dataclass
 class Page:
     title: str
-    content: str
+    text: str
 
 
 def create_pages_table(conn: Connection):
     sql = '''
         CREATE TABLE pages (
             title TEXT,
-            content TEXT,
-
+            text TEXT,
+            
             PRIMARY KEY (title)
         )
     '''
@@ -30,28 +30,13 @@ def create_pages_table(conn: Connection):
 
 def insert_page(conn: Connection, page: Page):
     sql = '''
-        INSERT INTO pages (title, content)
+        INSERT OR IGNORE INTO pages (title, text)
         VALUES (?, ?)
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (page.title, page.content))
+    cursor.execute(sql, (page.title, page.text))
     cursor.close()
-
-
-def select_page(conn: Connection, title: str) -> Optional[Page]:
-    sql = '''
-        SELECT title, content
-        FROM pages
-        WHERE title = ?
-    '''
-
-    cursor = conn.cursor()
-    cursor.execute(sql, (title,))
-    row = cursor.fetchone()
-    cursor.close()
-
-    return None if row is None else Page(row[0], row[1])
 
 
 #
@@ -103,7 +88,60 @@ def insert_match(conn: Connection, match: Match):
 
 
 #
-# Pages & Matches
+# Mentions
+#
+
+@dataclass
+class Mention:
+    mid: str
+    entity_label: str
+    mention: str
+
+
+def create_mentions_table(conn: Connection):
+    sql = '''
+        CREATE TABLE mentions (
+            mid TEXT,
+            entity_label TEXT,
+            mention TEXT,
+
+            PRIMARY KEY (mid)
+        )
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    cursor.close()
+
+
+def insert_or_ignore_mention(conn: Connection, mention: Mention):
+    sql = '''
+        INSERT OR IGNORE INTO mentions (mid, entity_label, mention)
+        VALUES (?, ?, ?)
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (mention.mid, mention.entity_label, mention.mention))
+    cursor.close()
+
+
+def select_distinct_mentions(conn: Connection, mid: str):
+    sql = '''
+        SELECT DISTINCT mention
+        FROM mentions
+        WHERE mid = ?
+    '''
+
+    cursor = conn.cursor()
+    cursor.execute(sql, (mid,))
+    rows = cursor.fetchall()
+    cursor.close()
+
+    return [row[0] for row in rows]
+
+
+#
+# Pages x Matches
 #
 
 def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
@@ -114,9 +152,9 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
     sql = '''
         -- SELECT context = [max <size> chars] + [entity] + [max <size> chars]
 
-        SELECT SUBSTR(content,
+        SELECT SUBSTR(text,
                       MAX(start_char + 1 - ?, 1), 
-                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(content)))
+                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(text)))
         FROM pages INNER JOIN matches ON pages.title = matches.page
         WHERE mid = ?
     '''

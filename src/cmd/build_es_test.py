@@ -6,7 +6,7 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile
-from ryn.app.splits import load_dataset
+from ryn.graphs.split import Dataset
 from typing import List
 
 from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities
@@ -25,13 +25,13 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to input contexts DB')
+                        help='Path to (input) contexts DB')
 
     parser.add_argument('es_index', metavar='es-index',
-                        help='Elasticsearch index')
+                        help='Name of (output) Elasticsearch index')
 
     parser.add_argument('test_contexts_db', metavar='test-contexts-db',
-                        help='Path to output test contexts DB')
+                        help='Path to (output) test contexts DB')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR',
@@ -129,7 +129,7 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
 
         entities: List[int] = select_distinct_entities(contexts_conn)
 
-        dataset = load_dataset()
+        dataset = Dataset.load('')  # TODO
         id2ent = dataset.id2ent
 
         for i, entity in enumerate(entities):
@@ -158,7 +158,7 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
             es.indices.refresh(index=index_name)
 
             test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
-            for i, test_context in enumerate(test_contexts):
+            for test_context in test_contexts:
                 insert_context(test_contexts_conn, entity, test_context, entity_label)
 
             test_contexts_conn.commit()

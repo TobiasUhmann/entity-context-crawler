@@ -25,16 +25,16 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to input contexts DB')
+                        help='Path to (input) contexts DB')
 
     parser.add_argument('dataset_dir', metavar='dataset-dir',
-                        help='Path to OpenKE dataset directory')
+                        help='Path to (input) OpenKE dataset directory')
 
     parser.add_argument('cw_es_index', metavar='cw-es-index',
-                        help='Name of output closed world Elasticsearch index')
+                        help='Name of (output) closed world Elasticsearch index')
 
     parser.add_argument('ow_contexts_db', metavar='ow-contexts-db',
-                        help='Path to output open world contexts DB')
+                        help='Path to (output) open world contexts DB')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,

@@ -44,7 +44,7 @@ def insert_context(conn: Connection, entity: int, context: str, entity_label: st
     cursor.close()
 
 
-def insert_contexts(conn, contexts: List[Tuple[int, str, str]]):
+def insert_contexts(conn: Connection, contexts: List[Tuple[int, str, str]]):
     """
     :param contexts: [(entity, context, entity_label)]
     """

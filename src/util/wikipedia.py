@@ -8,15 +8,16 @@ class Wikipedia:
     missing_texts: int
     skipped_templates: int
 
-    def __init__(self, fh, tag):
+    def __init__(self, fh, limit_pages = None):
         """
-        Initialize 'iterparse' to only generate 'end' events on tag '<entity>'
+        Initialize 'iterparse' to only generate 'end' events on tag '<page>'
 
         :param fh: File Handle from the XML File to parse
-        :param tag: The tag to process
         """
+
         # Prepend the default Namespace {*} to get anything.
-        self.context = etree.iterparse(fh, events=("end",), tag=['{*}' + tag])
+        self.context = etree.iterparse(fh, events=("end",), tag=['{*}page'])
+        self.limit_pages = limit_pages
 
     def _parse(self):
         """
@@ -36,14 +37,19 @@ class Wikipedia:
         """
         Iterate all '<tag>...</tag>' Element Trees yielded from self._parse()
 
-        :return: Dict var 'entity' {tag1, value, tag2, value, ... ,tagn, value}}
+        :return: Dict var 'entity' {tag_1, value, tag_2, value, ... ,tag_n, value}}
         """
 
         self.missing_titles = 0
         self.missing_texts = 0
         self.skipped_templates = 0
 
-        for event, elem in self._parse():
+        for count, parsed in enumerate(self._parse()):
+            if self.limit_pages and count == self.limit_pages:
+                break
+
+            event, elem = parsed
+
             namespaces = {'xmlns': etree.QName(elem).namespace}
 
             titles = elem.xpath('./xmlns:title/text()', namespaces=namespaces)
@@ -72,5 +78,5 @@ class Wikipedia:
 
 if __name__ == "__main__":
     with open('../data/enwiki-latest-pages-articles.xml', 'rb') as in_xml:
-        for record in Wikipedia(in_xml, tag='page'):
+        for record in Wikipedia(in_xml):
             print("record:{}".format(record))

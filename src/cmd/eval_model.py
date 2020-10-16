@@ -21,10 +21,10 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('dataset_dir', metavar='dataset-dir',
-                        help='Path to OpenKE dataset directory')
+                        help='Path to (input) OpenKE dataset directory')
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to output contexts DB')
+                        help='Path to (output) contexts DB')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,

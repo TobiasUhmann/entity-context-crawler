@@ -1,59 +1,45 @@
 import json
 import os
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
+from collections import defaultdict
+from multiprocessing import Pool, cpu_count
 from os import remove
 from os.path import isfile
+from typing import Tuple
 
-from deepca.dumpr import dumpr
+import wikitextparser as wtp
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher
 
-from dao.links_db import select_pages_linking_to, select_pages_linked_from, select_aliases
-from dao.matches_db import insert_page, create_pages_table, create_matches_table, insert_match, Page, Match, select_page
+from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
+    Page, create_pages_table, create_mentions_table
 from util.util import log
+from util.wikipedia import Wikipedia
 
 
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        freenode-json
         wiki-xml
-        links-db
+        freebase-json
         matches-db
-        --commit-frequency
         --in-memory
-        --limit-entities
         --limit-pages
         --overwrite
     """
 
-    parser.add_argument('freenode_json', metavar='freenode-json',
-                        help='Path to input Freenode JSON')
-
     parser.add_argument('wiki_xml', metavar='wiki-xml',
-                        help='Path to input pre-processed Wikipedia XML')
+                        help='Path to (input) Wikipedia XML')
 
-    parser.add_argument('links_db', metavar='links-db',
-                        help='Path to input links DB')
+    parser.add_argument('freebase_json', metavar='freebase-json',
+                        help='Path to (input) Freebase JSON')
 
     parser.add_argument('matches_db', metavar='matches-db',
-                        help='Path to output matches DB')
-
-    default_commit_frequency = None
-    parser.add_argument('--commit-frequency', dest='commit_frequency', type=int, metavar='INT',
-                        default=default_commit_frequency,
-                        help='Commit to database every ... pages instead of committing at the end only'
-                             ' (default: {})'.format(default_commit_frequency))
+                        help='Path to (output) matches DB')
 
     parser.add_argument('--in-memory', dest='in_memory', action='store_true',
                         help='Build complete matches DB in memory before persisting it')
-
-    default_limit_entities = None
-    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
-                        default=default_limit_entities,
-                        help='Early stop after ... entities (default: {})'.format(default_limit_entities))
 
     default_limit_pages = None
     parser.add_argument('--limit-pages', dest='limit_pages', type=int, metavar='INT', default=default_limit_pages,
@@ -70,14 +56,11 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    freenode_json = args.freenode_json
     wiki_xml = args.wiki_xml
-    links_db = args.links_db
+    freebase_json = args.freebase_json
     matches_db = args.matches_db
 
-    commit_frequency = args.commit_frequency
     in_memory = args.in_memory
-    limit_entities = args.limit_entities
     limit_pages = args.limit_pages
     overwrite = args.overwrite
 
@@ -88,14 +71,11 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('freenode-json', freenode_json))
     print('    {:20} {}'.format('wiki-xml', wiki_xml))
-    print('    {:20} {}'.format('links-db', links_db))
+    print('    {:20} {}'.format('freebase-json', freebase_json))
     print('    {:20} {}'.format('matches-db', matches_db))
     print()
-    print('    {:20} {}'.format('--commit-frequency', commit_frequency))
     print('    {:20} {}'.format('--in-memory', in_memory))
-    print('    {:20} {}'.format('--limit-entities', limit_entities))
     print('    {:20} {}'.format('--limit-pages', limit_pages))
     print('    {:20} {}'.format('--overwrite', overwrite))
     print()
@@ -106,16 +86,12 @@ def run(args: Namespace):
     # Check if files already exist
     #
 
-    if not isfile(freenode_json):
-        print('Freenode JSON not found')
-        exit()
-
     if not isfile(wiki_xml):
         print('Wikipedia XML not found')
         exit()
 
-    if not isfile(links_db):
-        print('Links DB not found')
+    if not isfile(freebase_json):
+        print('Freebase JSON not found')
         exit()
 
     if isfile(matches_db):
@@ -129,38 +105,29 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_entities,
-                      limit_pages)
+    _build_matches_db(wiki_xml, freebase_json, matches_db, in_memory, limit_pages)
 
 
-def _build_matches_db(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, in_memory, limit_entities,
-                      limit_pages):
+def _build_matches_db(wiki_xml, freebase_json, matches_db, in_memory, limit_pages):
     if in_memory:
-        _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages)
+        _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages)
     else:
-        _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages)
+        _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages)
 
 
-def _run_on_disk(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
+def _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
-        create_pages_table(matches_conn)
-        create_matches_table(matches_conn)
+        _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages)
 
-        _persist_pages(matches_conn, wiki_xml, commit_frequency, limit_pages)
-        _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities)
-
-        log('Done')
+        log()
+        log('Finished successfully')
 
 
-def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequency, limit_entities, limit_pages):
+def _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
-        create_pages_table(memory_matches_conn)
-        create_matches_table(memory_matches_conn)
+        _process_wiki_xml(wiki_xml, freebase_json, memory_matches_conn, limit_pages)
 
-        _persist_pages(memory_matches_conn, wiki_xml, commit_frequency, limit_pages)
-        _process_entities(freenode_json, links_db, memory_matches_conn, commit_frequency, limit_entities)
-
-        print()
+        log()
         log('Persist...')
 
         with sqlite3.connect(matches_db) as disk_matches_conn:
@@ -171,138 +138,142 @@ def _run_in_memory(freenode_json, wiki_xml, links_db, matches_db, commit_frequen
         log('Done')
 
 
-def _persist_pages(matches_conn, wiki_xml, commit_frequency, limit_pages):
-    """ Iterate through all Wikipedia pages and save them in pages table """
-
-    # Use dumpr to iterate through pre-processed Wiki dump
-    with dumpr.BatchReader(wiki_xml) as reader:
-        for page_count, dumpr_doc in enumerate(reader.docs):
-
-            # Get relevant values from dumpr doc
-            page_title = dumpr_doc.meta['title']
-            page_content = dumpr_doc.content
-
-            # Early stop if --limit-pages was specified
-            if limit_pages and page_count == limit_pages:
-                break
-
-            # Commit regularly instead of once at the end if --commit-frequency is set
-            if commit_frequency and page_count % commit_frequency == 0:
-                log('Commit...')
-                matches_conn.commit()
-
-            # Log progress
-            log('{} | {}'.format(page_count, page_title))
-
-            # Skip pages without content, happens sometimes, maybe pages marked for deletion (?)
-            if page_content is None:
-                continue
-
-            # Persist page in pages DB
-            insert_page(matches_conn, Page(page_title, page_content))
-
-
-def _process_entities(freenode_json, links_db, matches_conn, commit_frequency, limit_entities):
+def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     """
     Iterate through all Freebase entities. For each entity, get its Wikipedia page as well
     as the directly linked pages. On those pages, search for the entity label and its aliases.
     Persist the matches in the matches DB.
     """
 
-    print()
-    log('Load Freenode JSON...')
-    freenode_data = json.load(open(freenode_json, 'r'))
-    log('Done')
+    create_pages_table(matches_conn)
+    create_matches_table(matches_conn)
+    create_mentions_table(matches_conn)
+
+    freebase_data = json.load(open(freebase_json, 'r'))
+
+    with open(wiki_xml, 'rb') as wiki_xml_fh:
+        wikipedia = Wikipedia(wiki_xml_fh, limit_pages)
+
+        init_args = (freebase_data,)
+        with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
+            for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
+
+                db_page, db_matches, db_mentions, exception = page_result
+
+                if exception:
+                    log('ERROR | {} | {}'.format(page_count, str(exception)))
+                    continue
+
+                insert_page(matches_conn, db_page)
+
+                for db_match in db_matches:
+                    insert_match(matches_conn, db_match)
+
+                for db_mention in db_mentions:
+                    insert_or_ignore_mention(matches_conn, db_mention)
+
+                matches_conn.commit()
+
+                log('INFO  | {} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
+
+
+worker_globals: Tuple
+
+
+def _init_worker(freebase_data):
+    global worker_globals
+
+    entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
 
     nlp = English()
     nlp.vocab.lex_attr_getters = {}
 
-    missing_urls = 0
+    worker_globals = (freebase_data, entity_page_title_to_mid, nlp)
 
-    with sqlite3.connect(links_db) as links_conn:
-        for entity_count, freenode_data_item in enumerate(freenode_data.items()):
-            if limit_entities and entity_count == limit_entities:
-                break
 
-            mid, entity_data = freenode_data_item
+def _get_entity_page_title_to_mid(freebase_data):
+    entity_page_title_to_mid = {}
+    for mid, entity_data in freebase_data.items():
+        page_url = entity_data['wikipedia']
+        if page_url:
+            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
+            entity_page_title_to_mid[page_title] = mid
 
-            entity_label = entity_data['label']
-            wiki_url = entity_data['wikipedia']
+    return entity_page_title_to_mid
 
-            if not wiki_url:
-                missing_urls += 1
-                continue
 
-            page_title = wiki_url.rsplit('/', 1)[-1].replace('_', ' ')
+def _process_page(page):
+    global worker_globals
 
-            #
-            # Query neighbor pages and entity aliases
-            #
+    try:
+        freebase_data, entity_page_title_to_mid, nlp = worker_globals
 
-            pages_linked_from_current_page = select_pages_linked_from(links_conn, page_title)
-            pages_linking_to_current_page = select_pages_linking_to(links_conn, page_title)
+        page_title = page['title']
+        page_markup = page['text']
 
-            neighbor_page_titles = pages_linking_to_current_page | {page_title} | pages_linked_from_current_page
+        core_markup = _get_core_markup(page_markup)
+        parsed = wtp.parse(core_markup)
 
-            neighbor_pages = []
-            for neighbor_page in neighbor_page_titles:
-                neighbor_page = select_page(matches_conn, neighbor_page)
-                if neighbor_page is not None:
-                    neighbor_pages.append(neighbor_page)
+        links = parsed.wikilinks
+        entity_links = [link for link in links if link.title in entity_page_title_to_mid]
 
-            aliases = select_aliases(links_conn, page_title)
+        mention_to_mids = defaultdict(list)
+        for link in entity_links:
+            mention = link.text if link.text else link.title
+            mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
 
-            #
-            # Search neighbor pages
-            #
+        mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
 
-            matcher = PhraseMatcher(nlp.vocab)
+        mentions = list(nlp.pipe(mention_to_mid.keys()))
+        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention) for mention, mid in mention_to_mid.items()]
 
-            patterns = list(nlp.pipe({entity_label} | aliases))
-            matcher.add('Entities', None, *patterns)
+        matcher = PhraseMatcher(nlp.vocab)
+        matcher.add('Patterns', None, *mentions)
 
-            match_count = 0
-            for neighbor_page in neighbor_pages:
-                page_title = neighbor_page.title
-                page_content = neighbor_page.content
+        page_text = parsed.plain_text()
+        spacy_doc = nlp.make_doc(page_text)
+        matches = matcher(spacy_doc)
 
-                spacy_doc = nlp.make_doc(page_content)
-                matches = matcher(spacy_doc)
+        db_matches = []
+        for _, start, end in matches:
+            match_span = spacy_doc[start:end]
+            mention = match_span.text
 
-                def contains(x, y):
-                    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
+            mid = mention_to_mid[mention]
+            entity_label = freebase_data[mid]['label']
 
-                spans = {(start, end) for match_id, start, end in matches}
-                kept_spans = []
-                for span in spans:
-                    keep_span = True
-                    for other_span in spans.difference({span}):
-                        if contains(other_span, span):
-                            keep_span = False
-                            break
+            start_char = match_span.start_char
+            end_char = match_span.end_char
 
-                    if keep_span:
-                        kept_spans.append(span)
+            context_start = max(match_span.start_char - 20, 0)
+            context_end = min(match_span.end_char + 20, len(page_text))
+            context = page_text[context_start:context_end]
 
-                for start, end in kept_spans:
-                    match_span = spacy_doc[start:end]
-                    match_text = match_span.text
+            db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
+            db_matches.append(db_match)
 
-                    start_char = match_span.start_char
-                    end_char = match_span.end_char
+        db_page = Page(page_title, page_text)
 
-                    context_start = max(match_span.start_char - 20, 0)
-                    context_end = min(match_span.end_char + 20, len(page_content))
-                    context = page_content[context_start:context_end]
+        return db_page, db_matches, db_mentions, None
 
-                    match = Match(mid, entity_label, match_text, page_title, start_char, end_char, context)
-                    insert_match(matches_conn, match)
-                    match_count += 1
+    except Exception as e:
+        return None, None, None, e
 
-            row = (entity_count, entity_label, len(neighbor_pages) - 1, match_count)
-            log('{} | {} | {} neighbors | {} matches'.format(*row))
 
-        print()
-        print('Stats')
-        print('\tEntities without Wikipedia page: {}'.format(missing_urls))
-        print()
+def _get_core_markup(markup: str) -> str:
+    parsed = wtp.parse(markup)
+
+    intro = parsed.get_sections(include_subsections=False, level=0)[0]
+    sections = parsed.get_sections(include_subsections=True, level=2)
+
+    section_blacklist = {'see also', 'references', 'further reading', 'external links'}
+    filtered_sections = [section for section in sections
+                         if section.title.strip().lower() not in section_blacklist]
+
+    intro_markup = intro.contents
+    section_markups = [section.contents for section in filtered_sections]
+
+    markups = [intro_markup]
+    markups.extend(section_markups)
+
+    return '\n'.join(markups)

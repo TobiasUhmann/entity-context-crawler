@@ -12,8 +12,7 @@ import spacy
 from spacy.matcher import PhraseMatcher
 
 from dao.contexts_db import create_contexts_table, insert_contexts
-from dao.links_db import select_aliases
-from dao.matches_db import select_contexts
+from dao.matches_db import select_contexts, select_distinct_mentions
 from dao.mid2ent_txt import load_mid2ent
 from util.util import log
 
@@ -21,8 +20,7 @@ from util.util import log
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        freenode-json
-        links-db
+        freebase-json
         matches-db
         contexts-db
         --context-size
@@ -33,17 +31,14 @@ def add_parser_args(parser: ArgumentParser):
         --overwrite
     """
 
-    parser.add_argument('freenode_json', metavar='freenode-json',
-                        help='Path to input Freenode JSON')
-
-    parser.add_argument('links_db', metavar='links-db',
-                        help='Path to input links DB')
+    parser.add_argument('freebase_json', metavar='freebase-json',
+                        help='Path to (input) Freebase JSON')
 
     parser.add_argument('matches_db', metavar='matches-db',
-                        help='Path to input matches DB')
+                        help='Path to (input) matches DB')
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to output contexts DB')
+                        help='Path to (output) contexts DB')
 
     default_context_size = 100
     parser.add_argument('--context-size', dest='context_size', type=int, metavar='INT', default=default_context_size,
@@ -79,8 +74,7 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    freenode_json = args.freenode_json
-    links_db = args.links_db
+    freebase_json = args.freebase_json
     matches_db = args.matches_db
     contexts_db = args.contexts_db
 
@@ -99,8 +93,7 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('freenode-json', freenode_json))
-    print('    {:20} {}'.format('links-db', links_db))
+    print('    {:20} {}'.format('freebase-json', freebase_json))
     print('    {:20} {}'.format('matches-db', matches_db))
     print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
@@ -119,12 +112,8 @@ def run(args: Namespace):
     # Check if files already exist
     #
 
-    if not isfile(freenode_json):
-        print('Freenode JSON not found')
-        exit()
-
-    if not isfile(links_db):
-        print('Links DB not found')
+    if not isfile(freebase_json):
+        print('Freebase JSON not found')
         exit()
 
     if not isfile(matches_db):
@@ -149,11 +138,11 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_contexts_db(freenode_json, links_db, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+    _build_contexts_db(freebase_json, matches_db, contexts_db, context_size, crop_sentences, csv_file,
                        limit_contexts, limit_entities)
 
 
-def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, contexts_db: str, context_size: int,
+def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
     - Load English spaCy model
@@ -167,13 +156,12 @@ def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, conte
         - Log progress
     """
 
-    with sqlite3.connect(links_db) as links_conn, \
-            sqlite3.connect(matches_db) as matches_conn, \
+    with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
 
         print()
-        log('Load Freenode JSON...')
-        freenode_data = json.load(open(freenode_json, 'r'))
+        log('Load Freebase JSON...')
+        freebase_data = json.load(open(freebase_json, 'r'))
         log('Done')
 
         print('Load spaCy model...', end='')
@@ -183,19 +171,17 @@ def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, conte
         create_contexts_table(contexts_conn)
         mid2ent = load_mid2ent(r'data/entity2id.txt')
 
-        for entity_count, freenode_data_item in enumerate(freenode_data.items()):
+        for entity_count, freebase_data_item in enumerate(freebase_data.items()):
             if limit_entities and entity_count == limit_entities:
                 break
 
-            mid, entity_data = freenode_data_item
+            mid, entity_data = freebase_data_item
 
             entity_label = entity_data['label']
             wiki_url = entity_data['wikipedia']
 
             if not wiki_url:
                 continue
-
-            page_title = wiki_url.rsplit('/', 1)[-1].replace('_', ' ')
 
             #
             # Get contexts
@@ -227,10 +213,10 @@ def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, conte
             # Mask and persist contexts
             #
 
-            aliases = select_aliases(links_conn, page_title)
+            aliases = select_distinct_mentions(matches_conn, mid)
 
             matcher = PhraseMatcher(nlp.vocab)
-            patterns = list(nlp.pipe({entity_label} | aliases))
+            patterns = list(nlp.pipe({entity_label} | set(aliases)))
             matcher.add('Entities', None, *patterns)
 
             contexts_batch = []
@@ -273,7 +259,8 @@ def _build_contexts_db(freenode_json: str, links_db: str, matches_db: str, conte
             # Log progress
             #
 
-            log('{:,} | {} | {:,}/{:,} contexts'.format(entity_count, entity_label, len(limited_contexts), len(contexts)))
+            log('{:,} | {} | {:,}/{:,} contexts'.format(
+                entity_count, entity_label, len(limited_contexts), len(contexts)))
 
             if csv_file:
                 with open(csv_file, 'a', newline='') as csv_fh:

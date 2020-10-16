@@ -24,10 +24,10 @@ def add_parser_args(parser: ArgumentParser):
     """
 
     parser.add_argument('matches_db', metavar='matches-db',
-                        help='Path to input matches DB')
+                        help='Path to (input) matches DB')
 
     parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to output contexts DB')
+                        help='Path to (output) contexts DB')
 
     default_context_size = 100
     parser.add_argument('--context-size', dest='context_size', type=int, metavar='INT', default=default_context_size,
@@ -145,7 +145,7 @@ class EntityLinker:
             #
 
             entities = select_entities(matches_conn, limit=self.limit_entities)
-            for id, entity in enumerate(entities):
+            for ryn_id, entity in enumerate(entities):
                 print(' {:5}  {:20}'.format('TRAIN', entity))
                 print('-------------------------------------------------------------------')
 
@@ -175,7 +175,7 @@ class EntityLinker:
                     insert_context(contexts_conn, entity, test_context)
 
                 es_doc = {'context': ' '.join(train_contexts), 'entity_label': entity}
-                es.index(index="sentence-sampler-index", id=id, body=es_doc)
+                es.index(index="sentence-sampler-index", id=ryn_id, body=es_doc)
                 es.indices.refresh(index="sentence-sampler-index")
 
             #
@@ -214,13 +214,6 @@ class EntityLinker:
                 for t in top_stat:
                     print('{:3} {:30}'.format(t[1], t[0]), end='')
                 print()
-
-            statistics = {'{0} ({1})'.format(entity, sum(stats[entity].values())): stats[entity][entity] / sum(
-                stats[entity].values())
-                          for entity in entities if sum(stats[entity].values()) > 0}
-
-            # plot_statistics(statistics)
-            # plot_statistics(statistics, sort=True)
 
 
 #
@@ -340,7 +333,7 @@ def plot_statistics(statistics, sort=False):
     # chart on slider change.
     #
 
-    def update(val):
+    def update(_):
         scroll = int(scroll_slider.val)  # new scroll position
         bars = int(visible_bars_slider.val)  # new visible bars
 
