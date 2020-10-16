@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import urllib
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
 from multiprocessing import Pool, cpu_count
@@ -196,7 +197,8 @@ def _get_entity_page_title_to_mid(freebase_data):
     for mid, entity_data in freebase_data.items():
         page_url = entity_data['wikipedia']
         if page_url:
-            page_title = page_url.rsplit('/', 1)[-1].replace('_', ' ')
+            decoded_page_url = urllib.parse.unquote(page_url)
+            page_title = decoded_page_url.rsplit('/', 1)[-1].replace('_', ' ')
             entity_page_title_to_mid[page_title] = mid
 
     return entity_page_title_to_mid
