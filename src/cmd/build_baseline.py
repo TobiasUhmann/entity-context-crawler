@@ -59,7 +59,7 @@ def run(args: Namespace):
 
     contexts_db = args.contexts_db
     dataset_dir = args.dataset_dir
-    cw_es_index = args.cw_es_dir
+    cw_es_index = args.cw_es_index
     ow_contexts_db = args.ow_contexts_db
 
     es_host = args.es_host
