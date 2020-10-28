@@ -15,7 +15,7 @@ from spacy.tokens import Doc
 
 from dao.contexts_db import create_contexts_table, insert_contexts
 from dao.matches_db import select_contexts
-from dao.mid2ryn_txt import load_mid2ryn
+from dao.mid2rid_txt import load_mid2rid
 from util.util import log
 
 
@@ -23,7 +23,7 @@ def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         freebase-json
-        mid2ryn-txt
+        mid2rid-txt
         matches-db
         contexts-db
         --context-size
@@ -37,8 +37,8 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('freebase_json', metavar='freebase-json',
                         help='Path to (input) Freebase JSON')
 
-    parser.add_argument('mid2ryn_txt', metavar='mid2ryn-txt',
-                        help='Path to (input) mid2ryn TXT')
+    parser.add_argument('mid2rid_txt', metavar='mid2rid-txt',
+                        help='Path to (input) mid2rid TXT')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to (input) matches DB')
@@ -81,7 +81,7 @@ def run(args: Namespace):
     """
 
     freebase_json = args.freebase_json
-    mid2ryn_txt = args.mid2ryn_txt
+    mid2rid_txt = args.mid2rid_txt
     matches_db = args.matches_db
     contexts_db = args.contexts_db
 
@@ -101,7 +101,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('freebase-json', freebase_json))
-    print('    {:20} {}'.format('mid2ryn-txt', mid2ryn_txt))
+    print('    {:20} {}'.format('mid2rid-txt', mid2rid_txt))
     print('    {:20} {}'.format('matches-db', matches_db))
     print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
@@ -124,8 +124,8 @@ def run(args: Namespace):
         print('Freebase JSON not found')
         exit()
 
-    if not isfile(mid2ryn_txt):
-        print('mid2ryn TXT not found')
+    if not isfile(mid2rid_txt):
+        print('mid2rid TXT not found')
         exit()
 
     if not isfile(matches_db):
@@ -150,11 +150,11 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_contexts_db(freebase_json, mid2ryn_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+    _build_contexts_db(freebase_json, mid2rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
                        limit_contexts, limit_entities)
 
 
-def _build_contexts_db(freebase_json: str, mid2ryn_txt: str, matches_db: str, contexts_db: str, context_size: int,
+def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
     - Load Freebase JSON
@@ -166,7 +166,7 @@ def _build_contexts_db(freebase_json: str, mid2ryn_txt: str, matches_db: str, co
         - Crop to token/sentence boundary
         - Persist masked contexts
         - Log progress
-        :param mid2ryn_txt:
+        :param mid2rid_txt:
     """
 
     with sqlite3.connect(matches_db) as matches_conn, \
@@ -177,8 +177,8 @@ def _build_contexts_db(freebase_json: str, mid2ryn_txt: str, matches_db: str, co
         freebase_data = json.load(open(freebase_json, 'r'))
         log('Done')
 
-        print('Load mid2ryn TXT...', end='')
-        mid2ryn = load_mid2ryn(mid2ryn_txt)
+        print('Load mid2rid TXT...', end='')
+        mid2rid = load_mid2rid(mid2rid_txt)
         print(' done')
 
         print('Load spaCy model...', end='')
@@ -209,7 +209,7 @@ def _build_contexts_db(freebase_json: str, mid2ryn_txt: str, matches_db: str, co
             cropped_contexts = crop_contexts(nlp, sampled_contexts, crop_sentences)
 
             # Persist contexts
-            db_contexts = [(mid2ryn[mid], cropped_context, entity_label) for cropped_context in cropped_contexts]
+            db_contexts = [(mid2rid[mid], cropped_context, entity_label) for cropped_context in cropped_contexts]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
