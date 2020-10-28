@@ -1,16 +1,19 @@
 from typing import List
 
+from spacy.language import Language
+from spacy.matcher import PhraseMatcher
 
-def mask_contexts(entity_contexts: List[str], mentions: List[str]) -> List[str]:
 
+def mask_contexts(nlp: Language, unmasked_contexts: List[str], masks: List[str]) -> List[str]:
+    """ Replace all occurrences of all masks with hashes """
 
     matcher = PhraseMatcher(nlp.vocab)
-    patterns = list(nlp.pipe({entity_label} | set(aliases)))
+    patterns = list(nlp.pipe(masks))
     matcher.add('Entities', None, *patterns)
 
     masked_contexts = []
-    for context in cropped_contexts:
-        spacy_doc = nlp.make_doc(context)
+    for unmasked_context in unmasked_contexts:
+        spacy_doc = nlp.make_doc(unmasked_context)
         matches = matcher(spacy_doc)
 
         def contains(x, y):
@@ -28,7 +31,7 @@ def mask_contexts(entity_contexts: List[str], mentions: List[str]) -> List[str]:
             if keep_span:
                 kept_spans.append(span)
 
-        mutable_context = list(context)
+        mutable_context = list(unmasked_context)
         for start, end in kept_spans:
             match_span = spacy_doc[start:end]
 
@@ -39,5 +42,6 @@ def mask_contexts(entity_contexts: List[str], mentions: List[str]) -> List[str]:
                 mutable_context[i] = '#'
 
         masked_context = ''.join(mutable_context)
+        masked_contexts.append(masked_context)
 
     return masked_contexts

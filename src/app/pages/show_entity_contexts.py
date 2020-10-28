@@ -3,9 +3,13 @@ import pandas as pd
 import random
 import re
 import sqlite3
+
+import spacy
 import streamlit as st
 
 from typing import Set
+
+from spacy.lang.en import English
 
 from app.util import load_dataset
 from dao.contexts_db import select_contexts
@@ -73,8 +77,12 @@ def render_show_entity_contexts_page():
         mid2rid = load_mid2rid(mid2rid_txt)
         rid2mid = {rid: mid for mid, rid in mid2rid.items()}
 
+        with st.spinner('Loading dataset...'):
+            nlp: English = spacy.load('en_core_web_lg')
+
         mentions = select_distinct_mentions(matches_conn, rid2mid[entity])
-        masked_contexts = mask_contexts(entity_contexts, mentions)
+        masks = list({entity_name} | set(mentions))
+        masked_contexts = mask_contexts(nlp, entity_contexts, masks)
 
     st.write('Database contains **%d contexts** for "%s"' % (len(entity_contexts), entity_name))
 
