@@ -7,9 +7,13 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
+from typing import List
 
 import spacy
+from spacy.lang.en import English
+from spacy.language import Language
 from spacy.matcher import PhraseMatcher
+from spacy.tokens import Doc
 
 from dao.contexts_db import create_contexts_table, insert_contexts
 from dao.matches_db import select_contexts, select_distinct_mentions
@@ -165,7 +169,7 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
         log('Done')
 
         print('Load spaCy model...', end='')
-        nlp = spacy.load('en_core_web_lg')
+        nlp: English = spacy.load('en_core_web_lg')
         print(' done')
 
         create_contexts_table(contexts_conn)
@@ -191,23 +195,8 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
             random.shuffle(contexts)
             limited_contexts = contexts[:limit_contexts]
 
-            #
-            # Crop to token/sentence boundary
-            #
-
-            cropped_contexts = []
-            for context in limited_contexts:
-                doc = nlp(context)
-
-                if crop_sentences:
-                    sents = [sent.string.strip() for sent in doc.sents][1:-1]
-                    cropped_context = '\n'.join(sents)
-                else:
-                    tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
-                    cropped_context = ' '.join(tokens)
-
-                if cropped_context:
-                    cropped_contexts.append(cropped_context)
+            # Crop contexts
+            cropped_contexts = crop_contexts(nlp, limited_contexts, crop_sentences)
 
             #
             # Mask and persist contexts
@@ -265,3 +254,27 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
             if csv_file:
                 with open(csv_file, 'a', newline='') as csv_fh:
                     csv.writer(csv_fh).writerow([entity_label, len(contexts)])
+
+
+def crop_contexts(nlp: Language, limited_contexts: List[str], crop_sentences: bool) -> List[str]:
+    """
+    Crop each context to the next token/sentence boundary. Might yield less contexts than
+    given as contexts are dropped if cropped to the empty string
+    """
+
+    cropped_contexts = []
+
+    for context in limited_contexts:
+        doc: Doc = nlp(context)
+
+        if crop_sentences:
+            sents = [sent.string.strip() for sent in doc.sents][1:-1]
+            cropped_context = '\n'.join(sents)
+        else:
+            tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
+            cropped_context = ' '.join(tokens)
+
+        if cropped_context:
+            cropped_contexts.append(cropped_context)
+
+    return cropped_contexts
