@@ -149,13 +149,13 @@ def run(args: Namespace):
 def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
-    - Load English spaCy model
+    - Load Freebase JSON
+    - Load spaCy model
     - Create contexts DB
     - For each entity in matches DB
         - Query contexts
         - Shuffle and limit contexts
         - Crop to token/sentence boundary
-        - Mask entity in cropped context
         - Persist masked contexts
         - Log progress
     """
@@ -176,10 +176,11 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
         mid2ent = load_mid2ent(r'data/entity2id.txt')
 
         for entity_count, freebase_data_item in enumerate(freebase_data.items()):
+            mid, entity_data = freebase_data_item
+
+            # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
                 break
-
-            mid, entity_data = freebase_data_item
 
             entity_label = entity_data['label']
             wiki_url = entity_data['wikipedia']
@@ -187,73 +188,27 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
             if not wiki_url:
                 continue
 
-            #
-            # Get contexts
-            #
-
-            contexts = select_contexts(matches_conn, mid, context_size)
-            random.shuffle(contexts)
-            limited_contexts = contexts[:limit_contexts]
+            # Sample contexts
+            all_contexts = select_contexts(matches_conn, mid, context_size)
+            random.shuffle(all_contexts)
+            sampled_contexts = all_contexts[:limit_contexts]
 
             # Crop contexts
-            cropped_contexts = crop_contexts(nlp, limited_contexts, crop_sentences)
+            cropped_contexts = crop_contexts(nlp, sampled_contexts, crop_sentences)
 
-            #
-            # Mask and persist contexts
-            #
-
-            aliases = select_distinct_mentions(matches_conn, mid)
-
-            matcher = PhraseMatcher(nlp.vocab)
-            patterns = list(nlp.pipe({entity_label} | set(aliases)))
-            matcher.add('Entities', None, *patterns)
-
-            contexts_batch = []
-            for context in cropped_contexts:
-                spacy_doc = nlp.make_doc(context)
-                matches = matcher(spacy_doc)
-
-                def contains(x, y):
-                    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
-
-                spans = {(start, end) for match_id, start, end in matches}
-                kept_spans = []
-                for span in spans:
-                    keep_span = True
-                    for other_span in spans.difference({span}):
-                        if contains(other_span, span):
-                            keep_span = False
-                            break
-
-                    if keep_span:
-                        kept_spans.append(span)
-
-                mutable_context = list(context)
-                for start, end in kept_spans:
-                    match_span = spacy_doc[start:end]
-
-                    start_char = match_span.start_char
-                    end_char = match_span.end_char
-
-                    for i in range(start_char, end_char):
-                        mutable_context[i] = '#'
-
-                masked_context = ''.join(mutable_context)
-                contexts_batch.append((mid2ent[mid], masked_context, entity_label))
-
-            insert_contexts(contexts_conn, contexts_batch)
+            # Persist contexts
+            db_contexts = [(mid2ent[mid], cropped_context, entity_label) for cropped_context in cropped_contexts]
+            insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
-            #
             # Log progress
-            #
-
             log('{:,} | {} | {:,}/{:,} contexts'.format(
-                entity_count, entity_label, len(limited_contexts), len(contexts)))
+                entity_count, entity_label, len(sampled_contexts), len(all_contexts)))
 
+            # Persist stats
             if csv_file:
                 with open(csv_file, 'a', newline='') as csv_fh:
-                    csv.writer(csv_fh).writerow([entity_label, len(contexts)])
+                    csv.writer(csv_fh).writerow([entity_label, len(all_contexts)])
 
 
 def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: bool) -> List[str]:
