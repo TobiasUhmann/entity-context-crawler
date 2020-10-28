@@ -256,7 +256,7 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
                     csv.writer(csv_fh).writerow([entity_label, len(contexts)])
 
 
-def crop_contexts(nlp: Language, limited_contexts: List[str], crop_sentences: bool) -> List[str]:
+def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: bool) -> List[str]:
     """
     Crop each context to the next token/sentence boundary. Might yield less contexts than
     given as contexts are dropped if cropped to the empty string
@@ -264,7 +264,7 @@ def crop_contexts(nlp: Language, limited_contexts: List[str], crop_sentences: bo
 
     cropped_contexts = []
 
-    for context in limited_contexts:
+    for context in ragged_contexts:
         doc: Doc = nlp(context)
 
         if crop_sentences:
