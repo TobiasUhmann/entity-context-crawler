@@ -1,14 +1,12 @@
 import os
-import pandas as pd
 import random
 import re
 import sqlite3
-
-import spacy
-import streamlit as st
-
 from typing import Set
 
+import pandas as pd
+import spacy
+import streamlit as st
 from spacy.lang.en import English
 
 from app.util import load_dataset
@@ -19,7 +17,6 @@ from util.mask_contexts import mask_contexts
 
 
 def render_show_entity_contexts_page():
-
     #
     # Load open world entities
     #
