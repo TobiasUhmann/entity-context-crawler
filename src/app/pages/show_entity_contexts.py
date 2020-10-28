@@ -9,6 +9,9 @@ from typing import Set
 
 from app.util import load_dataset
 from dao.contexts_db import select_contexts
+from dao.matches_db import select_distinct_mentions
+from dao.mid2rid_txt import load_mid2rid
+from util.mask_contexts import mask_contexts
 
 
 def render_show_entity_contexts_page():
@@ -57,15 +60,26 @@ def render_show_entity_contexts_page():
 
     st.markdown('---')
 
+    mid2rid_txt = 'data/entity2id.txt'
+    matches_db = 'data/enwiki-latest-matches.db'
     contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
-    with sqlite3.connect(contexts_db) as contexts_conn:
+
+    with sqlite3.connect(matches_db) as matches_conn, \
+            sqlite3.connect(contexts_db) as contexts_conn:
+
         entity_name = id2ent[entity]
         entity_contexts = select_contexts(contexts_conn, entity)
-        random.shuffle(entity_contexts)
+
+        mid2rid = load_mid2rid(mid2rid_txt)
+        rid2mid = {rid: mid for mid, rid in mid2rid.items()}
+
+        mentions = select_distinct_mentions(matches_conn, rid2mid[entity])
+        masked_contexts = mask_contexts(entity_contexts, mentions)
 
     st.write('Database contains **%d contexts** for "%s"' % (len(entity_contexts), entity_name))
 
-    df = pd.DataFrame(entity_contexts, columns=['Context'])
+    data = zip(entity_contexts, masked_contexts)
+    df = pd.DataFrame(data, columns=['Context', 'Masked Context'])
 
     truncate_contexts = st.checkbox('Truncate contexts')
 
