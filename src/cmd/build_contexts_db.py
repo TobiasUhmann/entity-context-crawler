@@ -16,7 +16,7 @@ from spacy.tokens import Doc
 from dao.contexts_db import create_contexts_table, insert_contexts
 from dao.matches_db import select_contexts
 from dao.mid2rid_txt import load_mid2rid
-from util.util import log
+from util.util import log, log_start, log_end
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -172,18 +172,15 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
     with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
 
-        print()
-        log('Load Freebase JSON...')
+        log('Load Freebase JSON')
         freebase_data = json.load(open(freebase_json, 'r'))
-        log('Done')
 
-        print('Load mid2rid TXT...', end='')
+        log('Load mid2rid TXT')
         mid2rid = load_mid2rid(mid2rid_txt)
-        print(' done')
 
-        print('Load spaCy model...', end='')
+        log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
-        print(' done')
+        log()
 
         create_contexts_table(contexts_conn)
 
@@ -200,6 +197,9 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             if not wiki_url:
                 continue
 
+            # Log progress (start)
+            log_start('{:,} | {}'.format(entity_count, entity_label))
+
             # Sample contexts
             all_contexts = select_contexts(matches_conn, mid, context_size)
             random.shuffle(all_contexts)
@@ -213,9 +213,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
-            # Log progress
-            log('{:,} | {} | {:,}/{:,} contexts'.format(
-                entity_count, entity_label, len(sampled_contexts), len(all_contexts)))
+            # Log progress (end)
+            log_end(' | {:,}/{:,} contexts'.format(len(sampled_contexts), len(all_contexts)))
 
             # Persist stats
             if csv_file:
