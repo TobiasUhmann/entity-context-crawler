@@ -13,6 +13,6 @@ def load_mid2ryn(path: str) -> Dict[str, int]:
         next(fh)
         for line in fh.readlines():
             mid, ryn = line.split('\t')
-            mid2ryn[mid] = ryn
+            mid2ryn[mid] = int(ryn)
 
     return mid2ryn
