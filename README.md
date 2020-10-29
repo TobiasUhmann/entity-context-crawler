@@ -94,7 +94,7 @@ data/
     contexts-v3-enwiki-20200920-100-500.db      # Contexts DB
     entity2wikidata.json                        # Freebase JSON
     enwiki-20200920.xml                         # Wiki XML dump
-    matches-v2-enwiki-20200920.db               # Matches DB
+    matches-v3-enwiki-20200920.db               # Matches DB
 ```
 
 Further details can be found in the wiki:

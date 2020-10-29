@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="build-contexts-db data/entity2wikidata.json data/entity2id.txt data/matches-v2-enwiki-20200920.db data/contexts-v3-enwiki-20200920-100-500-dev.db --context-size 500 --crop-sentences --csv-file data/contexts-v3-enwiki-20200920-100-500-dev.csv --limit-contexts 100 --limit-entities 10 --overwrite --random-seed 0" />
+    <option name="PARAMETERS" value="build-contexts-db data/entity2wikidata.json data/entity2id.txt data/matches-v3-enwiki-20200920.db data/contexts-v3-enwiki-20200920-100-500-dev.db --context-size 500 --crop-sentences --csv-file data/contexts-v3-enwiki-20200920-100-500-dev.csv --limit-contexts 100 --limit-entities 10 --overwrite --random-seed 0" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
