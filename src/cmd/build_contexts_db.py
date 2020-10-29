@@ -244,7 +244,7 @@ def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: boo
 
         if crop_sentences:
             # Remove first and last sentence because they might be incomplete
-            sents: List[str] = [sent.string.strip() for sent in doc.sents][1:-1]
+            sents: List[str] = [sent.string.strip() for sent in doc.sents][:-1]
 
             # Split sentences containing '\n' into multiple sentences
             splitted_sents = [sent.split('\n') for sent in sents]
