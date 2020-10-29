@@ -289,11 +289,16 @@ def clean_up_text(nlp: Language, page_text: str) -> str:
     clean_paragraphs = []
 
     for paragraph in paragraphs:
+
+        # Optimization: If paragraph < 40, then no sentence >= 40, therefore skip expensive NLP
+        if len(paragraph) < 40:
+            continue
+
         doc = nlp(paragraph)
         sents = [sent.string for sent in doc.sents]
 
         clean_sents = [sent for sent in sents if
-                       len(sent) > 40
+                       len(sent) >= 40
                        and sent[0].isupper()
                        and '|' not in sent
                        and '=' not in sent
