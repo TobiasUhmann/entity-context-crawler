@@ -60,7 +60,7 @@ class BaselineModel(Model):
             for count, query_entity, in enumerate(query_entity_batch):
 
                 query_entity_name = self.id2ent[query_entity]
-                query_entity_contexts = select_contexts(query_contexts_conn, query_entity)
+                query_entity_contexts = [c.masked_context for c in select_contexts(query_contexts_conn, query_entity)]
                 query_entity_contexts = [context.replace('#', '') for context in query_entity_contexts]
 
                 # random.shuffle(query_entity_contexts)

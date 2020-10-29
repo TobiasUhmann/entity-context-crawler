@@ -5,15 +5,10 @@ import sqlite3
 from typing import Set
 
 import pandas as pd
-import spacy
 import streamlit as st
-from spacy.lang.en import English
 
 from app.util import load_dataset
 from dao.contexts_db import select_contexts
-from dao.matches_db import select_distinct_mentions
-from dao.mid2rid_txt import load_mid2rid
-from util.mask_contexts import mask_contexts
 
 
 def render_show_entity_contexts_page():
@@ -61,29 +56,14 @@ def render_show_entity_contexts_page():
 
     st.markdown('---')
 
-    mid2rid_txt = 'data/entity2id.txt'
-    matches_db = 'data/enwiki-latest-matches.db'
     contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
-
-    with sqlite3.connect(matches_db) as matches_conn, \
-            sqlite3.connect(contexts_db) as contexts_conn:
-
+    with sqlite3.connect(contexts_db) as contexts_conn:
         entity_name = id2ent[entity]
         entity_contexts = select_contexts(contexts_conn, entity)
 
-        mid2rid = load_mid2rid(mid2rid_txt)
-        rid2mid = {rid: mid for mid, rid in mid2rid.items()}
-
-        with st.spinner('Loading dataset...'):
-            nlp: English = spacy.load('en_core_web_lg')
-
-        mentions = select_distinct_mentions(matches_conn, rid2mid[entity])
-        masks = list({entity_name} | set(mentions))
-        masked_contexts = mask_contexts(nlp, entity_contexts, masks)
-
     st.write('Database contains **%d contexts** for "%s"' % (len(entity_contexts), entity_name))
 
-    data = zip(entity_contexts, masked_contexts)
+    data = [(c.context, c.masked_context) for c in entity_contexts]
     df = pd.DataFrame(data, columns=['Context', 'Masked Context'])
 
     truncate_contexts = st.checkbox('Truncate contexts')

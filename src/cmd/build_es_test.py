@@ -9,7 +9,7 @@ from os.path import isfile
 from ryn.graphs.split import Dataset
 from typing import List
 
-from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities
+from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities, Context
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -137,28 +137,32 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
 
             print('{} | {:,} entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
-            masked_contexts = [masked_context.replace('#', '') for masked_context in masked_contexts]
+            contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
-            train_contexts = masked_contexts[:int(0.7 * len(masked_contexts))]
+            blanked_contexts = []
+            for c in contexts:
+                blanked_context = c.masked_context.replace('#', '')
+                blanked_contexts.append(Context(c.entity, c.entity_label, c.context, blanked_context))
+
+            train_contexts = blanked_contexts[:int(0.7 * len(blanked_contexts))]
 
             if verbose:
                 print()
                 print(' {:5}  {:20}'.format('TRAIN', entity_label))
                 print(100 * '-')
                 for train_context in train_contexts:
-                    print(repr(train_context[:100]))
+                    print(repr(train_context.masked_context[:100]))
                 print()
 
             es_doc = {'entity': entity,
-                      'context': '\n'.join(train_contexts),
+                      'context': '\n'.join([c.masked_context for c in train_contexts]),
                       'entity_label': entity_label}
 
             es.index(index=index_name, body=es_doc)
             es.indices.refresh(index=index_name)
 
-            test_contexts = masked_contexts[int(0.7 * len(masked_contexts)):]
+            test_contexts = blanked_contexts[int(0.7 * len(blanked_contexts)):]
             for test_context in test_contexts:
-                insert_context(test_contexts_conn, entity, test_context, entity_label)
+                insert_context(test_contexts_conn, test_context)
 
             test_contexts_conn.commit()
