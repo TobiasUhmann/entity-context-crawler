@@ -1,18 +1,17 @@
 import os
-import pandas as pd
 import random
 import re
 import sqlite3
-import streamlit as st
-
 from typing import Set
+
+import pandas as pd
+import streamlit as st
 
 from app.util import load_dataset
 from dao.contexts_db import select_contexts
 
 
 def render_show_entity_contexts_page():
-
     #
     # Load open world entities
     #
@@ -61,11 +60,11 @@ def render_show_entity_contexts_page():
     with sqlite3.connect(contexts_db) as contexts_conn:
         entity_name = id2ent[entity]
         entity_contexts = select_contexts(contexts_conn, entity)
-        random.shuffle(entity_contexts)
 
     st.write('Database contains **%d contexts** for "%s"' % (len(entity_contexts), entity_name))
 
-    df = pd.DataFrame(entity_contexts, columns=['Context'])
+    data = [(c.context, c.masked_context) for c in entity_contexts]
+    df = pd.DataFrame(data, columns=['Context', 'Masked Context'])
 
     truncate_contexts = st.checkbox('Truncate contexts')
 

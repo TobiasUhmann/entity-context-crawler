@@ -157,11 +157,11 @@ def _build_baseline(es, contexts_db, dataset_dir, cw_index, ow_db, limit_context
 
             print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
-            masked_contexts = [masked_context.replace('#', '') for masked_context in masked_contexts]
+            ow_contexts = [c.masked_context for c in select_contexts(contexts_conn, entity, limit_contexts)]
+            ow_contexts = [masked_context.replace('#', '') for masked_context in ow_contexts]
 
             es_doc = {'entity': entity,
-                      'context': '\n'.join(masked_contexts),
+                      'context': '\n'.join(ow_contexts),
                       'entity_label': entity_label}
 
             es.index(index=cw_index, body=es_doc)
@@ -184,10 +184,10 @@ def _build_baseline(es, contexts_db, dataset_dir, cw_index, ow_db, limit_context
 
             print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
 
-            masked_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            ow_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
-            for masked_context in masked_contexts:
-                insert_context(ow_conn, entity, masked_context, entity_label)
+            for ow_context in ow_contexts:
+                insert_context(ow_conn, ow_context)
 
         ow_conn.commit()
 

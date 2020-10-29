@@ -3,24 +3,28 @@ import json
 import os
 import random
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
+from typing import List
 
 import spacy
+from spacy.lang.en import English
+from spacy.language import Language
 from spacy.matcher import PhraseMatcher
+from spacy.tokens import Doc
 
-from dao.contexts_db import create_contexts_table, insert_contexts
+from dao.contexts_db import create_contexts_table, insert_contexts, Context
 from dao.matches_db import select_contexts, select_distinct_mentions
-from dao.mid2ent_txt import load_mid2ent
-from util.util import log
+from dao.mid2rid_txt import load_mid2rid
+from util.util import log, log_start, log_end
 
 
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         freebase-json
+        mid2rid-txt
         matches-db
         contexts-db
         --context-size
@@ -33,6 +37,9 @@ def add_parser_args(parser: ArgumentParser):
 
     parser.add_argument('freebase_json', metavar='freebase-json',
                         help='Path to (input) Freebase JSON')
+
+    parser.add_argument('mid2rid_txt', metavar='mid2rid-txt',
+                        help='Path to (input) mid2rid TXT')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to (input) matches DB')
@@ -75,6 +82,7 @@ def run(args: Namespace):
     """
 
     freebase_json = args.freebase_json
+    mid2rid_txt = args.mid2rid_txt
     matches_db = args.matches_db
     contexts_db = args.contexts_db
 
@@ -94,6 +102,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('freebase-json', freebase_json))
+    print('    {:20} {}'.format('mid2rid-txt', mid2rid_txt))
     print('    {:20} {}'.format('matches-db', matches_db))
     print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
@@ -114,6 +123,10 @@ def run(args: Namespace):
 
     if not isfile(freebase_json):
         print('Freebase JSON not found')
+        exit()
+
+    if not isfile(mid2rid_txt):
+        print('mid2rid TXT not found')
         exit()
 
     if not isfile(matches_db):
@@ -138,44 +151,46 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_contexts_db(freebase_json, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+    _build_contexts_db(freebase_json, mid2rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
                        limit_contexts, limit_entities)
 
 
-def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, context_size: int,
+def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
-    - Load English spaCy model
+    - Load Freebase JSON
+    - Load spaCy model
     - Create contexts DB
     - For each entity in matches DB
         - Query contexts
         - Shuffle and limit contexts
         - Crop to token/sentence boundary
-        - Mask entity in cropped context
         - Persist masked contexts
         - Log progress
+        :param mid2rid_txt:
     """
 
     with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
 
-        print()
-        log('Load Freebase JSON...')
+        log('Load Freebase JSON')
         freebase_data = json.load(open(freebase_json, 'r'))
-        log('Done')
 
-        print('Load spaCy model...', end='')
-        nlp = spacy.load('en_core_web_lg')
-        print(' done')
+        log('Load mid2rid TXT')
+        mid2rid = load_mid2rid(mid2rid_txt)
+
+        log('Load spaCy model')
+        nlp: English = spacy.load('en_core_web_lg')
+        log()
 
         create_contexts_table(contexts_conn)
-        mid2ent = load_mid2ent(r'data/entity2id.txt')
 
         for entity_count, freebase_data_item in enumerate(freebase_data.items()):
+            mid, entity_data = freebase_data_item
+
+            # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
                 break
-
-            mid, entity_data = freebase_data_item
 
             entity_label = entity_data['label']
             wiki_url = entity_data['wikipedia']
@@ -183,85 +198,99 @@ def _build_contexts_db(freebase_json: str, matches_db: str, contexts_db: str, co
             if not wiki_url:
                 continue
 
-            #
-            # Get contexts
-            #
+            # Log progress (start)
+            log_start('{:,} | {}'.format(entity_count, entity_label))
 
-            contexts = select_contexts(matches_conn, mid, context_size)
-            random.shuffle(contexts)
-            limited_contexts = contexts[:limit_contexts]
+            # Sample contexts
+            all_contexts = select_contexts(matches_conn, mid, context_size)
+            random.shuffle(all_contexts)
+            sampled_contexts = all_contexts[:limit_contexts]
 
-            #
-            # Crop to token/sentence boundary
-            #
+            # Crop contexts
+            cropped_contexts = crop_contexts(nlp, sampled_contexts, crop_sentences)
 
-            cropped_contexts = []
-            for context in limited_contexts:
-                doc = nlp(context)
+            # Mask contexts
+            mentions = select_distinct_mentions(matches_conn, mid)
+            masks = list({entity_label} | set(mentions))
+            masked_contexts = mask_contexts(nlp, cropped_contexts, masks)
 
-                if crop_sentences:
-                    sents = [sent.string.strip() for sent in doc.sents][1:-1]
-                    cropped_context = '\n'.join(sents)
-                else:
-                    tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
-                    cropped_context = ' '.join(tokens)
-
-                if cropped_context:
-                    cropped_contexts.append(cropped_context)
-
-            #
-            # Mask and persist contexts
-            #
-
-            aliases = select_distinct_mentions(matches_conn, mid)
-
-            matcher = PhraseMatcher(nlp.vocab)
-            patterns = list(nlp.pipe({entity_label} | set(aliases)))
-            matcher.add('Entities', None, *patterns)
-
-            contexts_batch = []
-            for context in cropped_contexts:
-                spacy_doc = nlp.make_doc(context)
-                matches = matcher(spacy_doc)
-
-                def contains(x, y):
-                    return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
-
-                spans = {(start, end) for match_id, start, end in matches}
-                kept_spans = []
-                for span in spans:
-                    keep_span = True
-                    for other_span in spans.difference({span}):
-                        if contains(other_span, span):
-                            keep_span = False
-                            break
-
-                    if keep_span:
-                        kept_spans.append(span)
-
-                mutable_context = list(context)
-                for start, end in kept_spans:
-                    match_span = spacy_doc[start:end]
-
-                    start_char = match_span.start_char
-                    end_char = match_span.end_char
-
-                    for i in range(start_char, end_char):
-                        mutable_context[i] = '#'
-
-                masked_context = ''.join(mutable_context)
-                contexts_batch.append((mid2ent[mid], masked_context, entity_label))
-
-            insert_contexts(contexts_conn, contexts_batch)
+            # Persist contexts
+            db_contexts = [Context(mid2rid[mid], entity_label, cropped_context, masked_context)
+                           for cropped_context, masked_context in zip(cropped_contexts, masked_contexts)]
+            insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
-            #
-            # Log progress
-            #
+            # Log progress (end)
+            log_end(' | {:,}/{:,} contexts'.format(len(sampled_contexts), len(all_contexts)))
 
-            log('{:,} | {} | {:,}/{:,} contexts'.format(
-                entity_count, entity_label, len(limited_contexts), len(contexts)))
-
+            # Persist stats
             if csv_file:
                 with open(csv_file, 'a', newline='') as csv_fh:
-                    csv.writer(csv_fh).writerow([entity_label, len(contexts)])
+                    csv.writer(csv_fh).writerow([entity_label, len(all_contexts)])
+
+
+def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: bool) -> List[str]:
+    """
+    Crop each context to the next token/sentence boundary. Might yield less contexts than
+    given as contexts are dropped if cropped to the empty string
+    """
+
+    cropped_contexts = []
+
+    for context in ragged_contexts:
+        doc: Doc = nlp(context)
+
+        if crop_sentences:
+            sents = [sent.string.strip() for sent in doc.sents][1:-1]
+            cropped_context = '\n'.join(sents)
+        else:
+            tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
+            cropped_context = ' '.join(tokens)
+
+        if cropped_context:
+            cropped_contexts.append(cropped_context)
+
+    return cropped_contexts
+
+
+def mask_contexts(nlp: Language, unmasked_contexts: List[str], masks: List[str]) -> List[str]:
+    """ Replace all occurrences of all masks with hashes """
+
+    matcher = PhraseMatcher(nlp.vocab)
+    patterns = list(nlp.pipe(masks))
+    matcher.add('Entities', None, *patterns)
+
+    masked_contexts = []
+    for unmasked_context in unmasked_contexts:
+        spacy_doc = nlp.make_doc(unmasked_context)
+        matches = matcher(spacy_doc)
+
+        def contains(x, y):
+            return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
+
+        spans = {(start, end) for match_id, start, end in matches}
+        kept_spans = []
+        for span in spans:
+            keep_span = True
+            for other_span in spans.difference({span}):
+                if contains(other_span, span):
+                    keep_span = False
+                    break
+
+            if keep_span:
+                kept_spans.append(span)
+
+        mutable_context = list(unmasked_context)
+        for start, end in kept_spans:
+            match_span = spacy_doc[start:end]
+
+            start_char = match_span.start_char
+            end_char = match_span.end_char
+
+            for i in range(start_char, end_char):
+                mutable_context[i] = '#'
+
+        masked_context = ''.join(mutable_context)
+        masked_contexts.append(masked_context)
+
+    return masked_contexts

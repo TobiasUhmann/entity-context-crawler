@@ -3,10 +3,11 @@
 PYTHONPATH=src/ \
 nohup python -u src/sam.py build-contexts-db \
   data/entity2wikidata.json \
+  data/entity2id.txt \
   data/matches-v2-enwiki-20200920.db \
-  data/contexts-v1-enwiki-20200920-100-500-qa.db \
+  data/contexts-v2-enwiki-20200920-100-500-qa.db \
   --context-size 500 \
   --crop-sentences \
-  --csv-file data/contexts-v1-enwiki-20200920-100-500-qa.csv \
+  --csv-file data/contexts-v2-enwiki-20200920-100-500-qa.csv \
   --limit-contexts 100 \
 > log/build-contexts-db-qa_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

@@ -125,7 +125,7 @@ def insert_or_ignore_mention(conn: Connection, mention: Mention):
     cursor.close()
 
 
-def select_distinct_mentions(conn: Connection, mid: str):
+def select_distinct_mentions(conn: Connection, mid: str) -> List[str]:
     sql = '''
         SELECT DISTINCT mention
         FROM mentions

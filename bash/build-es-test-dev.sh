@@ -2,9 +2,9 @@
 
 PYTHONPATH=src/ PYTHONHASHSEED=0 \
 nohup python -u src/sam.py build-es-test \
-  data/contexts-v1-enwiki-20200920-100-500.db \
-  cw-contexts-v1-enwiki-20200920-100-500-dev \
-  data/ow-contexts-v1-enwiki-20200920-100-500-dev.db \
+  data/contexts-v2-enwiki-20200920-100-500.db \
+  cw-contexts-v2-enwiki-20200920-100-500-dev \
+  data/ow-contexts-v2-enwiki-20200920-100-500-dev.db \
   --limit-contexts 100 \
   --overwrite \
   --random-seed 0 \
