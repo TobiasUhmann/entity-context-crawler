@@ -12,10 +12,8 @@ class Context:
 
 
 def create_contexts_table(conn: Connection):
-    sql = '''
+    create_table_sql = '''
         CREATE TABLE contexts (
-            id INT PRIMARY KEY AUTOINCREMENT,
-            
             entity INT,
             entity_label TEXT,
             context TEXT,
@@ -23,8 +21,14 @@ def create_contexts_table(conn: Connection):
         )
     '''
 
+    create_entity_index_sql = '''
+        CREATE INDEX entity_index
+        ON contexts(entity)
+    '''
+
     cursor = conn.cursor()
-    cursor.execute(sql)
+    cursor.execute(create_table_sql)
+    cursor.execute(create_entity_index_sql)
     cursor.close()
 
 
