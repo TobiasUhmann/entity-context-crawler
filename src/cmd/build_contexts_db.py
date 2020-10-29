@@ -241,8 +241,11 @@ def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: boo
         doc: Doc = nlp(context)
 
         if crop_sentences:
-            sents = [sent.string.strip() for sent in doc.sents][1:-1]
-            cropped_context = '\n'.join(sents)
+            sents: List[str] = [sent.string.strip() for sent in doc.sents][1:-1]
+            splitted_sents = [sent.split('\n') for sent in sents]
+            flat_sents = [sent for group in splitted_sents for sent in group if len(sent) > 0]
+            filtered_sents = [sent for sent in flat_sents if sent[0].isupper() and len(sent) > 40]
+            cropped_context = '\n'.join(filtered_sents)
         else:
             tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
             cropped_context = ' '.join(tokens)
