@@ -185,8 +185,10 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
         create_contexts_table(contexts_conn)
 
-        for entity_count, freebase_data_item in enumerate(freebase_data.items()):
-            mid, entity_data = freebase_data_item
+        freebase_items = list(freebase_data.items())
+        random.shuffle(freebase_items)
+        for entity_count, freebase_item in enumerate(freebase_items):
+            mid, entity_data = freebase_item
 
             # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
@@ -241,12 +243,38 @@ def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: boo
         doc: Doc = nlp(context)
 
         if crop_sentences:
-            sents = [sent.string.strip() for sent in doc.sents][1:-1]
-            cropped_context = '\n'.join(sents)
+            # Remove first and last sentence because they might be incomplete
+            sents: List[str] = [sent.string.strip() for sent in doc.sents][:-1]
+
+            # Split sentences containing '\n' into multiple sentences
+            splitted_sents = [sent.split('\n') for sent in sents]
+
+            # Flatten the groups of splitted sentences and filter out empty strings
+            flat_sents = [sent for group in splitted_sents for sent in group if len(sent) > 0]
+
+            # Filter out bad "senteces" (e.g. remaining markup):
+            # - sentence does not start with upper case letter
+            # - sentence is shorter than 40 chars
+            # - sentence contains '|'
+            filtered_sents = filter(lambda sent: not any((
+                not sent[0].isupper(),
+                len(sent) < 40,
+                '|' in sent,
+            )), flat_sents)
+
+            # Join remaining, real sentences
+            cropped_context = '\n'.join(filtered_sents)
+
         else:
+            # Remove first and last token because they might be incomplete
             tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
+
+            # Note: No filtering of bad tokens here
+
+            # Join remaining tokens
             cropped_context = ' '.join(tokens)
 
+        # After all the filtering, context might be empty. Only take context if not empty
         if cropped_context:
             cropped_contexts.append(cropped_context)
 
