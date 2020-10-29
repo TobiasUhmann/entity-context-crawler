@@ -28,5 +28,5 @@ class Test(TestCase):
 
         cropped_contexts = crop_contexts(nlp, ragged_contexts, crop_sentences)
 
-        expected_cropped_contexts = ['This is also a sentence.']
+        expected_cropped_contexts = []
         self.assertEqual(cropped_contexts, expected_cropped_contexts)
