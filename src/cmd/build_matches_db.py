@@ -9,8 +9,10 @@ from os import remove
 from os.path import isfile
 from typing import Tuple
 
+import spacy
 import wikitextparser as wtp
 from spacy.lang.en import English
+from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
 from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
@@ -186,7 +188,7 @@ def _init_worker(freebase_data):
 
     entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
 
-    nlp = English()
+    nlp = spacy.load('en_core_web_lg')
     nlp.vocab.lex_attr_getters = {}
 
     worker_globals = (freebase_data, entity_page_title_to_mid, nlp)
@@ -241,10 +243,12 @@ def _process_page(page: dict):
         matcher = PhraseMatcher(nlp.vocab)
         matcher.add('Patterns', None, *mentions)
 
-        # Markup -> plain text, clean up plain text, and search for mentions
-        plain_text = parsed.plain_text()
-        clean_plain_text = clean_up_plain_text(plain_text)
-        spacy_doc = nlp.make_doc(clean_plain_text)
+        # Markup -> plain text, clean up plain text
+        page_text = parsed.plain_text()
+        clean_page_text = clean_up_text(nlp, page_text)
+
+        # Search mentions
+        spacy_doc = nlp.make_doc(clean_page_text)
         matches = matcher(spacy_doc)
 
         db_matches = []
@@ -259,13 +263,13 @@ def _process_page(page: dict):
             end_char = match_span.end_char
 
             context_start = max(match_span.start_char - 20, 0)
-            context_end = min(match_span.end_char + 20, len(plain_text))
-            context = plain_text[context_start:context_end]
+            context_end = min(match_span.end_char + 20, len(page_text))
+            context = page_text[context_start:context_end]
 
             db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
             db_matches.append(db_match)
 
-        db_page = Page(page_title, plain_text)
+        db_page = Page(page_title, page_text)
 
         return db_page, db_matches, db_mentions, None
 
@@ -273,24 +277,35 @@ def _process_page(page: dict):
         return None, None, None, e
 
 
-def clean_up_plain_text(plain_text: str) -> str:
-    pass
+def clean_up_text(nlp: Language, page_text: str) -> str:
+    """
+    Remove sentence fragments and markup, leaving paragraphs with whole sentences.
 
+    1. Split page text into paragraphs (split at '\n') and paragraphs into sentences (using NLP)
+    2. Remove bad sentences (too short, contains markup chars, etc.)
+    3. Join sentences and paragraphs back together
+    """
 
-def _get_core_markup(markup: str) -> str:
-    parsed = wtp.parse(markup)
+    paragraphs = page_text.split('\n')
+    clean_paragraphs = []
 
-    intro = parsed.get_sections(include_subsections=False, level=0)[0]
-    sections = parsed.get_sections(include_subsections=True, level=2)
+    for paragraph in paragraphs:
+        doc = nlp(paragraph)
+        sents = [sent.string for sent in doc.sents]
 
-    section_blacklist = {'see also', 'references', 'further reading', 'external links'}
-    filtered_sections = [section for section in sections
-                         if section.title.strip().lower() not in section_blacklist]
+        clean_sents = [sent for sent in sents if
+                       len(sent) > 40
+                       and sent[0].isupper()
+                       and '|' not in sent
+                       and '=' not in sent
+                       and 'http' not in sent
+                       and 'Category:' not in sent]
 
-    intro_markup = intro.contents
-    section_markups = [section.contents for section in filtered_sections]
+        clean_paragraph = ' '.join(clean_sents)
 
-    markups = [intro_markup]
-    markups.extend(section_markups)
+        if clean_paragraph:
+            clean_paragraphs.append(clean_paragraph)
 
-    return '\n'.join(markups)
+    clean_page_text = '\n\n'.join(clean_paragraphs)
+
+    return clean_page_text
