@@ -189,7 +189,6 @@ def _init_worker(freebase_data):
     entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
 
     nlp = spacy.load('en_core_web_lg')
-    nlp.vocab.lex_attr_getters = {}
 
     worker_globals = (freebase_data, entity_page_title_to_mid, nlp)
 
@@ -263,13 +262,13 @@ def _process_page(page: dict):
             end_char = match_span.end_char
 
             context_start = max(match_span.start_char - 20, 0)
-            context_end = min(match_span.end_char + 20, len(page_text))
-            context = page_text[context_start:context_end]
+            context_end = min(match_span.end_char + 20, len(clean_page_text))
+            context = clean_page_text[context_start:context_end]
 
             db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
             db_matches.append(db_match)
 
-        db_page = Page(page_title, page_text)
+        db_page = Page(page_title, clean_page_text)
 
         return db_page, db_matches, db_mentions, None
 
