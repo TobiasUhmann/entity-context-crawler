@@ -243,7 +243,8 @@ def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: boo
         doc: Doc = nlp(context)
 
         if crop_sentences:
-            # Remove first and last sentence because they might be incomplete
+            # Remove last sentence, because it might be incomplete
+            # Do not remove first sentence, because it would be removed in the following if it was incomplete
             sents: List[str] = [sent.string.strip() for sent in doc.sents][:-1]
 
             # Split sentences containing '\n' into multiple sentences

@@ -204,42 +204,53 @@ def _get_entity_page_title_to_mid(freebase_data):
     return entity_page_title_to_mid
 
 
-def _process_page(page):
+def _process_page(page: dict):
     global worker_globals
+    freebase_data, entity_page_title_to_mid, nlp = worker_globals
 
     try:
-        freebase_data, entity_page_title_to_mid, nlp = worker_globals
-
         page_title = page['title']
         page_markup = page['text']
 
-        core_markup = _get_core_markup(page_markup)
-        parsed = wtp.parse(core_markup)
+        # Parse markup -> AST
+        parsed = wtp.parse(page_markup)
 
+        # Get links that refer to Wiki pages of Freebase entities
         links = parsed.wikilinks
         entity_links = [link for link in links if link.title in entity_page_title_to_mid]
 
+        # Get mention -> MID mapping from links, e.g.:
+        # { 'Berlin' -> ['/m/abc'], 'Bonn' -> ['/m/xyz'], 'capital' -> ['/m/abc', '/m/xyz'] }
+        #
+        # Note: Multiple links with the same text that link different pages
+        #       should not occur according to Wikipedia standards
         mention_to_mids = defaultdict(list)
         for link in entity_links:
             mention = link.text if link.text else link.title
             mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
 
-        mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
+        # Remove non-unique mentions
+        mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items()
+                          if len(mids) == 1}
 
+        # Prepare DB mentions. Will be returned to the main thread
         mentions = list(nlp.pipe(mention_to_mid.keys()))
-        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention) for mention, mid in mention_to_mid.items()]
+        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention)
+                       for mention, mid in mention_to_mid.items()]
 
         matcher = PhraseMatcher(nlp.vocab)
         matcher.add('Patterns', None, *mentions)
 
-        page_text = parsed.plain_text()
-        spacy_doc = nlp.make_doc(page_text)
+        # Markup -> plain text, clean up plain text, and search for mentions
+        plain_text = parsed.plain_text()
+        clean_plain_text = clean_up_plain_text(plain_text)
+        spacy_doc = nlp.make_doc(clean_plain_text)
         matches = matcher(spacy_doc)
 
         db_matches = []
         for _, start, end in matches:
             match_span = spacy_doc[start:end]
-            mention = match_span.text
+            mention = match_span.text  # mention which matched (from the whole mention set)
 
             mid = mention_to_mid[mention]
             entity_label = freebase_data[mid]['label']
@@ -248,18 +259,22 @@ def _process_page(page):
             end_char = match_span.end_char
 
             context_start = max(match_span.start_char - 20, 0)
-            context_end = min(match_span.end_char + 20, len(page_text))
-            context = page_text[context_start:context_end]
+            context_end = min(match_span.end_char + 20, len(plain_text))
+            context = plain_text[context_start:context_end]
 
             db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
             db_matches.append(db_match)
 
-        db_page = Page(page_title, page_text)
+        db_page = Page(page_title, plain_text)
 
         return db_page, db_matches, db_mentions, None
 
     except Exception as e:
         return None, None, None, e
+
+
+def clean_up_plain_text(plain_text: str) -> str:
+    pass
 
 
 def _get_core_markup(markup: str) -> str:
