@@ -185,8 +185,10 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
         create_contexts_table(contexts_conn)
 
-        for entity_count, freebase_data_item in enumerate(freebase_data.items()):
-            mid, entity_data = freebase_data_item
+        freebase_items = list(freebase_data.items())
+        random.shuffle(freebase_items)
+        for entity_count, freebase_item in enumerate(freebase_items):
+            mid, entity_data = freebase_item
 
             # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
