@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import time
 import urllib
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
@@ -11,7 +12,6 @@ from typing import Tuple
 
 import spacy
 import wikitextparser as wtp
-from spacy.lang.en import English
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
@@ -161,10 +161,10 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
         with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
 
-                db_page, db_matches, db_mentions, exception = page_result
+                db_page, db_matches, db_mentions, stats, exception = page_result
 
                 if exception:
-                    log('ERROR | {} | {}'.format(page_count, str(exception)))
+                    log('ERROR | {:9,} | {}'.format(page_count, str(exception)))
                     continue
 
                 insert_page(matches_conn, db_page)
@@ -177,7 +177,30 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
 
                 matches_conn.commit()
 
-                log('INFO  | {} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
+                log_page(page_count, db_page.title, stats)
+
+
+def log_page(page_count, page_title, stats):
+    log(
+        'INFO '
+        ' | {:9,}'
+        ' | {:6,} ms'
+        ' | {:4}/{:4} links'
+        ' | {:3}/{:3} mentions'
+        ' | {:7,} chars'
+        ' | {:3}% used'
+        ' | {:4} matches'
+        ' | {}'
+            .format(
+            page_count,
+            round(stats['time'] * 1000),
+            stats['entity_link_count'], stats['link_count'],
+            stats['unique_mention_count'], stats['mention_count'],
+            stats['page_text_len'],
+            round(stats['clean_page_text_len'] / stats['page_text_len'] * 100),
+            stats['match_count'],
+            page_title,
+        ))
 
 
 worker_globals: Tuple
@@ -210,6 +233,8 @@ def _process_page(page: dict):
     freebase_data, entity_page_title_to_mid, nlp = worker_globals
 
     try:
+        start_time = time.time()
+
         page_title = page['title']
         page_markup = page['text']
 
@@ -225,13 +250,13 @@ def _process_page(page: dict):
         #
         # Note: Multiple links with the same text that link different pages
         #       should not occur according to Wikipedia standards
-        mention_to_mids = defaultdict(list)
+        mention_to_mids = defaultdict(set)
         for link in entity_links:
             mention = link.text if link.text else link.title
-            mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
+            mention_to_mids[mention].add(entity_page_title_to_mid[link.title])
 
         # Remove non-unique mentions
-        mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items()
+        mention_to_mid = {mention: list(mids)[0] for mention, mids in mention_to_mids.items()
                           if len(mids) == 1}
 
         # Prepare DB mentions. Will be returned to the main thread
@@ -270,10 +295,24 @@ def _process_page(page: dict):
 
         db_page = Page(page_title, clean_page_text)
 
-        return db_page, db_matches, db_mentions, None
+        stop_time = time.time()
+        duration = stop_time - start_time
+
+        stats = {
+            'link_count': len(links),
+            'entity_link_count': len(entity_links),
+            'mention_count': len(mention_to_mids),
+            'unique_mention_count': len(mention_to_mid),
+            'page_text_len': len(page_text),
+            'clean_page_text_len': len(clean_page_text),
+            'match_count': len(db_matches),
+            'time': duration,
+        }
+
+        return db_page, db_matches, db_mentions, stats, None
 
     except Exception as e:
-        return None, None, None, e
+        return None, None, None, None, e
 
 
 def clean_up_text(nlp: Language, page_text: str) -> str:
