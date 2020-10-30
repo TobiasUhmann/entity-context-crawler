@@ -197,7 +197,7 @@ def log_page_info(page_count: int, page_title: str, stats: PageStats, duration: 
             stats.entity_link_count, stats.link_count,
             stats.unique_mention_count, stats.mention_count,
             stats.text_len,
-            round(stats.clean_text_len / stats.text_len * 100),
+            0 if stats.text_len == 0 else round(stats.clean_text_len / stats.text_len * 100),
             stats.match_count,
             page_title,
         ))
