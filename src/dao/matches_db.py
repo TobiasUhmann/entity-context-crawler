@@ -8,9 +8,21 @@ from typing import List
 #
 
 @dataclass
+class PageStats:
+    link_count: int
+    entity_link_count: int
+    mention_count: int
+    unique_mention_count: int
+    text_len: int
+    clean_text_len: int
+    match_count: int
+
+
+@dataclass
 class Page:
     title: str
     text: str
+    stats: PageStats
 
 
 def create_pages_table(conn: Connection):
@@ -18,6 +30,14 @@ def create_pages_table(conn: Connection):
         CREATE TABLE pages (
             title TEXT,
             text TEXT,
+            
+            link_count INT,
+            entity_link_count INT,
+            mention_count INT,
+            unique_mention_count INT,
+            text_len INT,
+            clean_text_len INT,
+            match_count INT,
             
             PRIMARY KEY (title)
         )
@@ -30,12 +50,15 @@ def create_pages_table(conn: Connection):
 
 def insert_page(conn: Connection, page: Page):
     sql = '''
-        INSERT OR IGNORE INTO pages (title, text)
-        VALUES (?, ?)
+        INSERT OR IGNORE INTO pages (title, text, link_count, entity_link_count, mention_count, unique_mention_count,
+                                     text_len, clean_text_len, match_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (page.title, page.text))
+    cursor.execute(sql, (page.title, page.text, page.stats.link_count, page.stats.entity_link_count,
+                         page.stats.mention_count, page.stats.unique_mention_count, page.stats.text_len,
+                         page.stats.clean_text_len, page.stats.match_count))
     cursor.close()
 
 

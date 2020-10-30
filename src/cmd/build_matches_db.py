@@ -16,7 +16,7 @@ from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
 from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
-    Page, create_pages_table, create_mentions_table
+    Page, create_pages_table, create_mentions_table, PageStats
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -161,7 +161,7 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
         with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
 
-                db_page, db_matches, db_mentions, stats, exception = page_result
+                db_page, db_matches, db_mentions, duration, exception = page_result
 
                 if exception:
                     log('ERROR | {:9,} | {}'.format(page_count, str(exception)))
@@ -177,10 +177,10 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
 
                 matches_conn.commit()
 
-                log_page(page_count, db_page.title, stats)
+                log_page_info(page_count, db_page.title, db_page.stats, duration)
 
 
-def log_page(page_count, page_title, stats):
+def log_page_info(page_count: int, page_title: str, stats: PageStats, duration: float):
     log(
         'INFO '
         ' | {:9,}'
@@ -193,12 +193,12 @@ def log_page(page_count, page_title, stats):
         ' | {}'
             .format(
             page_count,
-            round(stats['time'] * 1000),
-            stats['entity_link_count'], stats['link_count'],
-            stats['unique_mention_count'], stats['mention_count'],
-            stats['page_text_len'],
-            round(stats['clean_page_text_len'] / stats['page_text_len'] * 100),
-            stats['match_count'],
+            round(duration * 1000),
+            stats.entity_link_count, stats.link_count,
+            stats.unique_mention_count, stats.mention_count,
+            stats.text_len,
+            round(stats.clean_text_len / stats.text_len * 100),
+            stats.match_count,
             page_title,
         ))
 
@@ -293,23 +293,22 @@ def _process_page(page: dict):
             db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
             db_matches.append(db_match)
 
-        db_page = Page(page_title, clean_page_text)
-
         stop_time = time.time()
         duration = stop_time - start_time
 
-        stats = {
-            'link_count': len(links),
-            'entity_link_count': len(entity_links),
-            'mention_count': len(mention_to_mids),
-            'unique_mention_count': len(mention_to_mid),
-            'page_text_len': len(page_text),
-            'clean_page_text_len': len(clean_page_text),
-            'match_count': len(db_matches),
-            'time': duration,
-        }
+        stats = PageStats(
+            len(links),
+            len(entity_links),
+            len(mention_to_mids),
+            len(mention_to_mid),
+            len(page_text),
+            len(clean_page_text),
+            len(db_matches),
+        )
 
-        return db_page, db_matches, db_mentions, stats, None
+        db_page = Page(page_title, clean_page_text, stats)
+
+        return db_page, db_matches, db_mentions, duration, None
 
     except Exception as e:
         return None, None, None, None, e
