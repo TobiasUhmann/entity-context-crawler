@@ -253,14 +253,12 @@ def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: boo
             # Flatten the groups of splitted sentences and filter out empty strings
             flat_sents = [sent for group in splitted_sents for sent in group if len(sent) > 0]
 
-            # Filter out bad "senteces" (e.g. remaining markup):
+            # Filter out bad "senteces":
             # - sentence does not start with upper case letter
             # - sentence is shorter than 40 chars
-            # - sentence contains '|'
             filtered_sents = filter(lambda sent: not any((
                 not sent[0].isupper(),
                 len(sent) < 40,
-                '|' in sent,
             )), flat_sents)
 
             # Join remaining, real sentences
