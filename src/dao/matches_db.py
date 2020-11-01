@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import List
+from typing import List, Tuple
 
 
 #
@@ -167,7 +167,7 @@ def select_distinct_mentions(conn: Connection, mid: str) -> List[str]:
 # Pages x Matches
 #
 
-def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
+def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, str]]:
     """
     :param size: maximum chars before and after match, respectively
     """
@@ -177,7 +177,8 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
 
         SELECT SUBSTR(text,
                       MAX(start_char + 1 - ?, 1), 
-                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(text)))
+                      MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(text))),
+               pages.title
         FROM pages INNER JOIN matches ON pages.title = matches.page
         WHERE mid = ?
     '''
@@ -187,4 +188,4 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[str]:
     rows = cursor.fetchall()
     cursor.close()
 
-    return [row[0] for row in rows]
+    return [(row[0], row[1]) for row in rows]

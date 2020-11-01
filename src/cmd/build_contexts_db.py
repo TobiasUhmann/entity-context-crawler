@@ -6,7 +6,7 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
-from typing import List
+from typing import List, Tuple
 
 import spacy
 from spacy.lang.en import English
@@ -167,7 +167,6 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
         - Crop to token/sentence boundary
         - Persist masked contexts
         - Log progress
-        :param mid2rid_txt:
     """
 
     with sqlite3.connect(matches_db) as matches_conn, \
@@ -204,7 +203,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             log_start('{:,} | {}'.format(entity_count, entity_label))
 
             # Sample contexts
-            all_contexts = select_contexts(matches_conn, mid, context_size)
+            # Note: Each context comes with its associated page title
+            all_contexts: List[Tuple[str, str]] = select_contexts(matches_conn, mid, context_size)
             random.shuffle(all_contexts)
             sampled_contexts = all_contexts[:limit_contexts]
 
@@ -217,8 +217,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             masked_contexts = mask_contexts(nlp, cropped_contexts, masks)
 
             # Persist contexts
-            db_contexts = [Context(mid2rid[mid], entity_label, cropped_context, masked_context)
-                           for cropped_context, masked_context in zip(cropped_contexts, masked_contexts)]
+            db_contexts = [Context(mid2rid[mid], entity_label, masked_context[0], masked_context[1], masked_context[2])
+                           for masked_context in masked_contexts]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
@@ -231,15 +231,18 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
                     csv.writer(csv_fh).writerow([entity_label, len(all_contexts)])
 
 
-def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: bool) -> List[str]:
+def crop_contexts(nlp: Language, ragged_contexts: List[Tuple[str, str]], crop_sentences: bool) -> List[Tuple[str, str]]:
     """
     Crop each context to the next token/sentence boundary. Might yield less contexts than
     given as contexts are dropped if cropped to the empty string
+
+    :param ragged_contexts Contexts with their associated page titles
+    :return Masked contexts with their associated page titles
     """
 
     cropped_contexts = []
 
-    for context in ragged_contexts:
+    for context, page_title in ragged_contexts:
         doc: Doc = nlp(context)
 
         if crop_sentences:
@@ -275,20 +278,25 @@ def crop_contexts(nlp: Language, ragged_contexts: List[str], crop_sentences: boo
 
         # After all the filtering, context might be empty. Only take context if not empty
         if cropped_context:
-            cropped_contexts.append(cropped_context)
+            cropped_contexts.append((cropped_context, page_title))
 
     return cropped_contexts
 
 
-def mask_contexts(nlp: Language, unmasked_contexts: List[str], masks: List[str]) -> List[str]:
-    """ Replace all occurrences of all masks with hashes """
+def mask_contexts(nlp: Language, unmasked_contexts: List[Tuple[str, str]], masks: List[str]) -> List[Tuple[str, str, str]]:
+    """
+    Replace all occurrences of all masks with hashes. Filter out context without any mentions.
+
+    :param unmasked_contexts [(page_title, unmasked_context)]
+    :return [(page_title, unmasked_context, masked_context)]
+    """
 
     matcher = PhraseMatcher(nlp.vocab)
     patterns = list(nlp.pipe(masks))
     matcher.add('Entities', None, *patterns)
 
     masked_contexts = []
-    for unmasked_context in unmasked_contexts:
+    for unmasked_context, page_title in unmasked_contexts:
         spacy_doc = nlp.make_doc(unmasked_context)
         matches = matcher(spacy_doc)
 
@@ -321,6 +329,6 @@ def mask_contexts(nlp: Language, unmasked_contexts: List[str], masks: List[str])
                 mutable_context[i] = '#'
 
         masked_context = ''.join(mutable_context)
-        masked_contexts.append(masked_context)
+        masked_contexts.append((page_title, unmasked_context, masked_context))
 
     return masked_contexts

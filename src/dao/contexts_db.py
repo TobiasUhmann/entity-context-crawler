@@ -7,6 +7,7 @@ from typing import List
 class Context:
     entity: int
     entity_label: str
+    page_title: str
     context: str
     masked_context: str
 
@@ -16,6 +17,7 @@ def create_contexts_table(conn: Connection):
         CREATE TABLE contexts (
             entity INT,
             entity_label TEXT,
+            page_title TEXT,
             context TEXT,
             masked_context TEXT
         )
@@ -48,30 +50,31 @@ def select_distinct_entities(conn: Connection) -> List[int]:
 
 def insert_context(conn: Connection, context: Context):
     sql = '''
-        INSERT INTO contexts (entity, entity_label, context, masked_context)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO contexts (entity, entity_label, page_title, context, masked_context)
+        VALUES (?, ?, ?, ?, ?)
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (context.entity, context.entity_label, context.context, context.masked_context))
+    cursor.execute(sql, (context.entity, context.entity_label, context.page_title, context.context,
+                         context.masked_context))
     cursor.close()
 
 
 def insert_contexts(conn: Connection, contexts: List[Context]):
     sql = '''
-        INSERT INTO contexts (entity, entity_label, context, masked_context)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO contexts (entity, entity_label, page_title, context, masked_context)
+        VALUES (?, ?, ?, ?, ?)
     '''
 
     cursor = conn.cursor()
-    rows = [(c.entity, c.entity_label, c.context, c.masked_context) for c in contexts]
+    rows = [(c.entity, c.entity_label, c.page_title, c.context, c.masked_context) for c in contexts]
     cursor.executemany(sql, rows)
     cursor.close()
 
 
 def select_contexts(conn: Connection, entity: int, limit: int = None) -> List[Context]:
     sql = '''
-        SELECT entity, entity_label, context, masked_context
+        SELECT entity, entity_label, page_title, context, masked_context
         FROM contexts
         WHERE entity = ?
     '''
@@ -87,4 +90,4 @@ def select_contexts(conn: Connection, entity: int, limit: int = None) -> List[Co
     rows = cursor.fetchall()
     cursor.close()
 
-    return [Context(row[0], row[1], row[2], row[3]) for row in rows]
+    return [Context(row[0], row[1], row[2], row[3], row[4]) for row in rows]
