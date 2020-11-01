@@ -307,6 +307,9 @@ def mask_contexts(nlp: Language, unmasked_contexts: List[str], masks: List[str])
             if keep_span:
                 kept_spans.append(span)
 
+        if len(kept_spans) == 0:
+            continue
+
         mutable_context = list(unmasked_context)
         for start, end in kept_spans:
             match_span = spacy_doc[start:end]
