@@ -4,6 +4,7 @@ import os
 import random
 import sqlite3
 from argparse import ArgumentParser, Namespace
+from dataclasses import dataclass
 from os import remove
 from os.path import isfile
 from typing import List, Tuple
@@ -17,6 +18,7 @@ from spacy.tokens import Doc
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
 from dao.matches_db import select_contexts, select_distinct_mentions
 from dao.mid2rid_txt import load_mid2rid
+from util.shuffle_lists import shuffle_lists
 from util.util import log, log_start, log_end
 
 
@@ -204,21 +206,25 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
             # Sample contexts
             # Note: Each context comes with its associated page title
-            all_contexts: List[Tuple[str, str]] = select_contexts(matches_conn, mid, context_size)
-            random.shuffle(all_contexts)
+            all_contexts, all_page_titles = select_contexts(matches_conn, mid, context_size)
+            shuffle_lists(all_contexts, all_page_titles)
             sampled_contexts = all_contexts[:limit_contexts]
+            sampled_page_titles = all_page_titles[:limit_contexts]
 
             # Crop contexts
-            cropped_contexts = crop_contexts(nlp, sampled_contexts, crop_sentences)
+            cropped_contexts, cropped_contexts_page_titles = \
+                crop_contexts(nlp, sampled_contexts, sampled_page_titles, crop_sentences)
 
             # Mask contexts
             mentions = select_distinct_mentions(matches_conn, mid)
             masks = list({entity_label} | set(mentions))
-            masked_contexts = mask_contexts(nlp, cropped_contexts, masks)
+            masked_contexts, unmasked_contexts, masked_context_page_titles = \
+                mask_contexts(nlp, cropped_contexts, cropped_contexts_page_titles, masks)
 
             # Persist contexts
-            db_contexts = [Context(mid2rid[mid], entity_label, masked_context[0], masked_context[1], masked_context[2])
-                           for masked_context in masked_contexts]
+            db_contexts = [Context(mid2rid[mid], entity_label, masked_context_page_title, masked_context, unmasked_context)
+                           for masked_context, unmasked_context, masked_context_page_title
+                           in zip(masked_contexts, unmasked_contexts, masked_context_page_titles)]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
@@ -231,18 +237,25 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
                     csv.writer(csv_fh).writerow([entity_label, len(all_contexts)])
 
 
-def crop_contexts(nlp: Language, ragged_contexts: List[Tuple[str, str]], crop_sentences: bool) -> List[Tuple[str, str]]:
+def crop_contexts(
+        nlp: Language,
+        ragged_contexts: List[str],
+        page_titles: List[str],
+        crop_sentences: bool
+) -> Tuple[List[str], List[str]]:
     """
     Crop each context to the next token/sentence boundary. Might yield less contexts than
     given as contexts are dropped if cropped to the empty string
 
-    :param ragged_contexts Contexts with their associated page titles
-    :return Masked contexts with their associated page titles
+    :return cropped_contexts, page_titles
     """
 
-    cropped_contexts = []
+    assert len(ragged_contexts) == len(page_titles)
 
-    for context, page_title in ragged_contexts:
+    result_cropped_contexts = []
+    result_page_titles = []
+
+    for context, page_title in zip(ragged_contexts, page_titles):
         doc: Doc = nlp(context)
 
         if crop_sentences:
@@ -278,25 +291,37 @@ def crop_contexts(nlp: Language, ragged_contexts: List[Tuple[str, str]], crop_se
 
         # After all the filtering, context might be empty. Only take context if not empty
         if cropped_context:
-            cropped_contexts.append((cropped_context, page_title))
+            result_cropped_contexts.append(cropped_context)
+            result_page_titles.append(page_title)
 
-    return cropped_contexts
+    assert len(result_cropped_contexts) == len(result_page_titles)
+
+    return result_cropped_contexts, result_page_titles
 
 
-def mask_contexts(nlp: Language, unmasked_contexts: List[Tuple[str, str]], masks: List[str]) -> List[Tuple[str, str, str]]:
+def mask_contexts(
+        nlp: Language,
+        unmasked_contexts: List[str],
+        page_titles: List[str],
+        masks: List[str]
+) -> Tuple[List[str], List[str], List[str]]:
     """
     Replace all occurrences of all masks with hashes. Filter out context without any mentions.
 
-    :param unmasked_contexts [(page_title, unmasked_context)]
-    :return [(page_title, unmasked_context, masked_context)]
+    :return masked_contexts, unmasked_contexts, page_titles
     """
+
+    assert len(unmasked_contexts) == len(page_titles)
 
     matcher = PhraseMatcher(nlp.vocab)
     patterns = list(nlp.pipe(masks))
     matcher.add('Entities', None, *patterns)
 
-    masked_contexts = []
-    for unmasked_context, page_title in unmasked_contexts:
+    result_masked_contexts = []
+    result_unmasked_contexts = []
+    result_page_titles = []
+    for unmasked_context, page_title in zip(unmasked_contexts, page_titles):
+
         spacy_doc = nlp.make_doc(unmasked_context)
         matches = matcher(spacy_doc)
 
@@ -329,6 +354,11 @@ def mask_contexts(nlp: Language, unmasked_contexts: List[Tuple[str, str]], masks
                 mutable_context[i] = '#'
 
         masked_context = ''.join(mutable_context)
-        masked_contexts.append((page_title, unmasked_context, masked_context))
 
-    return masked_contexts
+        result_masked_contexts.append(masked_context)
+        result_unmasked_contexts.append(unmasked_context)
+        result_page_titles.append(page_title)
+
+    assert len(result_masked_contexts) == len(result_unmasked_contexts) == len(result_page_titles)
+
+    return result_masked_contexts, result_unmasked_contexts, result_page_titles

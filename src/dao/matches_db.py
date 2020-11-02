@@ -167,9 +167,11 @@ def select_distinct_mentions(conn: Connection, mid: str) -> List[str]:
 # Pages x Matches
 #
 
-def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, str]]:
+def select_contexts(conn: Connection, mid: str, size: int) -> Tuple[List[str], List[str]]:
     """
     :param size: maximum chars before and after match, respectively
+
+    :return contexts, page_titles
     """
 
     sql = '''
@@ -188,4 +190,6 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, st
     rows = cursor.fetchall()
     cursor.close()
 
-    return [(row[0], row[1]) for row in rows]
+    contexts, page_tuples = zip(*[(row[0], row[1]) for row in rows])
+
+    return contexts, page_tuples

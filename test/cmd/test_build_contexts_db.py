@@ -12,23 +12,27 @@ class Test(TestCase):
         page_title = 'Foo Page'
 
         nlp: English = spacy.load('en_core_web_lg')
-        ragged_contexts = [(page[2:-2], page_title)]
+        ragged_contexts = [page[2:-2]]
+        page_titles = [page_title]
         crop_sentences = False
 
-        cropped_contexts = crop_contexts(nlp, ragged_contexts, crop_sentences)
+        result_cropped_contexts, result_page_titles = \
+            crop_contexts(nlp, ragged_contexts, page_titles, crop_sentences)
 
-        expected_cropped_contexts = [('is a sentence . This is also a sentence . This is another', page_title)]
-        self.assertEqual(cropped_contexts, expected_cropped_contexts)
+        self.assertEqual(result_cropped_contexts, ['is a sentence . This is also a sentence . This is another'])
+        self.assertEqual(result_page_titles, [page_title])
 
     def test_crop_contexts_2(self):
         page = 'This is a sentence. This is also a sentence. This is another one.'
         page_title = 'Foo Page'
 
         nlp: English = spacy.load('en_core_web_lg')
-        ragged_contexts = [(page[2:-2], page_title)]
+        ragged_contexts = [page[2:-2]]
+        page_titles = [page_title]
         crop_sentences = True
 
-        cropped_contexts = crop_contexts(nlp, ragged_contexts, crop_sentences)
+        result_cropped_contexts, result_page_titles = \
+            crop_contexts(nlp, ragged_contexts, page_titles, crop_sentences)
 
-        expected_cropped_contexts = []
-        self.assertEqual(cropped_contexts, expected_cropped_contexts)
+        self.assertEqual(result_cropped_contexts, [])
+        self.assertEqual(result_page_titles, [])
