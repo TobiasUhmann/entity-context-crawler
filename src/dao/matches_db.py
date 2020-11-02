@@ -122,18 +122,24 @@ class Mention:
 
 
 def create_mentions_table(conn: Connection):
-    sql = '''
+    create_table_sql = '''
         CREATE TABLE mentions (
             mid TEXT,
             entity_label TEXT,
             mention TEXT,
 
-            PRIMARY KEY (mid)
+            UNIQUE (mid, mention)
         )
     '''
 
+    create_mid_index_sql = '''
+        CREATE INDEX mid_index
+        ON mentions(mid)
+    '''
+
     cursor = conn.cursor()
-    cursor.execute(sql)
+    cursor.execute(create_table_sql)
+    cursor.execute(create_mid_index_sql)
     cursor.close()
 
 
