@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import time
 import urllib
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict
@@ -9,12 +10,13 @@ from os import remove
 from os.path import isfile
 from typing import Tuple
 
+import spacy
 import wikitextparser as wtp
-from spacy.lang.en import English
+from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
 from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
-    Page, create_pages_table, create_mentions_table
+    Page, create_pages_table, create_mentions_table, PageStats
 from util.util import log
 from util.wikipedia import Wikipedia
 
@@ -159,10 +161,10 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
         with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
 
-                db_page, db_matches, db_mentions, exception = page_result
+                db_page, db_matches, db_mentions, duration, exception = page_result
 
                 if exception:
-                    log('ERROR | {} | {}'.format(page_count, str(exception)))
+                    log('ERROR | {:9,} | {}'.format(page_count, str(exception)))
                     continue
 
                 insert_page(matches_conn, db_page)
@@ -175,7 +177,30 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
 
                 matches_conn.commit()
 
-                log('INFO  | {} | {} | {}'.format(page_count, db_page.title, len(db_matches)))
+                log_page_info(page_count, db_page.title, db_page.stats, duration)
+
+
+def log_page_info(page_count: int, page_title: str, stats: PageStats, duration: float):
+    log(
+        'INFO '
+        ' | {:9,}'
+        ' | {:6,} ms'
+        ' | {:4}/{:4} links'
+        ' | {:3}/{:3} mentions'
+        ' | {:7,} chars'
+        ' | {:3}% used'
+        ' | {:4} matches'
+        ' | {}'
+            .format(
+            page_count,
+            round(duration * 1000),
+            stats.entity_link_count, stats.link_count,
+            stats.unique_mention_count, stats.mention_count,
+            stats.text_len,
+            0 if stats.text_len == 0 else round(stats.clean_text_len / stats.text_len * 100),
+            stats.match_count,
+            page_title,
+        ))
 
 
 worker_globals: Tuple
@@ -186,8 +211,7 @@ def _init_worker(freebase_data):
 
     entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
 
-    nlp = English()
-    nlp.vocab.lex_attr_getters = {}
+    nlp = spacy.load('en_core_web_lg')
 
     worker_globals = (freebase_data, entity_page_title_to_mid, nlp)
 
@@ -204,42 +228,57 @@ def _get_entity_page_title_to_mid(freebase_data):
     return entity_page_title_to_mid
 
 
-def _process_page(page):
+def _process_page(page: dict):
     global worker_globals
+    freebase_data, entity_page_title_to_mid, nlp = worker_globals
 
     try:
-        freebase_data, entity_page_title_to_mid, nlp = worker_globals
+        start_time = time.time()
 
         page_title = page['title']
         page_markup = page['text']
 
-        core_markup = _get_core_markup(page_markup)
-        parsed = wtp.parse(core_markup)
+        # Parse markup -> AST
+        parsed = wtp.parse(page_markup)
 
+        # Get links that refer to Wiki pages of Freebase entities
         links = parsed.wikilinks
         entity_links = [link for link in links if link.title in entity_page_title_to_mid]
 
-        mention_to_mids = defaultdict(list)
+        # Get mention -> MID mapping from links, e.g.:
+        # { 'Berlin' -> ['/m/abc'], 'Bonn' -> ['/m/xyz'], 'capital' -> ['/m/abc', '/m/xyz'] }
+        #
+        # Note: Multiple links with the same text that link different pages
+        #       should not occur according to Wikipedia standards
+        mention_to_mids = defaultdict(set)
         for link in entity_links:
             mention = link.text if link.text else link.title
-            mention_to_mids[mention].append(entity_page_title_to_mid[link.title])
+            mention_to_mids[mention].add(entity_page_title_to_mid[link.title])
 
-        mention_to_mid = {mention: mids[0] for mention, mids in mention_to_mids.items() if len(mids) == 1}
+        # Remove non-unique mentions
+        mention_to_mid = {mention: list(mids)[0] for mention, mids in mention_to_mids.items()
+                          if len(mids) == 1}
 
+        # Prepare DB mentions. Will be returned to the main thread
         mentions = list(nlp.pipe(mention_to_mid.keys()))
-        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention) for mention, mid in mention_to_mid.items()]
+        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention)
+                       for mention, mid in mention_to_mid.items()]
 
         matcher = PhraseMatcher(nlp.vocab)
         matcher.add('Patterns', None, *mentions)
 
+        # Markup -> plain text, clean up plain text
         page_text = parsed.plain_text()
-        spacy_doc = nlp.make_doc(page_text)
+        clean_page_text = clean_up_text(nlp, page_text)
+
+        # Search mentions
+        spacy_doc = nlp.make_doc(clean_page_text)
         matches = matcher(spacy_doc)
 
         db_matches = []
         for _, start, end in matches:
             match_span = spacy_doc[start:end]
-            mention = match_span.text
+            mention = match_span.text  # mention which matched (from the whole mention set)
 
             mid = mention_to_mid[mention]
             entity_label = freebase_data[mid]['label']
@@ -248,34 +287,67 @@ def _process_page(page):
             end_char = match_span.end_char
 
             context_start = max(match_span.start_char - 20, 0)
-            context_end = min(match_span.end_char + 20, len(page_text))
-            context = page_text[context_start:context_end]
+            context_end = min(match_span.end_char + 20, len(clean_page_text))
+            context = clean_page_text[context_start:context_end]
 
             db_match = Match(mid, entity_label, mention, page_title, start_char, end_char, context)
             db_matches.append(db_match)
 
-        db_page = Page(page_title, page_text)
+        stop_time = time.time()
+        duration = stop_time - start_time
 
-        return db_page, db_matches, db_mentions, None
+        stats = PageStats(
+            len(links),
+            len(entity_links),
+            len(mention_to_mids),
+            len(mention_to_mid),
+            len(page_text),
+            len(clean_page_text),
+            len(db_matches),
+        )
+
+        db_page = Page(page_title, clean_page_text, stats)
+
+        return db_page, db_matches, db_mentions, duration, None
 
     except Exception as e:
-        return None, None, None, e
+        return None, None, None, None, e
 
 
-def _get_core_markup(markup: str) -> str:
-    parsed = wtp.parse(markup)
+def clean_up_text(nlp: Language, page_text: str) -> str:
+    """
+    Remove sentence fragments and markup, leaving paragraphs with whole sentences.
 
-    intro = parsed.get_sections(include_subsections=False, level=0)[0]
-    sections = parsed.get_sections(include_subsections=True, level=2)
+    1. Split page text into paragraphs (split at '\n') and paragraphs into sentences (using NLP)
+    2. Remove bad sentences (too short, contains markup chars, etc.)
+    3. Join sentences and paragraphs back together
+    """
 
-    section_blacklist = {'see also', 'references', 'further reading', 'external links'}
-    filtered_sections = [section for section in sections
-                         if section.title.strip().lower() not in section_blacklist]
+    paragraphs = page_text.split('\n')
+    clean_paragraphs = []
 
-    intro_markup = intro.contents
-    section_markups = [section.contents for section in filtered_sections]
+    for paragraph in paragraphs:
 
-    markups = [intro_markup]
-    markups.extend(section_markups)
+        # Optimization: If paragraph < 40, then no sentence >= 40, therefore skip expensive NLP
+        if len(paragraph) < 40:
+            continue
 
-    return '\n'.join(markups)
+        doc = nlp(paragraph)
+        sents = [sent.string for sent in doc.sents]
+
+        clean_sents = [sent for sent in sents if
+                       len(sent) >= 40
+                       and sent[0].isupper()
+                       and '|' not in sent
+                       and '=' not in sent
+                       and 'http' not in sent
+                       and 'Category:' not in sent]
+
+        clean_paragraph = ' '.join(clean_sents)
+
+        if clean_paragraph:
+            clean_paragraphs.append(clean_paragraph)
+
+    clean_page_text = '\n\n'.join(clean_paragraphs)
+
+    return clean_page_text
