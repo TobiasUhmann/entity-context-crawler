@@ -4,7 +4,6 @@ import os
 import random
 import sqlite3
 from argparse import ArgumentParser, Namespace
-from dataclasses import dataclass
 from os import remove
 from os.path import isfile
 from typing import List, Tuple
@@ -18,7 +17,6 @@ from spacy.tokens import Doc
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
 from dao.matches_db import select_contexts, select_distinct_mentions
 from dao.mid2rid_txt import load_mid2rid
-from util.shuffle_lists import shuffle_lists
 from util.util import log, log_start, log_end
 
 
@@ -206,57 +204,49 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
             # Sample contexts
             # Note: Each context comes with its associated page title
-            all_contexts, all_page_titles = select_contexts(matches_conn, mid, context_size)
-            shuffle_lists(all_contexts, all_page_titles)
-            sampled_contexts = all_contexts[:limit_contexts]
-            sampled_page_titles = all_page_titles[:limit_contexts]
+            all_context_rows = select_contexts(matches_conn, mid, context_size)
+            random.shuffle(all_context_rows)
+            some_context_rows = all_context_rows[:limit_contexts]
 
             # Crop contexts
-            cropped_contexts, cropped_contexts_page_titles = \
-                crop_contexts(nlp, sampled_contexts, sampled_page_titles, crop_sentences)
+            cropped_context_rows = crop_contexts(nlp, some_context_rows, crop_sentences)
 
             # Mask contexts
             mentions = select_distinct_mentions(matches_conn, mid)
             masks = list({entity_label} | set(mentions))
-            masked_contexts, unmasked_contexts, masked_context_page_titles = \
-                mask_contexts(nlp, cropped_contexts, cropped_contexts_page_titles, masks)
+            masked_context_rows = mask_contexts(nlp, cropped_context_rows, masks)
 
             # Persist contexts
-            db_contexts = [Context(mid2rid[mid], entity_label, masked_context_page_title, masked_context, unmasked_context)
-                           for masked_context, unmasked_context, masked_context_page_title
-                           in zip(masked_contexts, unmasked_contexts, masked_context_page_titles)]
+            db_contexts = [Context(mid2rid[mid], entity_label, page_title, unmasked_context, masked_context)
+                           for masked_context, unmasked_context, page_title in masked_context_rows]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
             # Log progress (end)
-            log_end(' | {:,}/{:,} contexts'.format(len(sampled_contexts), len(all_contexts)))
+            log_end(' | {:,}/{:,} contexts'.format(len(some_context_rows), len(all_context_rows)))
 
             # Persist stats
             if csv_file:
                 with open(csv_file, 'a', newline='') as csv_fh:
-                    csv.writer(csv_fh).writerow([entity_label, len(all_contexts)])
+                    csv.writer(csv_fh).writerow([entity_label, len(all_context_rows)])
 
 
 def crop_contexts(
         nlp: Language,
-        ragged_contexts: List[str],
-        page_titles: List[str],
+        ragged_context_rows: List[Tuple[str, str]],
         crop_sentences: bool
-) -> Tuple[List[str], List[str]]:
+) -> List[Tuple[str, str]]:
     """
     Crop each context to the next token/sentence boundary. Might yield less contexts than
     given as contexts are dropped if cropped to the empty string
 
-    :return cropped_contexts, page_titles
+    :param ragged_context_rows [(ragged_context, page_title)]
+    :return [(cropped_context, page_title)]
     """
 
-    assert len(ragged_contexts) == len(page_titles)
-
-    result_cropped_contexts = []
-    result_page_titles = []
-
-    for context, page_title in zip(ragged_contexts, page_titles):
-        doc: Doc = nlp(context)
+    cropped_context_rows = []
+    for ragged_context, page_title in ragged_context_rows:
+        doc: Doc = nlp(ragged_context)
 
         if crop_sentences:
             # Remove last sentence, because it might be incomplete
@@ -291,36 +281,30 @@ def crop_contexts(
 
         # After all the filtering, context might be empty. Only take context if not empty
         if cropped_context:
-            result_cropped_contexts.append(cropped_context)
-            result_page_titles.append(page_title)
+            cropped_context_rows.append((cropped_context, page_title))
 
-    assert len(result_cropped_contexts) == len(result_page_titles)
-
-    return result_cropped_contexts, result_page_titles
+    return cropped_context_rows
 
 
 def mask_contexts(
         nlp: Language,
-        unmasked_contexts: List[str],
-        page_titles: List[str],
+        unmasked_context_rows: List[Tuple[str, str]],
         masks: List[str]
-) -> Tuple[List[str], List[str], List[str]]:
+) -> List[Tuple[str, str, str]]:
     """
-    Replace all occurrences of all masks with hashes. Filter out context without any mentions.
+    Replace all occurrences of all masks with hashes. Filter out context without
+    any mentions.
 
-    :return masked_contexts, unmasked_contexts, page_titles
+    :param unmasked_context_rows: [(unmasked_context, page_title)]
+    :return [(masked_context, unmasked_context, page_title)]
     """
-
-    assert len(unmasked_contexts) == len(page_titles)
 
     matcher = PhraseMatcher(nlp.vocab)
     patterns = list(nlp.pipe(masks))
     matcher.add('Entities', None, *patterns)
 
-    result_masked_contexts = []
-    result_unmasked_contexts = []
-    result_page_titles = []
-    for unmasked_context, page_title in zip(unmasked_contexts, page_titles):
+    masked_context_rows = []
+    for unmasked_context, page_title in unmasked_context_rows:
 
         spacy_doc = nlp.make_doc(unmasked_context)
         matches = matcher(spacy_doc)
@@ -355,10 +339,6 @@ def mask_contexts(
 
         masked_context = ''.join(mutable_context)
 
-        result_masked_contexts.append(masked_context)
-        result_unmasked_contexts.append(unmasked_context)
-        result_page_titles.append(page_title)
+        masked_context_rows.append((masked_context, unmasked_context, page_title))
 
-    assert len(result_masked_contexts) == len(result_unmasked_contexts) == len(result_page_titles)
-
-    return result_masked_contexts, result_unmasked_contexts, result_page_titles
+    return masked_context_rows
