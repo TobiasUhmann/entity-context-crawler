@@ -203,7 +203,6 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             log_start('{:,} | {}'.format(entity_count, entity_label))
 
             # Sample contexts
-            # Note: Each context comes with its associated page title
             all_context_rows = select_contexts(matches_conn, mid, context_size)
             random.shuffle(all_context_rows)
             some_context_rows = all_context_rows[:limit_contexts]
@@ -237,8 +236,9 @@ def crop_contexts(
         crop_sentences: bool
 ) -> List[Tuple[str, str]]:
     """
-    Crop each context to the next token/sentence boundary. Might yield less contexts than
-    given as contexts are dropped if cropped to the empty string
+    Crop each context to the next token/sentence boundary and filter out sentences
+    without any matches. Might yield less contexts than given as contexts are dropped
+    if cropped to the empty string.
 
     :param ragged_context_rows [(ragged_context, page_title)]
     :return [(cropped_context, page_title)]
@@ -249,26 +249,24 @@ def crop_contexts(
         doc: Doc = nlp(ragged_context)
 
         if crop_sentences:
-            # Remove last sentence, because it might be incomplete
-            # Do not remove first sentence, because it would be removed in the following if it was incomplete
-            sents: List[str] = [sent.string.strip() for sent in doc.sents][:-1]
+            raw_sents = [sent.string for sent in doc.sents]
 
-            # Split sentences containing '\n' into multiple sentences
-            splitted_sents = [sent.split('\n') for sent in sents]
+            # - Split sentences containing '\n' into multiple sentences
+            # - Flatten the groups of splitted sentences
+            # - Remove empty sentences
+            # - Strip sentences
+            splitted_sents = [sent.split('\n') for sent in raw_sents]
+            flat_sents = [sent for group in splitted_sents for sent in group]
+            non_empty_sents = [sent for sent in flat_sents if len(sent) > 0]
+            stripped_sents = [sent.string.strip() for sent in non_empty_sents]
 
-            # Flatten the groups of splitted sentences and filter out empty strings
-            flat_sents = [sent for group in splitted_sents for sent in group if len(sent) > 0]
-
-            # Filter out bad "senteces":
-            # - sentence does not start with upper case letter
-            # - sentence is shorter than 40 chars
-            filtered_sents = filter(lambda sent: not any((
-                not sent[0].isupper(),
-                len(sent) < 40,
-            )), flat_sents)
+            # - Remove bad "sentences" that do not start with an uppercase letter
+            # - Remove last sentence, because it might be incomplete
+            upper_sents = [sent for sent in stripped_sents if not sent[0].isupper()]
+            complete_sents = upper_sents[:-1]
 
             # Join remaining, real sentences
-            cropped_context = '\n'.join(filtered_sents)
+            cropped_context = '\n'.join(complete_sents)
 
         else:
             # Remove first and last token because they might be incomplete
