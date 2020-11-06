@@ -6,7 +6,7 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import spacy
 from spacy.lang.en import English
@@ -15,7 +15,7 @@ from spacy.matcher import PhraseMatcher
 from spacy.tokens import Doc
 
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
-from dao.matches_db import select_contexts, select_distinct_mentions
+from dao.matches_db import select_contexts, select_entity_mentions
 from dao.mid2rid_txt import load_mid2rid
 from util.util import log, log_start, log_end
 
@@ -173,10 +173,10 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             sqlite3.connect(contexts_db) as contexts_conn:
 
         log('Load Freebase JSON')
-        freebase_data = json.load(open(freebase_json, 'r'))
+        freebase_data: Dict[str, Dict] = json.load(open(freebase_json, 'r'))
 
         log('Load mid2rid TXT')
-        mid2rid = load_mid2rid(mid2rid_txt)
+        mid2rid: Dict[str, int] = load_mid2rid(mid2rid_txt)
 
         log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
@@ -207,9 +207,9 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             random.shuffle(all_context_rows)
             some_context_rows = all_context_rows[:limit_contexts]
 
-            entity_mentions = select_distinct_mentions(matches_conn, mid)
+            # Build entity PhraseMatcher
+            entity_mentions = select_entity_mentions(matches_conn, mid)
             entity_patterns = list({entity_label} | set(entity_mentions))
-
             entity_matcher = PhraseMatcher(nlp.vocab)
             entity_matcher.add('', None, *list(nlp.pipe(entity_patterns)))
 
