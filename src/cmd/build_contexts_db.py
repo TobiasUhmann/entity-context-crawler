@@ -271,7 +271,7 @@ def crop_contexts(
             # Remove sentences without entity matches
             match_sents = []
             for sent in complete_sents:
-                sent_doc: Doc = nlp(sent)
+                sent_doc: Doc = nlp.make_doc(sent)
                 entity_matches = entity_matcher(sent_doc)
 
                 if entity_matches:
