@@ -218,8 +218,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             masked_context_rows = mask_contexts(nlp, cropped_context_rows, entity_matcher)
 
             # Persist contexts
-            db_contexts = [Context(mid2rid[mid], entity_label, page_title, unmasked_context, masked_context)
-                           for masked_context, unmasked_context, page_title in masked_context_rows]
+            db_contexts = [Context(mid2rid[mid], entity_label, mention, page_title, unmasked_context, masked_context)
+                           for masked_context, unmasked_context, page_title, mention in masked_context_rows]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
@@ -234,21 +234,21 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
 def crop_contexts(
         nlp: Language,
-        ragged_context_rows: List[Tuple[str, str]],
+        ragged_context_rows: List[Tuple[str, str, str]],
         crop_sentences: bool,
         entity_matcher: PhraseMatcher
-) -> List[Tuple[str, str]]:
+) -> List[Tuple[str, str, str]]:
     """
     Crop each context to the next token/sentence boundary and filter out sentences
     without any matches. Might yield less contexts than given as contexts are dropped
     if cropped to the empty string.
 
-    :param ragged_context_rows [(ragged_context, page_title)]
-    :return [(cropped_context, page_title)]
+    :param ragged_context_rows [(ragged_context, page_title, mention)]
+    :return [(cropped_context, page_title, mention)]
     """
 
     cropped_context_rows = []
-    for ragged_context, page_title in ragged_context_rows:
+    for ragged_context, page_title, mention in ragged_context_rows:
         context_doc: Doc = nlp(ragged_context)
 
         if crop_sentences:
@@ -291,26 +291,26 @@ def crop_contexts(
 
         # After all the filtering, context might be empty. Only take context if not empty
         if cropped_context:
-            cropped_context_rows.append((cropped_context, page_title))
+            cropped_context_rows.append((cropped_context, page_title, mention))
 
     return cropped_context_rows
 
 
 def mask_contexts(
         nlp: Language,
-        unmasked_context_rows: List[Tuple[str, str]],
+        unmasked_context_rows: List[Tuple[str, str, str]],
         entity_matcher: PhraseMatcher
-) -> List[Tuple[str, str, str]]:
+) -> List[Tuple[str, str, str, str]]:
     """
     Replace all occurrences of all masks with hashes. Filter out context without
     any mentions.
 
-    :param unmasked_context_rows: [(unmasked_context, page_title)]
-    :return [(masked_context, unmasked_context, page_title)]
+    :param unmasked_context_rows: [(unmasked_context, page_title, mention)]
+    :return [(masked_context, unmasked_context, page_title, mention)]
     """
 
     masked_context_rows = []
-    for unmasked_context, page_title in unmasked_context_rows:
+    for unmasked_context, page_title, mention in unmasked_context_rows:
 
         spacy_doc = nlp.make_doc(unmasked_context)
         matches = entity_matcher(spacy_doc)
@@ -345,6 +345,6 @@ def mask_contexts(
 
         masked_context = ''.join(mutable_context)
 
-        masked_context_rows.append((masked_context, unmasked_context, page_title))
+        masked_context_rows.append((masked_context, unmasked_context, page_title, mention))
 
     return masked_context_rows
