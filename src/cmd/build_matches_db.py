@@ -179,6 +179,11 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
 
                 log_page_info(page_count, db_page.title, db_page.stats, duration)
 
+        print()
+        print('Stats')
+        print('\tSkipped special pages: {}'.format(wikipedia.skipped_special_pages))
+        print()
+
 
 def log_page_info(page_count: int, page_title: str, stats: PageStats, duration: float):
     log(
