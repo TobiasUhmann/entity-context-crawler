@@ -260,12 +260,12 @@ def crop_contexts(
             # - Strip sentences
             splitted_sents = [sent.split('\n') for sent in raw_sents]
             flat_sents = [sent for group in splitted_sents for sent in group]
-            non_empty_sents = [sent for sent in flat_sents if len(sent) > 0]
-            stripped_sents = [sent.strip() for sent in non_empty_sents]
+            stripped_sents = [sent.strip() for sent in flat_sents]
+            non_empty_sents = [sent for sent in stripped_sents if len(sent) > 0]
 
             # - Remove bad "sentences" that do not start with an uppercase letter
             # - Remove last sentence, because it might be incomplete
-            upper_sents = [sent for sent in stripped_sents if sent[0].isupper()]
+            upper_sents = [sent for sent in non_empty_sents if sent[0].isupper()]
             complete_sents = upper_sents[:-1]
 
             # Remove sentences without entity matches
