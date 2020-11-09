@@ -6,7 +6,7 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import remove
 from os.path import isfile
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import spacy
 from spacy.lang.en import English
@@ -15,7 +15,7 @@ from spacy.matcher import PhraseMatcher
 from spacy.tokens import Doc
 
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
-from dao.matches_db import select_contexts, select_distinct_mentions
+from dao.matches_db import select_contexts, select_entity_mentions
 from dao.mid2rid_txt import load_mid2rid
 from util.util import log, log_start, log_end
 
@@ -173,10 +173,10 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             sqlite3.connect(contexts_db) as contexts_conn:
 
         log('Load Freebase JSON')
-        freebase_data = json.load(open(freebase_json, 'r'))
+        freebase_data: Dict[str, Dict] = json.load(open(freebase_json, 'r'))
 
         log('Load mid2rid TXT')
-        mid2rid = load_mid2rid(mid2rid_txt)
+        mid2rid: Dict[str, int] = load_mid2rid(mid2rid_txt)
 
         log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
@@ -203,22 +203,23 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             log_start('{:,} | {}'.format(entity_count, entity_label))
 
             # Sample contexts
-            # Note: Each context comes with its associated page title
             all_context_rows = select_contexts(matches_conn, mid, context_size)
             random.shuffle(all_context_rows)
             some_context_rows = all_context_rows[:limit_contexts]
 
-            # Crop contexts
-            cropped_context_rows = crop_contexts(nlp, some_context_rows, crop_sentences)
+            # Build entity PhraseMatcher
+            entity_mentions = select_entity_mentions(matches_conn, mid)
+            entity_patterns = list({entity_label} | set(entity_mentions))
+            entity_matcher = PhraseMatcher(nlp.vocab)
+            entity_matcher.add('', None, *list(nlp.pipe(entity_patterns)))
 
-            # Mask contexts
-            mentions = select_distinct_mentions(matches_conn, mid)
-            masks = list({entity_label} | set(mentions))
-            masked_context_rows = mask_contexts(nlp, cropped_context_rows, masks)
+            # Crop and mask contexts
+            cropped_context_rows = crop_contexts(nlp, some_context_rows, crop_sentences, entity_matcher)
+            masked_context_rows = mask_contexts(nlp, cropped_context_rows, entity_matcher)
 
             # Persist contexts
-            db_contexts = [Context(mid2rid[mid], entity_label, page_title, unmasked_context, masked_context)
-                           for masked_context, unmasked_context, page_title in masked_context_rows]
+            db_contexts = [Context(mid2rid[mid], entity_label, mention, page_title, unmasked_context, masked_context)
+                           for masked_context, unmasked_context, page_title, mention in masked_context_rows]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
 
@@ -233,46 +234,55 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
 def crop_contexts(
         nlp: Language,
-        ragged_context_rows: List[Tuple[str, str]],
-        crop_sentences: bool
-) -> List[Tuple[str, str]]:
+        ragged_context_rows: List[Tuple[str, str, str]],
+        crop_sentences: bool,
+        entity_matcher: PhraseMatcher
+) -> List[Tuple[str, str, str]]:
     """
-    Crop each context to the next token/sentence boundary. Might yield less contexts than
-    given as contexts are dropped if cropped to the empty string
+    Crop each context to the next token/sentence boundary and filter out sentences
+    without any matches. Might yield less contexts than given as contexts are dropped
+    if cropped to the empty string.
 
-    :param ragged_context_rows [(ragged_context, page_title)]
-    :return [(cropped_context, page_title)]
+    :param ragged_context_rows [(ragged_context, page_title, mention)]
+    :return [(cropped_context, page_title, mention)]
     """
 
     cropped_context_rows = []
-    for ragged_context, page_title in ragged_context_rows:
-        doc: Doc = nlp(ragged_context)
+    for ragged_context, page_title, mention in ragged_context_rows:
+        context_doc: Doc = nlp(ragged_context)
 
         if crop_sentences:
-            # Remove last sentence, because it might be incomplete
-            # Do not remove first sentence, because it would be removed in the following if it was incomplete
-            sents: List[str] = [sent.string.strip() for sent in doc.sents][:-1]
+            raw_sents = [sent.string for sent in context_doc.sents]
 
-            # Split sentences containing '\n' into multiple sentences
-            splitted_sents = [sent.split('\n') for sent in sents]
+            # - Split sentences containing '\n' into multiple sentences
+            # - Flatten the groups of splitted sentences
+            # - Remove empty sentences
+            # - Strip sentences
+            splitted_sents = [sent.split('\n') for sent in raw_sents]
+            flat_sents = [sent for group in splitted_sents for sent in group]
+            stripped_sents = [sent.strip() for sent in flat_sents]
+            non_empty_sents = [sent for sent in stripped_sents if len(sent) > 0]
 
-            # Flatten the groups of splitted sentences and filter out empty strings
-            flat_sents = [sent for group in splitted_sents for sent in group if len(sent) > 0]
+            # - Remove bad "sentences" that do not start with an uppercase letter
+            # - Remove last sentence, because it might be incomplete
+            upper_sents = [sent for sent in non_empty_sents if sent[0].isupper()]
+            complete_sents = upper_sents[:-1]
 
-            # Filter out bad "senteces":
-            # - sentence does not start with upper case letter
-            # - sentence is shorter than 40 chars
-            filtered_sents = filter(lambda sent: not any((
-                not sent[0].isupper(),
-                len(sent) < 40,
-            )), flat_sents)
+            # Remove sentences without entity matches
+            match_sents = []
+            for sent in complete_sents:
+                sent_doc: Doc = nlp.make_doc(sent)
+                entity_matches = entity_matcher(sent_doc)
+
+                if entity_matches:
+                    match_sents.append(sent)
 
             # Join remaining, real sentences
-            cropped_context = '\n'.join(filtered_sents)
+            cropped_context = '\n'.join(match_sents)
 
         else:
             # Remove first and last token because they might be incomplete
-            tokens = [token.string.strip() for token in doc if not token.is_space][1:-1]
+            tokens = [token.string.strip() for token in context_doc if not token.is_space][1:-1]
 
             # Note: No filtering of bad tokens here
 
@@ -281,33 +291,29 @@ def crop_contexts(
 
         # After all the filtering, context might be empty. Only take context if not empty
         if cropped_context:
-            cropped_context_rows.append((cropped_context, page_title))
+            cropped_context_rows.append((cropped_context, page_title, mention))
 
     return cropped_context_rows
 
 
 def mask_contexts(
         nlp: Language,
-        unmasked_context_rows: List[Tuple[str, str]],
-        masks: List[str]
-) -> List[Tuple[str, str, str]]:
+        unmasked_context_rows: List[Tuple[str, str, str]],
+        entity_matcher: PhraseMatcher
+) -> List[Tuple[str, str, str, str]]:
     """
     Replace all occurrences of all masks with hashes. Filter out context without
     any mentions.
 
-    :param unmasked_context_rows: [(unmasked_context, page_title)]
-    :return [(masked_context, unmasked_context, page_title)]
+    :param unmasked_context_rows: [(unmasked_context, page_title, mention)]
+    :return [(masked_context, unmasked_context, page_title, mention)]
     """
 
-    matcher = PhraseMatcher(nlp.vocab)
-    patterns = list(nlp.pipe(masks))
-    matcher.add('Entities', None, *patterns)
-
     masked_context_rows = []
-    for unmasked_context, page_title in unmasked_context_rows:
+    for unmasked_context, page_title, mention in unmasked_context_rows:
 
         spacy_doc = nlp.make_doc(unmasked_context)
-        matches = matcher(spacy_doc)
+        matches = entity_matcher(spacy_doc)
 
         def contains(x, y):
             return x[0] <= y[0] and x[1] >= y[1] and (x[0] != y[0] or x[1] != y[1])
@@ -339,6 +345,6 @@ def mask_contexts(
 
         masked_context = ''.join(mutable_context)
 
-        masked_context_rows.append((masked_context, unmasked_context, page_title))
+        masked_context_rows.append((masked_context, unmasked_context, page_title, mention))
 
     return masked_context_rows

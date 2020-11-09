@@ -1,44 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="contexts-v4-enwiki-20200920-100-500-dev" uuid="9aec9b45-44b5-4fb8-97c3-db42f3819d03">
+    <data-source source="LOCAL" name="contexts-v6-enwiki-20200920-100-500-dev" uuid="d9c5fedf-c5b0-4683-b59a-3017770af074">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\contexts-v4-enwiki-20200920-100-500-dev.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\contexts-v6-enwiki-20200920-100-500-dev.db</jdbc-url>
       <libraries>
         <library>
           <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>
         </library>
       </libraries>
     </data-source>
-    <data-source source="LOCAL" name="matches-v3-enwiki-20200920" uuid="1108d93f-8420-4af4-8fce-eb8a357ad192">
+    <data-source source="LOCAL" name="matches-v4-enwiki-20200920" uuid="5a73459e-db61-437d-b2a2-a5d531902f11">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\matches-v3-enwiki-20200920.db</jdbc-url>
-      <libraries>
-        <library>
-          <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>
-        </library>
-      </libraries>
-    </data-source>
-    <data-source source="LOCAL" name="contexts-v4-enwiki-20200920-100-500" uuid="e11bbd75-4c39-4631-9ca0-0bc9f20a79dd">
-      <driver-ref>sqlite.xerial</driver-ref>
-      <synchronize>true</synchronize>
-      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\contexts-v4-enwiki-20200920-100-500.db</jdbc-url>
-      <libraries>
-        <library>
-          <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>
-        </library>
-      </libraries>
-    </data-source>
-    <data-source source="LOCAL" name="matches-v4-enwiki-20200920-dev" uuid="17def399-2172-4559-a3f9-8488bb0b650a">
-      <driver-ref>sqlite.xerial</driver-ref>
-      <synchronize>true</synchronize>
-      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\matches-v4-enwiki-20200920-dev.db</jdbc-url>
+      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\matches-v4-enwiki-20200920.db</jdbc-url>
       <libraries>
         <library>
           <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>

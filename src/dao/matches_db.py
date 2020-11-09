@@ -154,7 +154,7 @@ def insert_or_ignore_mention(conn: Connection, mention: Mention):
     cursor.close()
 
 
-def select_distinct_mentions(conn: Connection, mid: str) -> List[str]:
+def select_entity_mentions(conn: Connection, mid: str) -> List[str]:
     sql = '''
         SELECT DISTINCT mention
         FROM mentions
@@ -173,11 +173,11 @@ def select_distinct_mentions(conn: Connection, mid: str) -> List[str]:
 # Pages x Matches
 #
 
-def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, str]]:
+def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, str, str]]:
     """
     :param size: maximum chars before and after match, respectively
 
-    :return [(context, page_title)]
+    :return [(context, page_title, mention)]
     """
 
     sql = '''
@@ -186,7 +186,8 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, st
         SELECT SUBSTR(text,
                       MAX(start_char + 1 - ?, 1), 
                       MIN((start_char + 1 - MAX(start_char + 1 - ?, 1)) + (end_char - start_char) + ?, length(text))),
-               pages.title
+               pages.title,
+               matches.mention
         FROM pages INNER JOIN matches ON pages.title = matches.page
         WHERE mid = ?
     '''
@@ -196,4 +197,4 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, st
     rows = cursor.fetchall()
     cursor.close()
 
-    return [(row[0], row[1]) for row in rows]
+    return [(row[0], row[1], row[2]) for row in rows]

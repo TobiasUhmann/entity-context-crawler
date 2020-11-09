@@ -142,7 +142,8 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
             blanked_contexts = []
             for c in contexts:
                 blanked_context = c.masked_context.replace('#', '')
-                blanked_contexts.append(Context(c.entity, c.entity_label, c.page_title, c.context, blanked_context))
+                blanked_contexts.append(Context(c.entity, c.entity_label, c.mention, c.page_title, c.context,
+                                                blanked_context))
 
             train_contexts = blanked_contexts[:int(0.7 * len(blanked_contexts))]
 
