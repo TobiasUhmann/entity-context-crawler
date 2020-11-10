@@ -4,9 +4,9 @@ from lxml import etree
 
 
 class Wikipedia:
-    missing_titles: int
-    missing_texts: int
-    skipped_templates: int
+    missing_titles = 0
+    missing_texts = 0
+    skipped_special_pages = 0
 
     def __init__(self, fh, limit_pages = None):
         """
@@ -40,10 +40,6 @@ class Wikipedia:
         :return: Dict var 'entity' {tag_1, value, tag_2, value, ... ,tag_n, value}}
         """
 
-        self.missing_titles = 0
-        self.missing_texts = 0
-        self.skipped_templates = 0
-
         for count, parsed in enumerate(self._parse()):
             if self.limit_pages and count == self.limit_pages:
                 break
@@ -69,8 +65,15 @@ class Wikipedia:
                 self.missing_texts += 1
                 continue
 
-            if title.startswith('Template:'):
-                self.skipped_templates += 1
+            namespaces = ('Talk:', 'User:', 'User talk:', 'Wikipedia:', 'Wikipedia talk:', 'File:', 'File talk:',
+                          'MediaWiki:', 'MediaWiki talk:', 'Template:', 'Template talk:', 'Help:', 'Help talk:',
+                          'Category:', 'Category talk:', 'Portal:', 'Portal talk:', 'Book:', 'Book talk:', 'Draft:',
+                          'Draft talk:', 'Education Program:', 'Education Program talk:', 'TimedText:',
+                          'TimedText talk:', 'Module:', 'Module talk:', 'Gadget:', 'Gadget talk:',
+                          'Gadget definition:', 'Gadget definition talk:')
+
+            if title.startswith(namespaces):
+                self.skipped_special_pages += 1
                 continue
 
             yield {'title': title, 'redirect': redirect, 'text': text}
