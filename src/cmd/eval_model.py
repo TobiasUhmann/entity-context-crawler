@@ -15,8 +15,8 @@ def add_parser_args(parser: ArgumentParser):
     Add arguments to arg parser:
         model
         dataset-dir
-        cw-es-index
         ow-contexts-db
+        --baseline-cw-es-index
         --es-host
         --limit-entities
     """
@@ -28,11 +28,11 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('dataset_dir', metavar='dataset-dir',
                         help='Path to (input) OpenKE dataset directory')
 
-    parser.add_argument('cw_es_index', metavar='cw-es-index',
-                        help='Name of (input) closed world Elasticsearch index')
-
     parser.add_argument('ow_contexts_db', metavar='ow-contexts-db',
                         help='Path to (input) open world contexts DB')
+
+    parser.add_argument('--baseline-cw-es-index', dest='baseline_cw_es_index', metavar='STR',
+                        help='Name of (input) closed world Elasticsearch index')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
@@ -53,12 +53,11 @@ def run(args: Namespace):
 
     model = args.model
     dataset_dir = args.dataset_dir
-    cw_es_index = args.cw_es_index
     ow_contexts_db = args.ow_contexts_db
 
+    baseline_cw_es_index = args.baseline_cw_es_index
     es_host = args.es_host
     limit_entities = args.limit_entities
-    model = args.model
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
 
@@ -69,14 +68,23 @@ def run(args: Namespace):
     print('Applied config:')
     print('    {:20} {}'.format('model', model))
     print('    {:20} {}'.format('dataset-dir', dataset_dir))
-    print('    {:20} {}'.format('cw-es-index', cw_es_index))
     print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
     print()
+    print('    {:20} {}'.format('--baseline-cw-es-index', baseline_cw_es_index))
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-entities', limit_entities))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
+
+    #
+    # Check mandatory params
+    #
+
+    if model in ['baseline-10', 'baseline-100']:
+        if baseline_cw_es_index is None:
+            print('--baseline-cw-es-index must be specified')
+            exit()
 
     #
     # Check if files already exist
@@ -86,10 +94,13 @@ def run(args: Namespace):
         print('OpenKE dataset directory not found')
         exit()
 
-    es = Elasticsearch([es_host])
-    if not es.indices.exists(index=cw_es_index):
-        print('Closed world Elasticsearch index not found')
-        exit()
+    if baseline_cw_es_index:
+        baseline_es = Elasticsearch([es_host])
+        if not baseline_es.indices.exists(index=baseline_cw_es_index):
+            print('Closed world Elasticsearch index not found')
+            exit()
+    else:
+        baseline_es = None
 
     if not isfile(ow_contexts_db):
         print('Open world DB not found')
@@ -99,14 +110,14 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _eval_model(model, dataset_dir, es, cw_es_index, ow_contexts_db, limit_entities)
+    _eval_model(model, dataset_dir, ow_contexts_db, baseline_es, baseline_cw_es_index, limit_entities)
 
 
 def _eval_model(model_selection: str,
                 dataset_dir: str,
-                es: Elasticsearch,
-                cw_es_index: str,
                 ow_contexts_db: str,
+                baseline_es: Elasticsearch,
+                baseline_cw_es_index: str,
                 limit_entities: int):
     """
     - Load dataset
@@ -128,12 +139,8 @@ def _eval_model(model_selection: str,
     # Build model
     #
 
-    if model_selection == 'baseline-10':
-        model = BaselineModel(dataset, es, cw_es_index, ow_contexts_db)
-
-    elif model_selection == 'baseline-100':
-        model = BaselineModel(dataset, es, cw_es_index, ow_contexts_db)
-
+    if model_selection in ['baseline-10', 'baseline-100']:
+        model = BaselineModel(dataset, baseline_es, baseline_cw_es_index, ow_contexts_db)
     else:
         raise AssertionError()
 
