@@ -13,13 +13,17 @@ from eval.evaluator import Evaluator
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
+        model
         dataset-dir
         cw-es-index
         ow-contexts-db
         --es-host
         --limit-entities
-        --model
     """
+
+    model_choices = ['baseline-10', 'baseline-100']
+    parser.add_argument('model', choices=model_choices,
+                        help='One of {}'.format(model_choices))
 
     parser.add_argument('dataset_dir', metavar='dataset-dir',
                         help='Path to (input) OpenKE dataset directory')
@@ -39,11 +43,6 @@ def add_parser_args(parser: ArgumentParser):
                         default=default_limit_entities,
                         help='Process only first ... entities (default: {})'.format(default_limit_entities))
 
-    model_choices = ['baseline-10', 'baseline-100']
-    default_model = model_choices[1]
-    parser.add_argument('--model', dest='model', metavar='STR', choices=model_choices, default=default_model,
-                        help='One of {} (default: {})'.format(model_choices, default_model))
-
 
 def run(args: Namespace):
     """
@@ -52,6 +51,7 @@ def run(args: Namespace):
     - Run actual program
     """
 
+    model = args.model
     dataset_dir = args.dataset_dir
     cw_es_index = args.cw_es_index
     ow_contexts_db = args.ow_contexts_db
@@ -67,13 +67,13 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
+    print('    {:20} {}'.format('model', model))
     print('    {:20} {}'.format('dataset-dir', dataset_dir))
     print('    {:20} {}'.format('cw-es-index', cw_es_index))
     print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
     print()
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-entities', limit_entities))
-    print('    {:20} {}'.format('--model', model))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
@@ -99,16 +99,15 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _eval_model(dataset_dir, es, cw_es_index, ow_contexts_db, limit_entities, model)
+    _eval_model(model, dataset_dir, es, cw_es_index, ow_contexts_db, limit_entities)
 
 
-def _eval_model(
-        dataset_dir: str,
-        es: Elasticsearch,
-        cw_es_index: str,
-        ow_contexts_db: str,
-        limit_entities: int,
-        model_selection: str):
+def _eval_model(model_selection: str,
+                dataset_dir: str,
+                es: Elasticsearch,
+                cw_es_index: str,
+                ow_contexts_db: str,
+                limit_entities: int):
     """
     - Load dataset
     - Build model
