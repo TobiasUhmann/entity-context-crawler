@@ -17,12 +17,12 @@ def add_parser_args(parser: ArgumentParser):
         dataset-dir
         ow-contexts-db
         --baseline-cw-es-index
-        --es-host
+        --baseline-es-host
         --limit-entities
     """
 
     model_choices = ['baseline-10', 'baseline-100']
-    parser.add_argument('model', choices=model_choices,
+    parser.add_argument('model', metavar='model', choices=model_choices,
                         help='One of {}'.format(model_choices))
 
     parser.add_argument('dataset_dir', metavar='dataset-dir',
@@ -35,7 +35,7 @@ def add_parser_args(parser: ArgumentParser):
                         help='Name of (input) closed world Elasticsearch index')
 
     default_es_host = 'localhost:9200'
-    parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
+    parser.add_argument('--baseline-es-host', dest='baseline_es_host', metavar='STR', default=default_es_host,
                         help='Elasticsearch host (default: {})'.format(default_es_host))
 
     default_limit_entities = None
@@ -56,7 +56,7 @@ def run(args: Namespace):
     ow_contexts_db = args.ow_contexts_db
 
     baseline_cw_es_index = args.baseline_cw_es_index
-    es_host = args.es_host
+    baseline_es_host = args.es_host
     limit_entities = args.limit_entities
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
@@ -71,7 +71,7 @@ def run(args: Namespace):
     print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
     print()
     print('    {:20} {}'.format('--baseline-cw-es-index', baseline_cw_es_index))
-    print('    {:20} {}'.format('--es-host', es_host))
+    print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
     print('    {:20} {}'.format('--limit-entities', limit_entities))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
@@ -95,7 +95,7 @@ def run(args: Namespace):
         exit()
 
     if baseline_cw_es_index:
-        baseline_es = Elasticsearch([es_host])
+        baseline_es = Elasticsearch([baseline_es_host])
         if not baseline_es.indices.exists(index=baseline_cw_es_index):
             print('Closed world Elasticsearch index not found')
             exit()
