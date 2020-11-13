@@ -34,6 +34,8 @@ def render_show_entity_contexts_page():
 
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
+    contexts_db = st.sidebar.text_input('Contexts DB', value='data/contexts-v7-enwiki-20200920-100-500.db')
+
     #
     # Entity prefix input & Entity name selection
     #
@@ -56,7 +58,6 @@ def render_show_entity_contexts_page():
 
     st.markdown('---')
 
-    contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
     with sqlite3.connect(contexts_db) as contexts_conn:
         entity_name = id2ent[entity]
         entity_contexts = select_contexts(contexts_conn, entity)

@@ -47,7 +47,7 @@ Furthermore, the project contains an evaluation framework for comparing other mo
    ~/sentence-sampler$ pip install -e ../deepca/
    ~/sentence-sampler$ pip install -r ../deepca/requirements/all.txt
    ~/sentence-sampler$ pip install -e ../ryn/
-   ~/sentence-sampler$ pip install -e ../ryn/requirements.txt
+   ~/sentence-sampler$ pip install -r ../ryn/requirements.txt
    ~/sentence-sampler$ pip install -r requirements.txt
    ```
 
