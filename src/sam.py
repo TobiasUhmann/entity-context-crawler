@@ -27,7 +27,7 @@ def main():
 
     common_parser = ArgumentParser(add_help=False)
 
-    common_parser.add_argument('--random-seed', dest='random_seed',
+    common_parser.add_argument('--random-seed', dest='random_seed', metavar='STR',
                                help='Use together with PYTHONHASHSEED for reproducibility')
 
     #
