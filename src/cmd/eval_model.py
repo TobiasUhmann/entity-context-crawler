@@ -3,7 +3,7 @@ import random
 
 from argparse import ArgumentParser, Namespace
 from elasticsearch import Elasticsearch
-from os.path import isdir
+from os.path import isdir, isfile
 from ryn.graphs.split import Dataset
 
 from eval.baseline_model import BaselineModel
@@ -13,32 +13,35 @@ from eval.evaluator import Evaluator
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
+        model
         dataset-dir
-        contexts-db
-        --es-host
+        ow-contexts-db
+        --baseline-cw-es-index
+        --baseline-es-host
         --limit-entities
-        --model
     """
+
+    model_choices = ['baseline-10', 'baseline-100']
+    parser.add_argument('model', metavar='model', choices=model_choices,
+                        help='One of {}'.format(model_choices))
 
     parser.add_argument('dataset_dir', metavar='dataset-dir',
                         help='Path to (input) OpenKE dataset directory')
 
-    parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to (output) contexts DB')
+    parser.add_argument('ow_contexts_db', metavar='ow-contexts-db',
+                        help='Path to (input) open world contexts DB')
+
+    parser.add_argument('--baseline-cw-es-index', dest='baseline_cw_es_index', metavar='STR',
+                        help='Name of (input) closed world Elasticsearch index')
 
     default_es_host = 'localhost:9200'
-    parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
+    parser.add_argument('--baseline-es-host', dest='baseline_es_host', metavar='STR', default=default_es_host,
                         help='Elasticsearch host (default: {})'.format(default_es_host))
 
     default_limit_entities = None
     parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
                         default=default_limit_entities,
                         help='Process only first ... entities (default: {})'.format(default_limit_entities))
-
-    model_choices = ['baseline-10', 'baseline-100']
-    default_model = model_choices[1]
-    parser.add_argument('--model', dest='model', metavar='STR', choices=model_choices, default=default_model,
-                        help='One of {} (default: {})'.format(model_choices, default_model))
 
 
 def run(args: Namespace):
@@ -48,11 +51,13 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    dataset_dir = args.dataset_dir
-
-    es_host = args.es_host
-    limit_entities = args.limit_entities
     model = args.model
+    dataset_dir = args.dataset_dir
+    ow_contexts_db = args.ow_contexts_db
+
+    baseline_cw_es_index = args.baseline_cw_es_index
+    baseline_es_host = args.es_host
+    limit_entities = args.limit_entities
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
 
@@ -61,14 +66,25 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
+    print('    {:20} {}'.format('model', model))
     print('    {:20} {}'.format('dataset-dir', dataset_dir))
+    print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
     print()
-    print('    {:20} {}'.format('--es-host', es_host))
+    print('    {:20} {}'.format('--baseline-cw-es-index', baseline_cw_es_index))
+    print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
     print('    {:20} {}'.format('--limit-entities', limit_entities))
-    print('    {:20} {}'.format('--model', model))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
+
+    #
+    # Check mandatory params
+    #
+
+    if model in ['baseline-10', 'baseline-100']:
+        if baseline_cw_es_index is None:
+            print('--baseline-cw-es-index must be specified')
+            exit()
 
     #
     # Check if files already exist
@@ -78,14 +94,31 @@ def run(args: Namespace):
         print('OpenKE dataset directory not found')
         exit()
 
+    if baseline_cw_es_index:
+        baseline_es = Elasticsearch([baseline_es_host])
+        if not baseline_es.indices.exists(index=baseline_cw_es_index):
+            print('Closed world Elasticsearch index not found')
+            exit()
+    else:
+        baseline_es = None
+
+    if not isfile(ow_contexts_db):
+        print('Open world DB not found')
+        exit()
+
     #
     # Run actual program
     #
 
-    _eval_model(dataset_dir, limit_entities, es_host, model)
+    _eval_model(model, dataset_dir, ow_contexts_db, baseline_es, baseline_cw_es_index, limit_entities)
 
 
-def _eval_model(dataset_dir: str, limit_entities: int, es_url: str, model_selection: str):
+def _eval_model(model_selection: str,
+                dataset_dir: str,
+                ow_contexts_db: str,
+                baseline_es: Elasticsearch,
+                baseline_cw_es_index: str,
+                limit_entities: int):
     """
     - Load dataset
     - Build model
@@ -106,18 +139,8 @@ def _eval_model(dataset_dir: str, limit_entities: int, es_url: str, model_select
     # Build model
     #
 
-    if model_selection == 'baseline-10':
-        es = Elasticsearch([es_url])
-        es_index = 'enwiki-latest-cw-contexts-10-500'
-        ow_contexts_db = 'data/enwiki-latest-ow-contexts-10-500.db'
-        model = BaselineModel(dataset, es, es_index, ow_contexts_db)
-
-    elif model_selection == 'baseline-100':
-        es = Elasticsearch([es_url])
-        es_index = 'enwiki-latest-cw-contexts-100-500'
-        ow_contexts_db = 'data/enwiki-latest-ow-contexts-100-500.db'
-        model = BaselineModel(dataset, es, es_index, ow_contexts_db)
-
+    if model_selection in ['baseline-10', 'baseline-100']:
+        model = BaselineModel(dataset, baseline_es, baseline_cw_es_index, ow_contexts_db)
     else:
         raise AssertionError()
 

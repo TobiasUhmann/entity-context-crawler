@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="eval-model data/oke.fb15k237_30061990_50/ data/ow-contexts-v7-enwiki-20200920-10-500.db --model baseline-10 --random-seed 0" />
+    <option name="PARAMETERS" value="eval-model baseline-10 data/oke.fb15k237_30061990_50/ data/ow-contexts-v7-enwiki-20200920-10-500.db --baseline-cw-es-index cw-contexts-v7-enwiki-20200920-10-500 --limit-entities 100 --random-seed 0" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

@@ -2,8 +2,10 @@
 
 PYTHONPATH=src/ PYTHONHASHSEED=0 \
 nohup python -u src/sam.py eval-model \
+  baseline-10 \
   data/oke.fb15k237_30061990_50/ \
   data/ow-contexts-v7-enwiki-20200920-10-500.db \
-  --model baseline-10 \
+  --baseline-cw-es-index cw-contexts-v7-enwiki-20200920-10-500 \
+  --limit-entities 100 \
   --random-seed 0 \
 > log/eval-model-baseline-10-dev_$(date +'%Y-%m-%d_%H-%M-%S').stdout &
