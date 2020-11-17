@@ -56,7 +56,7 @@ def run(args: Namespace):
     ow_contexts_db = args.ow_contexts_db
 
     baseline_cw_es_index = args.baseline_cw_es_index
-    baseline_es_host = args.es_host
+    baseline_es_host = args.baseline_es_host
     limit_entities = args.limit_entities
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
