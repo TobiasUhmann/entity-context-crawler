@@ -11,6 +11,9 @@ class Model:
 
         raise NotImplementedError()
 
+    def score(self, triple):
+        raise NotImplementedError()
+
     def predict(self, query_entity_batch: List[Entity]) \
             -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
         """

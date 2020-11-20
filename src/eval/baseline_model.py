@@ -31,10 +31,13 @@ class BaselineModel(Model):
         # Rank triples by (<head importance> + <tail importance>)
         #
 
-        head_counter = Counter([head for head, _, _ in self.gt_triples])
-        tail_counter = Counter([tail for _, tail, _ in self.gt_triples])
+        self.head_counter = Counter([head for head, _, _ in self.gt_triples])
+        self.tail_counter = Counter([tail for _, tail, _ in self.gt_triples])
 
-        self.gt_triples.sort(key=lambda t: head_counter[t[0]] + tail_counter[t[1]], reverse=True)
+        self.gt_triples.sort(key=lambda t: self.score(t), reverse=True)
+
+    def score(self, triple):
+        return self.head_counter[triple[0]] + self.tail_counter[triple[0]]
 
     def train(self, query_entity_batch: List[Entity]):
         pass
