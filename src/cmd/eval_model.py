@@ -154,24 +154,24 @@ def _eval_model(model_selection: str,
         shuffled_ow_entities = list(ow_entities)
         random.shuffle(shuffled_ow_entities)
 
-    total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
+    total_result = RankBasedEvaluator(model, ow_triples, shuffled_ow_entities).run()
 
     #
     # Print results
     #
 
-    results, mean_ap = total_result.results, total_result.map
-
-    print()
-    print('{:24} {:>8} {:>8} {:>8} {:>8}'.format('ENTITY', 'PREC', 'RECALL', 'F1', 'AP'))
-    print('-' * (24 + 4 * 9))
-    for ow_entity, result in zip(shuffled_ow_entities, results):
-        label = truncate(id2ent[ow_entity], 24)
-        prec, recall, f1, ap = result.precision, result.recall, result.f1, result.ap
-        print('{:24} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(label, prec, recall, f1, ap))
-
-    print()
-    print('mAP = {:.4f}'.format(mean_ap))
+    # results, mean_ap = total_result.results, total_result.map
+    #
+    # print()
+    # print('{:24} {:>8} {:>8} {:>8} {:>8}'.format('ENTITY', 'PREC', 'RECALL', 'F1', 'AP'))
+    # print('-' * (24 + 4 * 9))
+    # for ow_entity, result in zip(shuffled_ow_entities, results):
+    #     label = truncate(id2ent[ow_entity], 24)
+    #     prec, recall, f1, ap = result.precision, result.recall, result.f1, result.ap
+    #     print('{:24} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(label, prec, recall, f1, ap))
+    #
+    # print()
+    # print('mAP = {:.4f}'.format(mean_ap))
 
 
 def truncate(text: str, max_len: int):
