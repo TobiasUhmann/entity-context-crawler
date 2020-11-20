@@ -1,13 +1,13 @@
 import os
 import random
-
 from argparse import ArgumentParser, Namespace
-from elasticsearch import Elasticsearch
 from os.path import isdir, isfile
+
+from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 
 from eval.baseline_model import BaselineModel
-from eval.evaluator import Evaluator
+from eval.rank_based_evaluator import RankBasedEvaluator
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -154,7 +154,7 @@ def _eval_model(model_selection: str,
         shuffled_ow_entities = list(ow_entities)
         random.shuffle(shuffled_ow_entities)
 
-    total_result = RankBasedEvaluator(model, ow_triples, shuffled_ow_entities).run()
+    total_result = RankBasedEvaluator(model, ow_triples, shuffled_ow_entities).evaluate()
 
     #
     # Print results

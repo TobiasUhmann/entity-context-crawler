@@ -7,7 +7,7 @@ class RankBasedEvaluator:
         self.ow_triples = ow_triples
         self.ow_entities = ow_entities
 
-    def run(self):
+    def evaluate(self):
         for ow_triple in self.ow_triples:
             pred_ow_triples_batch, pred_cw_ent_batch = self.model.predict([ow_triple[0]])
             pred_ow_triples = pred_ow_triples_batch[0]
