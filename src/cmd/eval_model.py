@@ -4,12 +4,12 @@ from argparse import ArgumentParser, Namespace
 from collections import Set
 from os.path import isdir, isfile
 
+import torch
 from elasticsearch import Elasticsearch
-from pykeen.evaluation import RankBasedMetricResults
+from pykeen.evaluation import RankBasedMetricResults, RankBasedEvaluator, MetricResults
 from ryn.graphs.split import Dataset
 
-from eval.baseline_model import BaselineModel
-from eval.rank_based_evaluator import RankBasedEvaluator
+from eval.new_baseline_model import BaselineModel
 from util.custom_types import Triple
 
 
@@ -130,7 +130,7 @@ def _eval_model(model_selection: str,
     """
 
     print('Read dataset...', end='')
-    dataset = Dataset.load(dataset_dir)
+    dataset = Dataset.load(path=dataset_dir)
     print(' done')
 
     ow_entities: Set[int] = dataset.ow_valid.owe
@@ -155,10 +155,11 @@ def _eval_model(model_selection: str,
         shuffled_ow_entities = list(ow_entities)
         random.shuffle(shuffled_ow_entities)
 
-    total_result: RankBasedMetricResults = RankBasedEvaluator().evaluate(model, list(ow_triples)[:100])
+    evaluator = RankBasedEvaluator()
+    mapped_triples: torch.LongTensor = torch.tensor(list(ow_triples)[:100], dtype=torch.long)
+    total_result: MetricResults = evaluator.evaluate(model, mapped_triples, batch_size=1024)
 
-    for result in total_result:
-        print(result)
+    print(total_result)
 
     #
     # Print results
