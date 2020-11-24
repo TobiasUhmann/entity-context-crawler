@@ -4,6 +4,8 @@ from util.custom_types import Entity, Triple
 
 
 class Model:
+    train_triples: List[Triple]
+
     def train(self, batch: List[Triple]):
         """
         :param batch: List of (head, tail, rel) triples
@@ -25,3 +27,6 @@ class Model:
         """
 
         raise NotImplementedError()
+
+    def predict_all_head_scores(self, rel: int, tail: int) -> List[float]:
+        pass

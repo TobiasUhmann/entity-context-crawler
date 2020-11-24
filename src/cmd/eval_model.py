@@ -1,13 +1,16 @@
 import os
 import random
 from argparse import ArgumentParser, Namespace
+from collections import Set
 from os.path import isdir, isfile
 
 from elasticsearch import Elasticsearch
+from pykeen.evaluation import RankBasedMetricResults
 from ryn.graphs.split import Dataset
 
 from eval.baseline_model import BaselineModel
 from eval.rank_based_evaluator import RankBasedEvaluator
+from util.custom_types import Triple
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -130,10 +133,8 @@ def _eval_model(model_selection: str,
     dataset = Dataset.load(dataset_dir)
     print(' done')
 
-    id2ent = dataset.id2ent
-
-    ow_entities = dataset.ow_valid.owe
-    ow_triples = dataset.ow_valid.triples
+    ow_entities: Set[int] = dataset.ow_valid.owe
+    ow_triples: Set[Triple] = dataset.ow_valid.triples
 
     #
     # Build model
@@ -154,7 +155,10 @@ def _eval_model(model_selection: str,
         shuffled_ow_entities = list(ow_entities)
         random.shuffle(shuffled_ow_entities)
 
-    total_result = RankBasedEvaluator(model, ow_triples, shuffled_ow_entities).evaluate()
+    total_result: RankBasedMetricResults = RankBasedEvaluator().evaluate(model, list(ow_triples)[:100])
+
+    for result in total_result:
+        print(result)
 
     #
     # Print results

@@ -23,7 +23,8 @@ class BaselineModel(Model):
         self.query_contexts_db = ow_contexts_db
         self.id2ent = dataset.id2ent
 
-        cw_triples: Set = dataset.cw_train.triples | dataset.cw_valid.triples
+        cw_triples = dataset.cw_train.triples | dataset.cw_valid.triples
+        self.train_triples = list(cw_triples)
         ow_triples: Set = dataset.ow_valid.triples
         self.gt_triples = list(cw_triples | ow_triples)
 
@@ -96,6 +97,22 @@ class BaselineModel(Model):
                         pred_triples_batch.append(pred_triples)
 
         return pred_triples_batch, hit_entity_batch
+
+    def predict_all_head_scores(self, rel: int, tail: int) -> List[float]:
+
+        pred_ow_triples_batch, pred_cw_ent_batch = self.predict([tail])
+        pred_ow_triples, pred_cw_ent = pred_ow_triples_batch[0], pred_cw_ent_batch[0]
+
+        all_head_scores = [-1] * len(self.id2ent)
+
+        if pred_cw_ent is not None:
+            filtered_pred_triples = [pred_ow_triple for pred_ow_triple in pred_ow_triples
+                                     if pred_ow_triple[1] == rel]
+
+            for filtered_pred_triple in filtered_pred_triples:
+                all_head_scores[filtered_pred_triple[0]] = self.score(filtered_pred_triple)
+
+        return all_head_scores
 
 
 def log(msg: str):
