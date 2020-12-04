@@ -11,6 +11,7 @@ from pykeen.models import Model
 from pykeen.triples import TriplesFactory
 from ryn.graphs.split import Dataset
 from ryn.kgc.data import load_datasets
+from tqdm import tqdm
 
 from dao.contexts_db import select_contexts
 from util.custom_types import Entity, Triple
@@ -61,13 +62,13 @@ class BaselineModel(Model):
         return self.head_counter[triple[0]] + self.tail_counter[triple[0]]
 
     def train(self, ow_ent_batch: List[Entity]):
-        for ow_ent in ow_ent_batch:
-            print(ow_ent)
-            pred_triples_batch, _ = self.predict([ow_ent])
+        for ow_ent in tqdm(ow_ent_batch):
+            pred_triples_batch, pred_cw_ent_batch = self.predict([ow_ent])
 
-            for pred_triples in pred_triples_batch:
-                for h, t, r in pred_triples:
-                    self.pred_triples[h, r, t] += 1
+            for pred_triples, pred_cw_ent in zip(pred_triples_batch, pred_cw_ent_batch):
+                if pred_cw_ent:
+                    for h, t, r in pred_triples:
+                        self.pred_triples[h, r, t] += 1
 
     def predict(self, query_entity_batch: List[Entity]) \
             -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
@@ -96,7 +97,7 @@ class BaselineModel(Model):
                 # random.shuffle(query_entity_contexts)
 
                 if not query_entity_contexts:
-                    log('{} | {} -> <NONE>'.format(count, query_entity_name))
+                    # log('{} | {} -> <NONE>'.format(count, query_entity_name))
                     hit_entity_batch.append(None)
                     pred_triples_batch.append(None)
 
@@ -109,7 +110,7 @@ class BaselineModel(Model):
                     for es_hit in es_hits[:1]:
                         hit_entity = es_hit['_source']['entity']
 
-                        log('{} | {} -> {}'.format(count, query_entity_name, self.id2ent[hit_entity]))
+                        # log('{} | {} -> {}'.format(count, query_entity_name, self.id2ent[hit_entity]))
 
                         hit_entity_triples = [(head, tail, rel) for head, tail, rel in self.gt_triples
                                               if head == hit_entity or tail == hit_entity]
