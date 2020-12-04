@@ -1,9 +1,10 @@
-import numpy as np
 import sqlite3
 from collections import Counter
 from datetime import datetime
 from typing import List, Tuple, Set, Optional
 
+import numpy as np
+import sparse
 import torch
 from elasticsearch import Elasticsearch
 from pykeen.models import Model
@@ -36,6 +37,7 @@ class BaselineModel(Model):
         self.es_index = es_index
         self.query_contexts_db = ow_contexts_db
         self.id2ent = dataset.id2ent
+        self.id2rel = dataset.id2rel
 
         cw_triples = dataset.cw_train.triples | dataset.cw_valid.triples
         self.train_triples = list(cw_triples)
@@ -51,11 +53,21 @@ class BaselineModel(Model):
 
         self.gt_triples.sort(key=lambda t: self.score(t), reverse=True)
 
+        ent_count = len(self.id2ent)
+        rel_count = len(self.id2rel)
+        self.pred_triples = sparse.DOK((ent_count, rel_count, ent_count))
+
     def score(self, triple):
         return self.head_counter[triple[0]] + self.tail_counter[triple[0]]
 
-    def train(self, query_entity_batch: List[Entity]):
-        pass
+    def train(self, ow_ent_batch: List[Entity]):
+        for ow_ent in ow_ent_batch:
+            print(ow_ent)
+            pred_triples_batch, _ = self.predict([ow_ent])
+
+            for pred_triples in pred_triples_batch:
+                for h, t, r in pred_triples:
+                    self.pred_triples[h, r, t] += 1
 
     def predict(self, query_entity_batch: List[Entity]) \
             -> Tuple[List[List[Triple]], List[Optional[Entity]]]:

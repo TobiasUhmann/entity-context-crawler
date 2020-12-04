@@ -142,6 +142,7 @@ def _eval_model(model_selection: str,
 
     if model_selection in ['baseline-10', 'baseline-100']:
         model = BaselineModel(dataset, baseline_es, baseline_cw_es_index, ow_contexts_db)
+        model.train(ow_entities)
     else:
         raise AssertionError()
 
