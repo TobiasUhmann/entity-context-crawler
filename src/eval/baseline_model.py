@@ -20,7 +20,7 @@ from util.custom_types import Entity, Triple
 
 
 class BaselineModel(Model):
-    """ Partial implementation of :class:`pykeen.Model` (so that evaluation works). """
+    """ Partial implementation of :class:`pykeen.Model` (so that Pykeen evaluation works) """
 
     def __init__(self, datasets_path: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
         split_dataset: split.Dataset
