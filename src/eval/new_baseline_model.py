@@ -1,3 +1,4 @@
+import logging
 import pickle
 import sqlite3
 from collections import Counter
@@ -5,6 +6,7 @@ from datetime import datetime
 from typing import List, Tuple, Set, Optional
 
 import numpy as np
+import sparse
 import torch
 from elasticsearch import Elasticsearch
 from pykeen.models import Model
@@ -12,6 +14,7 @@ from pykeen.triples import TriplesFactory
 from ryn.graphs.split import Dataset
 from ryn.kgc.data import load_datasets
 from torch import FloatTensor, LongTensor, tensor
+from tqdm import tqdm
 
 from dao.contexts_db import select_contexts
 from util.custom_types import Entity, Triple
@@ -56,81 +59,59 @@ class BaselineModel(Model):
 
         self.score_matrix = None
 
-    def score(self, triple):
-        return self.head_counter[triple[0]] + self.tail_counter[triple[0]]
-
-    def calc_score_matrix(self, ow_ent_batch: List[Entity]):
-        # ent_count = len(self.id2ent)
-        # rel_count = len(self.id2rel)
-        # score_matrix = sparse.DOK((ent_count, rel_count, ent_count))
-        #
-        # for ow_ent in tqdm(ow_ent_batch):
-        #     pred_ow_triples_batch, pred_cw_ent_batch = self.predict([ow_ent])
-        #     pred_ow_triples, pred_cw_ent = pred_ow_triples_batch[0], pred_cw_ent_batch[0]
-        #
-        #     if pred_cw_ent:
-        #         for h, t, r in pred_ow_triples:
-        #             score_matrix[h, r, t] += self.score((h, r, t))
-        #
-        # self.score_matrix = score_matrix.to_coo()
-
-        with open('data/score_matrix.p', 'rb') as fh:
-            self.score_matrix = pickle.load(fh).to_coo()
-
-    def predict(self, query_entity_batch: List[Entity]) \
-            -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
+    def predict(self, ow_ent: Entity) -> Optional[List[Triple]]:
         """
-        Prediction for an entity:
-        - Query ES index for most similar closed world entity
-        - Get closed world entity's triples and replace closed world entity with open world query entity
-        - Return modified triples as predicted triples
+        Prediction for an OW entity:
 
-        :param query_entity_batch: Batch of open world entities
-        :return: Batch of triple lists, batch of most hit closed world entities (for debugging)
+        - Get context for OW entity from OW contexts DB
+        - Query ES index for most similar CW entity context
+        - Get CW entity's triples and replace the respective CW heads/tails with OW entity
+        - Return modified CW triples as predicted OW triples
+
+        :return: Predicted OW triples, or 'None' if no contexts exist for the OW entity
         """
 
         with sqlite3.connect(self.query_contexts_db) as query_contexts_conn:
+            ow_db_contexts = select_contexts(query_contexts_conn, ow_ent)
 
-            # Optional as None is appended if no query context is available
-            pred_triples_batch: List[Optional[List[Tuple[int, int, int]]]] = []
-            hit_entity_batch: List[Optional[int]] = []
+        masked_ow_contexts = [db_context.masked_context for db_context in ow_db_contexts]
+        blanked_ow_contexts = [context.replace('#', '') for context in masked_ow_contexts]
 
-            for count, query_entity, in enumerate(query_entity_batch):
+        if not blanked_ow_contexts:
+            return None
 
-                query_entity_name = self.id2ent[query_entity]
-                query_entity_contexts = [c.masked_context for c in select_contexts(query_contexts_conn, query_entity)]
-                query_entity_contexts = [context.replace('#', '') for context in query_entity_contexts]
+        ow_context = ' '.join(blanked_ow_contexts)[:1024]  # ES allows for max. 1024 chars
+        es_result = self.es.search(index=self.es_index, body={'query': {'match': {'context': ow_context}}})
 
-                # random.shuffle(query_entity_contexts)
+        es_hit = es_result['hits']['hits'][:1]  # Only consider top 1 hit
 
-                if not query_entity_contexts:
-                    # log('{} | {} -> <NONE>'.format(count, query_entity_name))
-                    hit_entity_batch.append(None)
-                    pred_triples_batch.append(None)
+        cw_ent = es_hit['_source']['entity']
+        logging.info('OW "{}" -> CW "{}"'.format(self.id2ent[ow_ent], self.id2ent[cw_ent]))
 
-                else:
-                    concated_query_entity_contexts = ' '.join(query_entity_contexts)[:1024]
-                    es_result = self.es.search(index=self.es_index,
-                                               body={'query': {'match': {'context': concated_query_entity_contexts}}})
+        cw_triples = [(h, r, t) for h, r, t in self.gt_triples
+                      if h == cw_ent or t == cw_ent]
 
-                    es_hits = es_result['hits']['hits']
-                    for es_hit in es_hits[:1]:
-                        hit_entity = es_hit['_source']['entity']
+        pred_triples = [(ow_ent if h == cw_ent else h, r, ow_ent if t == cw_ent else t)
+                        for h, t, r in cw_triples]
 
-                        # log('{} | {} -> {}'.format(count, query_entity_name, self.id2ent[hit_entity]))
+        return pred_triples
 
-                        hit_entity_triples = [(head, tail, rel) for head, tail, rel in self.gt_triples
-                                              if head == hit_entity or tail == hit_entity]
+    def score(self, triple):
+        return self.head_counter[triple[0]] + self.tail_counter[triple[2]]
 
-                        pred_triples = [(query_entity if head == hit_entity else head,
-                                         query_entity if tail == hit_entity else tail,
-                                         rel)
-                                        for head, tail, rel in hit_entity_triples]
+    def calc_score_matrix(self, ow_ent_batch: List[Entity]):
+        ent_count = len(self.id2ent)
+        rel_count = len(self.id2rel)
+        score_matrix = sparse.DOK((ent_count, rel_count, ent_count))
 
-                        hit_entity_batch.append(hit_entity)
-                        pred_triples_batch.append(pred_triples)
+        for ow_ent in tqdm(ow_ent_batch):
+            pred_ow_triples = self.predict(ow_ent)
 
-        return pred_triples_batch, hit_entity_batch
+            if pred_ow_triples:
+                for h, t, r in pred_ow_triples:
+                    score_matrix[h, r, t] += self.score((h, r, t))
+
+        self.score_matrix = score_matrix.to_coo()
 
     def predict_scores_all_heads(self, rt_batch: LongTensor, slice_size: Optional[int] = None) \
             -> FloatTensor:
