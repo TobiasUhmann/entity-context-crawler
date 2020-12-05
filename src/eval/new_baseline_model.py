@@ -1,9 +1,7 @@
 import logging
-import pickle
 import sqlite3
 from collections import Counter
-from datetime import datetime
-from typing import List, Tuple, Set, Optional
+from typing import List, Set, Optional, Dict
 
 import numpy as np
 import sparse
@@ -11,7 +9,8 @@ import torch
 from elasticsearch import Elasticsearch
 from pykeen.models import Model
 from pykeen.triples import TriplesFactory
-from ryn.graphs.split import Dataset
+from ryn.graphs import split
+from ryn.kgc import keen
 from ryn.kgc.data import load_datasets
 from torch import FloatTensor, LongTensor, tensor
 from tqdm import tqdm
@@ -21,41 +20,38 @@ from util.custom_types import Entity, Triple
 
 
 class BaselineModel(Model):
-    def __init__(self, dataset: Dataset, es: Elasticsearch, es_index: str, ow_contexts_db: str):
-        """
-        :param es: ES index containing closed world contexts
-        :param ow_contexts_db: DB containing open world contexts
-        """
+    """ Partial implementation of :class:`pykeen.Model` (so that evaluation works). """
 
-        _, keen_dataset = load_datasets(path='data/oke.fb15k237_26041992_50')
+    def __init__(self, datasets_path: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
+        split_dataset: split.Dataset
+        keen_dataset: keen.Dataset
+        split_dataset, keen_dataset = load_datasets(path=datasets_path)
 
         train_triples: np.ndarray = keen_dataset.training.triples
         valid_triples: np.ndarray = keen_dataset.validation.triples
         test_triples: np.ndarray = keen_dataset.testing.triples
-
         all_triples = np.concatenate((train_triples, valid_triples, test_triples))
 
         super().__init__(triples_factory=TriplesFactory(triples=all_triples))
 
-        self.es = es
-        self.es_index = es_index
-        self.query_contexts_db = ow_contexts_db
-        self.id2ent = dataset.id2ent
-        self.id2rel = dataset.id2rel
+        self.es: Elasticsearch = es
+        self.es_index: str = es_index
+        self.query_contexts_db: str = ow_contexts_db
 
-        cw_triples = dataset.cw_train.triples | dataset.cw_valid.triples
-        self.train_triples = list(cw_triples)
-        ow_triples: Set = dataset.ow_valid.triples
-        self.gt_triples = list(cw_triples | ow_triples)
+        self.id2ent: Dict[int, str] = split_dataset.id2ent
+        self.id2rel: Dict[int, str] = split_dataset.id2rel
 
-        #
-        # Rank triples by (<head importance> + <tail importance>)
-        #
+        cw_triples: Set[Triple] = split_dataset.cw_train.triples | split_dataset.cw_valid.triples
+        self.train_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples]
 
+        ow_triples: Set[Triple] = split_dataset.ow_valid.triples
+        self.gt_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples | ow_triples]
+
+        # Score head/tail entities by frequency
         self.head_counter = Counter([head for head, _, _ in self.gt_triples])
-        self.tail_counter = Counter([tail for _, tail, _ in self.gt_triples])
+        self.tail_counter = Counter([tail for _, _, tail in self.gt_triples])
 
-        self.gt_triples.sort(key=lambda t: self.score(t), reverse=True)
+        self.gt_triples.sort(key=lambda triple: self.score(triple), reverse=True)
 
         self.score_matrix = None
 
