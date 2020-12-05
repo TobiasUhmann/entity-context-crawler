@@ -1,3 +1,4 @@
+import pickle
 import sqlite3
 from collections import Counter
 from datetime import datetime
@@ -54,21 +55,28 @@ class BaselineModel(Model):
 
         self.gt_triples.sort(key=lambda t: self.score(t), reverse=True)
 
-        ent_count = len(self.id2ent)
-        rel_count = len(self.id2rel)
-        self.triple_matrix = sparse.DOK((ent_count, rel_count, ent_count))
+        self.score_matrix = None
 
     def score(self, triple):
         return self.head_counter[triple[0]] + self.tail_counter[triple[0]]
 
     def calc_score_matrix(self, ow_ent_batch: List[Entity]):
-        for ow_ent in tqdm(ow_ent_batch):
-            pred_triples_batch, pred_cw_ent_batch = self.predict([ow_ent])
+        # ent_count = len(self.id2ent)
+        # rel_count = len(self.id2rel)
+        # score_matrix = sparse.DOK((ent_count, rel_count, ent_count))
+        #
+        # for ow_ent in tqdm(ow_ent_batch):
+        #     pred_ow_triples_batch, pred_cw_ent_batch = self.predict([ow_ent])
+        #     pred_ow_triples, pred_cw_ent = pred_ow_triples_batch[0], pred_cw_ent_batch[0]
+        #
+        #     if pred_cw_ent:
+        #         for h, t, r in pred_ow_triples:
+        #             score_matrix[h, r, t] += self.score((h, r, t))
+        #
+        # self.score_matrix = score_matrix.to_coo()
 
-            for pred_triples, pred_cw_ent in zip(pred_triples_batch, pred_cw_ent_batch):
-                if pred_cw_ent:
-                    for h, t, r in pred_triples:
-                        self.triple_matrix[h, r, t] += self.score((h, r, t))
+        with open('data/score_matrix.p', 'rb') as fh:
+            self.score_matrix = pickle.load(fh).to_coo()
 
     def predict(self, query_entity_batch: List[Entity]) \
             -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
@@ -131,26 +139,16 @@ class BaselineModel(Model):
             slice_size: Optional[int] = None,
     ) -> torch.FloatTensor:
 
-        result = []
+        result = torch.empty((len(rt_batch), len(self.id2ent)))
 
-        for r, t in rt_batch:
-            rel, tail = r.item(), t.item()
+        print(rt_batch)
+        for i, rt in enumerate(rt_batch):
+            r, t = rt.tolist()
+            sparse_scores = self.score_matrix[:, r, t]
+            result[i, :] = torch.tensor(sparse_scores.todense())
 
-            pred_ow_triples_batch, pred_cw_ent_batch = self.predict([tail])
-            pred_ow_triples, pred_cw_ent = pred_ow_triples_batch[0], pred_cw_ent_batch[0]
+        return result
 
-            all_head_scores = [-1] * len(self.id2ent)
-
-            if pred_cw_ent is not None:
-                filtered_pred_triples = [pred_ow_triple for pred_ow_triple in pred_ow_triples
-                                         if pred_ow_triple[1] == rel]
-
-                for filtered_pred_triple in filtered_pred_triples:
-                    all_head_scores[filtered_pred_triple[0]] = self.score(filtered_pred_triple)
-
-            result.append(all_head_scores)
-
-        return torch.tensor(result, dtype=torch.float)
 
     def predict_scores_all_tails(
             self,
