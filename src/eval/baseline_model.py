@@ -22,38 +22,49 @@ from util.custom_types import Entity, Triple
 class BaselineModel(Model):
     """ Partial implementation of :class:`pykeen.Model` (so that Pykeen evaluation works) """
 
-    def __init__(self, datasets_path: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
+    def __init__(self, dataset_dir: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
+
+        #
+        # Init super class with TriplesFactory used for target filtering during evaluation
+        #
+
         split_dataset: split.Dataset
         keen_dataset: keen.Dataset
-        split_dataset, keen_dataset = load_datasets(path=datasets_path)
+        split_dataset, keen_dataset = load_datasets(path=dataset_dir)
 
-        train_triples: np.ndarray = keen_dataset.training.triples
-        valid_triples: np.ndarray = keen_dataset.validation.triples
-        test_triples: np.ndarray = keen_dataset.testing.triples
-        all_triples = np.concatenate((train_triples, valid_triples, test_triples))
+        cw_train_1_text_triples: np.ndarray = keen_dataset.training.triples
+        cw_train_2_text_triples: np.ndarray = keen_dataset.validation.triples
+        cw_valid_text_triples: np.ndarray = keen_dataset.testing.triples
 
-        super().__init__(triples_factory=TriplesFactory(triples=all_triples))
+        cw_text_triples = np.concatenate((cw_train_1_text_triples, cw_train_2_text_triples, cw_valid_text_triples))
+
+        super().__init__(triples_factory=TriplesFactory(triples=cw_text_triples))
+
+        #
+        # Save params and dataset elements for later usage
+        #
 
         self.es: Elasticsearch = es
         self.es_index: str = es_index
-        self.query_contexts_db: str = ow_contexts_db
+        self.ow_contexts_db: str = ow_contexts_db
 
         self.id2ent: Dict[int, str] = split_dataset.id2ent
         self.id2rel: Dict[int, str] = split_dataset.id2rel
 
         cw_triples: Set[Triple] = split_dataset.cw_train.triples | split_dataset.cw_valid.triples
-        self.train_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples]
+        self.cw_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples]
 
         ow_triples: Set[Triple] = split_dataset.ow_valid.triples
-        self.gt_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples | ow_triples]
-
-        # Score head/tail entities by frequency
-        self.head_counter = Counter([head for head, _, _ in self.gt_triples])
-        self.tail_counter = Counter([tail for _, _, tail in self.gt_triples])
-
-        self.gt_triples.sort(key=lambda triple: self.score(triple), reverse=True)
+        self.cw_ow_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples | ow_triples]
 
         self.score_matrix = None
+
+        #
+        # Score head/tail entities by frequency
+        #
+
+        self.head_counter = Counter([head for head, _, _ in self.cw_ow_triples])
+        self.tail_counter = Counter([tail for _, _, tail in self.cw_ow_triples])
 
     def predict(self, ow_ent: Entity) -> Optional[List[Triple]]:
         """
@@ -67,7 +78,11 @@ class BaselineModel(Model):
         :return: Predicted OW triples, or 'None' if no contexts exist for the OW entity
         """
 
-        with sqlite3.connect(self.query_contexts_db) as query_contexts_conn:
+        #
+        # SELECT OW contexts from DB, remove masks ('###'), and concatenate them
+        #
+
+        with sqlite3.connect(self.ow_contexts_db) as query_contexts_conn:
             ow_db_contexts = select_contexts(query_contexts_conn, ow_ent)
 
         masked_ow_contexts = [db_context.masked_context for db_context in ow_db_contexts]
@@ -76,19 +91,32 @@ class BaselineModel(Model):
         if not blanked_ow_contexts:
             return None
 
-        ow_context = ' '.join(blanked_ow_contexts)[:1024]  # ES allows for max. 1024 chars
-        es_result = self.es.search(index=self.es_index, body={'query': {'match': {'context': ow_context}}})
+        ow_context = ' '.join(blanked_ow_contexts)
+
+        #
+        # Query ES for most similiar CW entity
+        #
+
+        # ES allows for max. 1024 chars
+        es_result = self.es.search(index=self.es_index,
+                                   body={'query': {'match': {'context': ow_context[:1024]}}})
 
         es_hit = es_result['hits']['hits'][:1]  # Only consider top 1 hit
 
         cw_ent = es_hit['_source']['entity']
         logging.info('OW "{}" -> CW "{}"'.format(self.id2ent[ow_ent], self.id2ent[cw_ent]))
 
-        cw_triples = [(h, r, t) for h, r, t in self.gt_triples
-                      if h == cw_ent or t == cw_ent]
+        #
+        # Get CW triples, modify them (replace CW entity with OW entity)
+        #
 
-        pred_triples = [(ow_ent if h == cw_ent else h, r, ow_ent if t == cw_ent else t)
-                        for h, t, r in cw_triples]
+        cw_triples = [(head, rel, tail) for head, rel, tail in self.cw_ow_triples
+                      if head == cw_ent or tail == cw_ent]
+
+        pred_triples = [(ow_ent if head == cw_ent else head,
+                         rel,
+                         ow_ent if tail == cw_ent else tail)
+                        for head, rel, tail in cw_triples]
 
         return pred_triples
 
@@ -96,17 +124,21 @@ class BaselineModel(Model):
         return self.head_counter[triple[0]] + self.tail_counter[triple[2]]
 
     def calc_score_matrix(self, ow_ent_batch: List[Entity]):
+
+        # Create sparse DOK matrix (which is suitable for counting) containing all triple scores
         ent_count = len(self.id2ent)
         rel_count = len(self.id2rel)
         score_matrix = sparse.DOK((ent_count, rel_count, ent_count))
 
+        # For each OW entity: Predict and score all triples, and increase respective score in matrix
         for ow_ent in tqdm(ow_ent_batch):
             pred_ow_triples = self.predict(ow_ent)
 
             if pred_ow_triples:
-                for h, t, r in pred_ow_triples:
-                    score_matrix[h, r, t] += self.score((h, r, t))
+                for head, rel, tail in pred_ow_triples:
+                    score_matrix[head, rel, tail] += self.score((head, rel, tail))
 
+        # Save sparse matrix in COO format (for later slicing)
         self.score_matrix = score_matrix.to_coo()
 
     def predict_scores_all_heads(self, rt_batch: LongTensor, slice_size: Optional[int] = None) \
@@ -119,9 +151,9 @@ class BaselineModel(Model):
 
         result: FloatTensor = torch.empty((len(rt_batch), len(self.id2ent)), dtype=FloatTensor)
 
-        for i, rt in enumerate(rt_batch):
-            r, t = rt.tolist()
-            sparse_scores = self.score_matrix[:, r, t]
+        for i, rel_tail in enumerate(rt_batch):
+            rel, tail = rel_tail.tolist()
+            sparse_scores = self.score_matrix[:, rel, tail]
             result[i, :] = tensor(sparse_scores.todense())
 
         return result
@@ -136,9 +168,9 @@ class BaselineModel(Model):
 
         result: FloatTensor = torch.empty((len(hr_batch), len(self.id2ent)), dtype=FloatTensor)
 
-        for i, hr in enumerate(hr_batch):
-            h, r = hr.tolist()
-            sparse_scores = self.score_matrix[h, r, :]
+        for i, head_rel in enumerate(hr_batch):
+            head, rel = head_rel.tolist()
+            sparse_scores = self.score_matrix[head, rel, :]
             result[i, :] = tensor(sparse_scores.todense())
 
         return result

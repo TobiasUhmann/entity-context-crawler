@@ -135,7 +135,7 @@ def _eval_model(model_selection: str,
 
     ow_entities: Set[int] = dataset.ow_valid.owe
     ow_triples: Set[Triple] = dataset.ow_valid.triples
-    ow_triples = {(h, r, t) for h, t, r in ow_triples}
+    ow_triples = {(head, rel, tail) for head, tail, rel in ow_triples}
 
     #
     # Build model
