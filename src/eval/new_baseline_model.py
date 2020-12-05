@@ -5,14 +5,13 @@ from datetime import datetime
 from typing import List, Tuple, Set, Optional
 
 import numpy as np
-import sparse
 import torch
 from elasticsearch import Elasticsearch
 from pykeen.models import Model
 from pykeen.triples import TriplesFactory
 from ryn.graphs.split import Dataset
 from ryn.kgc.data import load_datasets
-from tqdm import tqdm
+from torch import FloatTensor, LongTensor, tensor
 
 from dao.contexts_db import select_contexts
 from util.custom_types import Entity, Triple
@@ -133,49 +132,39 @@ class BaselineModel(Model):
 
         return pred_triples_batch, hit_entity_batch
 
-    def predict_scores_all_heads(
-            self,
-            rt_batch: torch.LongTensor,
-            slice_size: Optional[int] = None,
-    ) -> torch.FloatTensor:
+    def predict_scores_all_heads(self, rt_batch: LongTensor, slice_size: Optional[int] = None) \
+            -> FloatTensor:
+        """
+        Overrides :func:`pykeen.models.Model.predict_scores_all_heads`
 
-        result = torch.empty((len(rt_batch), len(self.id2ent)))
+        :param slice_size: Ignored
+        """
 
-        print(rt_batch)
+        result: FloatTensor = torch.empty((len(rt_batch), len(self.id2ent)), dtype=FloatTensor)
+
         for i, rt in enumerate(rt_batch):
             r, t = rt.tolist()
             sparse_scores = self.score_matrix[:, r, t]
-            result[i, :] = torch.tensor(sparse_scores.todense())
+            result[i, :] = tensor(sparse_scores.todense())
 
         return result
 
+    def predict_scores_all_tails(self, hr_batch: LongTensor, slice_size: Optional[int] = None) \
+            -> FloatTensor:
+        """
+        Overrides :func:`pykeen.models.Model.predict_scores_all_tails`
 
-    def predict_scores_all_tails(
-            self,
-            hr_batch: torch.LongTensor,
-            slice_size: Optional[int] = None,
-    ) -> torch.FloatTensor:
+        :param slice_size: Ignored
+        """
 
-        result = []
+        result: FloatTensor = torch.empty((len(hr_batch), len(self.id2ent)), dtype=FloatTensor)
 
-        for h, r in hr_batch:
-            head, rel = h.item(), r.item()
+        for i, hr in enumerate(hr_batch):
+            h, r = hr.tolist()
+            sparse_scores = self.score_matrix[h, r, :]
+            result[i, :] = tensor(sparse_scores.todense())
 
-            pred_ow_triples_batch, pred_cw_ent_batch = self.predict([head])
-            pred_ow_triples, pred_cw_ent = pred_ow_triples_batch[0], pred_cw_ent_batch[0]
-
-            all_tail_scores = [-1] * len(self.id2ent)
-
-            if pred_cw_ent is not None:
-                filtered_pred_triples = [pred_ow_triple for pred_ow_triple in pred_ow_triples
-                                         if pred_ow_triple[1] == rel]
-
-                for filtered_pred_triple in filtered_pred_triples:
-                    all_tail_scores[filtered_pred_triple[2]] = self.score(filtered_pred_triple)
-
-            result.append(all_tail_scores)
-
-        return torch.tensor(result, dtype=torch.float)
+        return result
 
 
 def log(msg: str):
