@@ -1,5 +1,6 @@
 import logging
 import sqlite3
+import sys
 from collections import Counter
 from typing import List, Set, Optional, Dict
 
@@ -104,7 +105,7 @@ class BaselineModel(Model):
         es_hit = es_result['hits']['hits'][0]  # Only consider top 1 hit
 
         cw_ent = es_hit['_source']['entity']
-        logging.info('OW "{}" -> CW "{}"'.format(self.id2ent[ow_ent], self.id2ent[cw_ent]))
+        logging.info('OW "{}" -> CW "{}"'.format(self.id2ent[ow_ent], self.id2ent[cw_ent]).encode('utf-8'))
 
         #
         # Get CW triples, modify them (replace CW entity with OW entity)
