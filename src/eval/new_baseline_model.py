@@ -165,7 +165,3 @@ class BaselineModel(Model):
             result[i, :] = tensor(sparse_scores.todense())
 
         return result
-
-
-def log(msg: str):
-    print('{} | {}'.format(datetime.now().strftime("%H:%M:%S"), msg))
