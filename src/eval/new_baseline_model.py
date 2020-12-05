@@ -125,22 +125,6 @@ class BaselineModel(Model):
 
         return pred_triples_batch, hit_entity_batch
 
-    def predict_all_head_scores(self, rel: int, tail: int) -> List[float]:
-
-        pred_ow_triples_batch, pred_cw_ent_batch = self.predict([tail])
-        pred_ow_triples, pred_cw_ent = pred_ow_triples_batch[0], pred_cw_ent_batch[0]
-
-        all_head_scores = [-1] * len(self.id2ent)
-
-        if pred_cw_ent is not None:
-            filtered_pred_triples = [pred_ow_triple for pred_ow_triple in pred_ow_triples
-                                     if pred_ow_triple[1] == rel]
-
-            for filtered_pred_triple in filtered_pred_triples:
-                all_head_scores[filtered_pred_triple[0]] = self.score(filtered_pred_triple)
-
-        return all_head_scores
-
     def predict_scores_all_heads(
             self,
             rt_batch: torch.LongTensor,
