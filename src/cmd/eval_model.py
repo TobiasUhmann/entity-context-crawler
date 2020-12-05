@@ -6,10 +6,10 @@ from os.path import isdir, isfile
 
 import torch
 from elasticsearch import Elasticsearch
-from pykeen.evaluation import RankBasedMetricResults, RankBasedEvaluator, MetricResults
+from pykeen.evaluation import RankBasedEvaluator, MetricResults
 from ryn.graphs.split import Dataset
 
-from eval.new_baseline_model import BaselineModel
+from eval.baseline_model import BaselineModel
 from util.custom_types import Triple
 
 
@@ -142,7 +142,7 @@ def _eval_model(model_selection: str,
     #
 
     if model_selection in ['baseline-10', 'baseline-100']:
-        model = BaselineModel(dataset, baseline_es, baseline_cw_es_index, ow_contexts_db)
+        model = BaselineModel(dataset_dir, baseline_es, baseline_cw_es_index, ow_contexts_db)
         model.calc_score_matrix(list(ow_entities))
     else:
         raise AssertionError()

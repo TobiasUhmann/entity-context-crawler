@@ -7,7 +7,7 @@ from elasticsearch import Elasticsearch
 from typing import Set
 
 from app.util import load_dataset
-from eval.baseline_model import BaselineModel
+from eval.old_baseline_model import BaselineModel
 from eval.evaluator import Evaluator
 from util.custom_types import Entity, Triple
 

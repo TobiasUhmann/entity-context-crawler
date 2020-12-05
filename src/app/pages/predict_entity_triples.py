@@ -8,7 +8,7 @@ import streamlit as st
 from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
-from eval.baseline_model import BaselineModel
+from eval.old_baseline_model import BaselineModel
 from eval.evaluator import Evaluator
 
 
