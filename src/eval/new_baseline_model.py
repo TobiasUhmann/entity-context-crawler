@@ -56,19 +56,19 @@ class BaselineModel(Model):
 
         ent_count = len(self.id2ent)
         rel_count = len(self.id2rel)
-        self.pred_triples = sparse.DOK((ent_count, rel_count, ent_count))
+        self.triple_matrix = sparse.DOK((ent_count, rel_count, ent_count))
 
     def score(self, triple):
         return self.head_counter[triple[0]] + self.tail_counter[triple[0]]
 
-    def train(self, ow_ent_batch: List[Entity]):
+    def calc_score_matrix(self, ow_ent_batch: List[Entity]):
         for ow_ent in tqdm(ow_ent_batch):
             pred_triples_batch, pred_cw_ent_batch = self.predict([ow_ent])
 
             for pred_triples, pred_cw_ent in zip(pred_triples_batch, pred_cw_ent_batch):
                 if pred_cw_ent:
                     for h, t, r in pred_triples:
-                        self.pred_triples[h, r, t] += 1
+                        self.triple_matrix[h, r, t] += self.score((h, r, t))
 
     def predict(self, query_entity_batch: List[Entity]) \
             -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
