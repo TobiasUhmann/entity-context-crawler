@@ -9,6 +9,7 @@ from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
 from eval.custom_evaluator import CustomEvaluator
+from models.baseline_model import BaselineModel
 
 
 def render_predict_entity_triples_page():
