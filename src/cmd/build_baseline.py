@@ -15,8 +15,8 @@ from dao.contexts_db import create_contexts_table, insert_context, select_contex
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        contexts-db
         dataset-dir
+        contexts-db
         cw-es-index
         ow-contexts-db
         --es-host
@@ -24,11 +24,11 @@ def add_parser_args(parser: ArgumentParser):
         --overwrite
     """
 
-    parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to (input) contexts DB')
-
     parser.add_argument('dataset_dir', metavar='dataset-dir',
                         help='Path to (input) OpenKE dataset directory')
+
+    parser.add_argument('contexts_db', metavar='contexts-db',
+                        help='Path to (input) contexts DB')
 
     parser.add_argument('cw_es_index', metavar='cw-es-index',
                         help='Name of (output) closed world Elasticsearch index')
@@ -57,8 +57,8 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    contexts_db = args.contexts_db
     dataset_dir = args.dataset_dir
+    contexts_db = args.contexts_db
     cw_es_index = args.cw_es_index
     ow_contexts_db = args.ow_contexts_db
 
@@ -74,8 +74,8 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('contexts-db', contexts_db))
     print('    {:20} {}'.format('dataset-dir', dataset_dir))
+    print('    {:20} {}'.format('contexts-db', contexts_db))
     print('    {:20} {}'.format('cw-es-index', cw_es_index))
     print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
     print()
@@ -91,12 +91,12 @@ def run(args: Namespace):
     # Check if files already exist
     #
 
-    if not isfile(contexts_db):
-        print('Contexts DB not found')
-        exit()
-
     if not isdir(dataset_dir):
         print('OpenKE dataset directory not found')
+        exit()
+
+    if not isfile(contexts_db):
+        print('Contexts DB not found')
         exit()
 
     es = Elasticsearch([es_host])
@@ -118,14 +118,14 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_baseline(es, contexts_db, dataset_dir, cw_es_index, ow_contexts_db, limit_contexts)
+    _build_baseline(dataset_dir, es, contexts_db, cw_es_index, ow_contexts_db, limit_contexts)
 
 
 #
 # BUILD
 #
 
-def _build_baseline(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
+def _build_baseline(dataset_dir, es, contexts_db, cw_index, ow_db, limit_contexts):
     """ Build closed world ES index and open world DB """
 
     with sqlite3.connect(contexts_db) as contexts_conn, \
