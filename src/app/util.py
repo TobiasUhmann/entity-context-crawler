@@ -7,4 +7,4 @@ def load_dataset(dataset_dir: str) -> split.Dataset:
     :param dataset_dir: Path to Ryn dataset directory
     """
 
-    return split.Dataset.load(dataset_dir)
+    return split.Dataset.load(path=dataset_dir)
