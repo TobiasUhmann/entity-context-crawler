@@ -21,7 +21,6 @@ def add_parser_args(parser: ArgumentParser):
         ow-contexts-db
         --baseline-cw-es-index
         --baseline-es-host
-        --limit-entities
     """
 
     model_choices = ['baseline-10', 'baseline-100']
@@ -41,11 +40,6 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('--baseline-es-host', dest='baseline_es_host', metavar='STR', default=default_es_host,
                         help='Elasticsearch host (default: {})'.format(default_es_host))
 
-    default_limit_entities = None
-    parser.add_argument('--limit-entities', dest='limit_entities', type=int, metavar='INT',
-                        default=default_limit_entities,
-                        help='Process only first ... entities (default: {})'.format(default_limit_entities))
-
 
 def run(args: Namespace):
     """
@@ -60,7 +54,6 @@ def run(args: Namespace):
 
     baseline_cw_es_index = args.baseline_cw_es_index
     baseline_es_host = args.baseline_es_host
-    limit_entities = args.limit_entities
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
 
@@ -75,7 +68,6 @@ def run(args: Namespace):
     print()
     print('    {:20} {}'.format('--baseline-cw-es-index', baseline_cw_es_index))
     print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
-    print('    {:20} {}'.format('--limit-entities', limit_entities))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
@@ -113,15 +105,14 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _eval_model(model, dataset_dir, ow_contexts_db, baseline_es, baseline_cw_es_index, limit_entities)
+    _eval_model(model, dataset_dir, ow_contexts_db, baseline_es, baseline_cw_es_index)
 
 
 def _eval_model(model_selection: str,
                 dataset_dir: str,
                 ow_contexts_db: str,
                 baseline_es: Elasticsearch,
-                baseline_cw_es_index: str,
-                limit_entities: int):
+                baseline_cw_es_index: str):
     """
     - Load dataset
     - Build model
@@ -151,11 +142,8 @@ def _eval_model(model_selection: str,
     # Evaluate model
     #
 
-    if limit_entities:
-        shuffled_ow_entities = random.sample(ow_entities, limit_entities)
-    else:
-        shuffled_ow_entities = list(ow_entities)
-        random.shuffle(shuffled_ow_entities)
+    shuffled_ow_entities = list(ow_entities)
+    random.shuffle(shuffled_ow_entities)
 
     evaluator = RankBasedEvaluator()
     mapped_triples: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
