@@ -2,7 +2,7 @@ from eval.classes import Result, TotalResult
 from eval.model import Model
 
 
-class Evaluator:
+class MyEvaluator:
     def __init__(self, model: Model, ow_triples, ow_entities):
         self.model = model
         self.ow_triples = ow_triples

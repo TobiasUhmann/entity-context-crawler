@@ -9,7 +9,7 @@ from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
 from eval.old_baseline_model import BaselineModel
-from eval.evaluator import Evaluator
+from eval.my_evaluator import MyEvaluator
 
 
 def render_predict_entity_triples_page():
@@ -90,7 +90,7 @@ def render_predict_entity_triples_page():
 
     st.markdown('---')
 
-    evaluator = Evaluator(model, ow_triples, [selected_entity])
+    evaluator = MyEvaluator(model, ow_triples, [selected_entity])
     total_result = evaluator.run()
     result = total_result.results[0]
 
