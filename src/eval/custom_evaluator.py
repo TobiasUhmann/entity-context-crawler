@@ -4,7 +4,7 @@ from typing import List, Tuple
 from models.model import Model
 
 
-class MyEvaluator:
+class CustomEvaluator:
     def __init__(self, model: Model, ow_triples, ow_entities):
         self.model = model
         self.ow_triples = ow_triples
