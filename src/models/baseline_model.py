@@ -17,7 +17,7 @@ from torch import FloatTensor, LongTensor, tensor
 from tqdm import tqdm
 
 from dao.contexts_db import select_contexts
-from util.custom_types import Entity, Triple
+from util.types import Entity, Triple
 
 
 class BaselineModel(Model):

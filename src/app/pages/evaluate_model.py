@@ -5,14 +5,13 @@ import torch
 from torch import LongTensor, tensor
 from typing import Set
 
-import pandas as pd
 import streamlit as st
 from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
 
 from app.util import load_dataset
-from eval.baseline_model import BaselineModel
-from util.custom_types import Entity, Triple
+from models.baseline_model import BaselineModel
+from util.types import Entity
 
 
 def render_evaluate_model_page():

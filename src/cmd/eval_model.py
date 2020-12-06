@@ -9,8 +9,8 @@ from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, MetricResults
 from ryn.graphs.split import Dataset
 
-from eval.baseline_model import BaselineModel
-from util.custom_types import Triple
+from models.baseline_model import BaselineModel
+from util.types import Triple
 
 
 def add_parser_args(parser: ArgumentParser):

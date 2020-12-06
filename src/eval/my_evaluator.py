@@ -1,5 +1,7 @@
-from eval.classes import Result, TotalResult
-from eval.model import Model
+from dataclasses import dataclass
+from typing import List, Tuple
+
+from models.model import Model
 
 
 class MyEvaluator:
@@ -81,3 +83,22 @@ class MyEvaluator:
         mean_ap = sum(aps) / (len(aps) + 1e-10)
 
         return TotalResult(result_batch, mean_ap)
+
+
+@dataclass
+class Result:
+    pred_ow_triples: List[Tuple[int, int, int]]
+    precision: float
+    recall: float
+    f1: float
+    ap: float
+
+    # for debugging
+    pred_cw_entity: str
+    pred_ow_triples_hits: List[str]
+
+
+@dataclass
+class TotalResult:
+    results: List[Result]
+    map: float
