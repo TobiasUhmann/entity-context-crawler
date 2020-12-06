@@ -17,8 +17,8 @@ def add_parser_args(parser: ArgumentParser):
     Add arguments to arg parser:
         dataset-dir
         contexts-db
-        cw-es-index
-        ow-contexts-db
+        es-index
+        ow-db
         --es-host
         --limit-contexts
         --overwrite
@@ -30,10 +30,10 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('contexts_db', metavar='contexts-db',
                         help='Path to (input) contexts DB')
 
-    parser.add_argument('cw_es_index', metavar='cw-es-index',
+    parser.add_argument('es_index', metavar='es-index',
                         help='Name of (output) closed world Elasticsearch index')
 
-    parser.add_argument('ow_contexts_db', metavar='ow-contexts-db',
+    parser.add_argument('ow_db', metavar='ow-db',
                         help='Path to (output) open world contexts DB')
 
     default_es_host = 'localhost:9200'
@@ -59,8 +59,8 @@ def run(args: Namespace):
 
     dataset_dir = args.dataset_dir
     contexts_db = args.contexts_db
-    cw_es_index = args.cw_es_index
-    ow_contexts_db = args.ow_contexts_db
+    es_index = args.es_index
+    ow_db = args.ow_db
 
     es_host = args.es_host
     limit_contexts = args.limit_contexts
@@ -76,8 +76,8 @@ def run(args: Namespace):
     print('Applied config:')
     print('    {:20} {}'.format('dataset-dir', dataset_dir))
     print('    {:20} {}'.format('contexts-db', contexts_db))
-    print('    {:20} {}'.format('cw-es-index', cw_es_index))
-    print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
+    print('    {:20} {}'.format('es-index', es_index))
+    print('    {:20} {}'.format('ow-db', ow_db))
     print()
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-contexts', limit_contexts))
@@ -100,16 +100,16 @@ def run(args: Namespace):
         exit()
 
     es = Elasticsearch([es_host])
-    if es.indices.exists(index=cw_es_index):
+    if es.indices.exists(index=es_index):
         if overwrite:
-            es.indices.delete(index=cw_es_index, ignore=[400, 404])
+            es.indices.delete(index=es_index, ignore=[400, 404])
         else:
             print('Closed world Elasticsearch index already exists, use --overwrite to overwrite it')
             exit()
 
-    if isfile(ow_contexts_db):
+    if isfile(ow_db):
         if overwrite:
-            remove(ow_contexts_db)
+            remove(ow_db)
         else:
             print('Open world DB already exists, use --overwrite to overwrite it')
             exit()
@@ -118,14 +118,14 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_baseline(dataset_dir, es, contexts_db, cw_es_index, ow_contexts_db, limit_contexts)
+    _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_contexts)
 
 
 #
 # BUILD
 #
 
-def _build_baseline(dataset_dir, es, contexts_db, cw_index, ow_db, limit_contexts):
+def _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_contexts):
     """ Build closed world ES index and open world DB """
 
     with sqlite3.connect(contexts_db) as contexts_conn, \
@@ -164,9 +164,9 @@ def _build_baseline(dataset_dir, es, contexts_db, cw_index, ow_db, limit_context
                       'context': '\n'.join(ow_contexts),
                       'entity_label': entity_label}
 
-            es.index(index=cw_index, body=es_doc)
+            es.index(index=es_index, body=es_doc)
 
-        es.indices.refresh(index=cw_index)
+        es.indices.refresh(index=es_index)
 
         print('Done.')
 
