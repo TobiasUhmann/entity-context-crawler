@@ -1,5 +1,7 @@
 import os
 import random
+
+import torch
 from torch import LongTensor, tensor
 from typing import Set
 
@@ -89,7 +91,7 @@ def render_evaluate_model_page():
     # total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
 
     evaluator = RankBasedEvaluator()
-    mapped_triples: LongTensor = tensor(ow_triples, dtype=LongTensor)
+    mapped_triples: LongTensor = tensor(ow_triples, dtype=torch.long)
     total_result: RankBasedMetricResults = evaluator.evaluate(model, mapped_triples, batch_size=1024)
 
     print(total_result)

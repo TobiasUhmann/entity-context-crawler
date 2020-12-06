@@ -150,7 +150,7 @@ class BaselineModel(Model):
         :param slice_size: Ignored
         """
 
-        result: FloatTensor = torch.empty((len(rt_batch), len(self.id2ent)), dtype=FloatTensor)
+        result: FloatTensor = torch.empty((len(rt_batch), len(self.id2ent)), dtype=torch.float)
 
         for i, rel_tail in enumerate(rt_batch):
             rel, tail = rel_tail.tolist()
@@ -167,7 +167,7 @@ class BaselineModel(Model):
         :param slice_size: Ignored
         """
 
-        result: FloatTensor = torch.empty((len(hr_batch), len(self.id2ent)), dtype=FloatTensor)
+        result: FloatTensor = torch.empty((len(hr_batch), len(self.id2ent)), dtype=torch.float)
 
         for i, head_rel in enumerate(hr_batch):
             head, rel = head_rel.tolist()
