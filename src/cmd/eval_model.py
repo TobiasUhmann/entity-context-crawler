@@ -134,8 +134,8 @@ def _eval_model(model_selection: str,
     print(' done')
 
     ow_entities: Set[int] = dataset.ow_valid.owe
-    ow_triples: Set[Triple] = dataset.ow_valid.triples
-    ow_triples = {(head, rel, tail) for head, tail, rel in ow_triples}
+    ow_triples_set: Set[Triple] = dataset.ow_valid.triples
+    ow_triples = [(head, rel, tail) for head, tail, rel in ow_triples_set]
 
     #
     # Build model
@@ -158,7 +158,7 @@ def _eval_model(model_selection: str,
         random.shuffle(shuffled_ow_entities)
 
     evaluator = RankBasedEvaluator()
-    mapped_triples: torch.LongTensor = torch.tensor(list(ow_triples)[:100], dtype=torch.long)
+    mapped_triples: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
     total_result: MetricResults = evaluator.evaluate(model, mapped_triples, batch_size=1024)
 
     print(total_result)
