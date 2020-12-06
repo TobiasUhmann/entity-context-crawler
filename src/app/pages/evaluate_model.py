@@ -1,14 +1,15 @@
 import os
-import pandas as pd
 import random
-import streamlit as st
-
-from elasticsearch import Elasticsearch
+from torch import LongTensor, tensor
 from typing import Set
 
+import pandas as pd
+import streamlit as st
+from elasticsearch import Elasticsearch
+from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
+
 from app.util import load_dataset
-from eval.old_baseline_model import BaselineModel
-from eval.evaluator import Evaluator
+from eval.baseline_model import BaselineModel
 from util.custom_types import Entity, Triple
 
 
@@ -31,13 +32,15 @@ def render_evaluate_model_page():
     id2ent = dataset.id2ent
 
     ow_entities: Set[Entity] = dataset.ow_valid.owe
-    ow_triples: Set[Triple] = dataset.ow_valid.triples
+    ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
 
     #
     # Model independent params
     #
 
     st.sidebar.markdown('---')
+
+    dataset_dir = st.sidebar.text_input('Dataset', 'data/oke.fb15k237_30061990_50')
 
     model_selection = st.sidebar.selectbox('Model', ['Baseline 10', 'Baseline 100'])
 
@@ -60,13 +63,13 @@ def render_evaluate_model_page():
         es_url = st.sidebar.text_input('Elasticsearch URL', value='localhost:9200')
         es = Elasticsearch([es_url])
         cw_es_index = st.sidebar.text_input('CW Elasticsearch Index', value='cw-contexts-v7-enwiki-20200920-10-500')
-        model = BaselineModel(dataset, es, cw_es_index, ow_contexts_db)
+        model = BaselineModel(dataset_dir, es, cw_es_index, ow_contexts_db)
 
     elif model_selection == 'Baseline 100':
         es_url = st.sidebar.text_input('Elasticsearch URL', value='localhost:9200')
         es = Elasticsearch([es_url])
         cw_es_index = st.sidebar.text_input('CW Elasticsearch Index', value='cw-contexts-v7-enwiki-20200920-100-500')
-        model = BaselineModel(dataset, es, cw_es_index, ow_contexts_db)
+        model = BaselineModel(dataset_dir, es, cw_es_index, ow_contexts_db)
 
     else:
         raise AssertionError()
@@ -83,17 +86,23 @@ def render_evaluate_model_page():
         shuffled_ow_entities = list(ow_entities)
         random.shuffle(shuffled_ow_entities)
 
-    total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
+    # total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
+
+    evaluator = RankBasedEvaluator()
+    mapped_triples: LongTensor = tensor(ow_triples, dtype=LongTensor)
+    total_result: RankBasedMetricResults = evaluator.evaluate(model, mapped_triples, batch_size=1024)
+
+    print(total_result)
 
     #
     # Show results
     #
 
-    results, mean_ap = total_result.results, total_result.map
-
-    data = [(id2ent[ow_entity], result.precision, result.recall, result.f1, result.ap)
-            for ow_entity, result in zip(shuffled_ow_entities, results)]
-    data_frame = pd.DataFrame(data, columns=['Entity', 'Precision', 'Recall', 'F1', 'AP'])
-    st.dataframe(data_frame)
-
-    st.write('mAP = {:.4f}'.format(mean_ap))
+    # results, mean_ap = total_result.results, total_result.map
+    #
+    # data = [(id2ent[ow_entity], result.precision, result.recall, result.f1, result.ap)
+    #         for ow_entity, result in zip(shuffled_ow_entities, results)]
+    # data_frame = pd.DataFrame(data, columns=['Entity', 'Precision', 'Recall', 'F1', 'AP'])
+    # st.dataframe(data_frame)
+    #
+    # st.write('mAP = {:.4f}'.format(mean_ap))
