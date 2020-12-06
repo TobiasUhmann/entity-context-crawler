@@ -1,16 +1,14 @@
 import os
-import random
 from argparse import ArgumentParser, Namespace
-from collections import Set
 from os.path import isdir
 
 import torch
 from elasticsearch import Elasticsearch
-from pykeen.evaluation import RankBasedEvaluator, MetricResults
+from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
 from ryn.graphs.split import Dataset
 
 from models.baseline_model import BaselineModel
-from util.types import Triple
+from util.log import log
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -23,7 +21,7 @@ def add_parser_args(parser: ArgumentParser):
         --baseline-ow-db
     """
 
-    model_choices = ['baseline-10', 'baseline-100']
+    model_choices = ['baseline']
     parser.add_argument('model', metavar='model', choices=model_choices,
                         help='One of {}'.format(model_choices))
 
@@ -76,13 +74,18 @@ def run(args: Namespace):
     # Check mandatory params
     #
 
-    if model in ['baseline-10', 'baseline-100']:
+    if model == 'baseline':
+        missing_params = False
+
         if baseline_es_index is None:
             print('--baseline-es-index must be specified')
-            exit()
+            missing_params = True
 
         if baseline_ow_db is None:
             print('--baseline-ow-db must be specified')
+            missing_params = True
+
+        if missing_params:
             exit()
 
     #
@@ -108,7 +111,8 @@ def run(args: Namespace):
     _eval_model(model, dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
 
 
-def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str, ow_db: str):
+def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str,
+                baseline_ow_db: str):
     """
     - Load dataset
     - Build model
@@ -116,21 +120,20 @@ def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsear
     - Print results
     """
 
-    print('Read dataset...', end='')
+    log('Read dataset...')
     dataset = Dataset.load(path=dataset_dir)
-    print(' done')
+    log('Done')
 
-    ow_entities: Set[int] = dataset.ow_valid.owe
-    ow_triples_set: Set[Triple] = dataset.ow_valid.triples
-    ow_triples = [(head, rel, tail) for head, tail, rel in ow_triples_set]
+    ow_ents = list(dataset.ow_valid.owe)
+    ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
 
     #
     # Build model
     #
 
-    if model_selection in ['baseline-10', 'baseline-100']:
-        model = BaselineModel(dataset_dir, baseline_es, baseline_es_index, ow_db)
-        model.calc_score_matrix(list(ow_entities))
+    if model_selection == 'baseline':
+        model = BaselineModel(dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
+        model.calc_score_matrix(ow_ents)
     else:
         raise AssertionError()
 
@@ -138,14 +141,11 @@ def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsear
     # Evaluate model
     #
 
-    shuffled_ow_entities = list(ow_entities)
-    random.shuffle(shuffled_ow_entities)
-
     evaluator = RankBasedEvaluator()
-    mapped_triples: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
-    total_result: MetricResults = evaluator.evaluate(model, mapped_triples, batch_size=1024)
+    ow_triples_tensor: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
+    result: RankBasedMetricResults = evaluator.evaluate(model, ow_triples_tensor, batch_size=1024)
 
-    print(total_result)
+    print(result)
 
     #
     # Print results

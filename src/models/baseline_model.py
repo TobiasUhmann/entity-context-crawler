@@ -54,17 +54,14 @@ class BaselineModel(Model):
         cw_triples: Set[Triple] = split_dataset.cw_train.triples | split_dataset.cw_valid.triples
         self.cw_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples]
 
-        ow_triples: Set[Triple] = split_dataset.ow_valid.triples
-        self.cw_ow_triples: List[Triple] = [(head, rel, tail) for head, tail, rel in cw_triples | ow_triples]
-
         self.score_matrix = None
 
         #
         # Score head/tail entities by frequency
         #
 
-        self.head_counter = Counter([head for head, _, _ in self.cw_ow_triples])
-        self.tail_counter = Counter([tail for _, _, tail in self.cw_ow_triples])
+        self.head_counter = Counter([head for head, _, _ in self.cw_triples])
+        self.tail_counter = Counter([tail for _, _, tail in self.cw_triples])
 
     def predict(self, ow_ent: int) -> Optional[List[Triple]]:
         """
@@ -110,7 +107,7 @@ class BaselineModel(Model):
         # Get CW triples, modify them (replace CW entity with OW entity)
         #
 
-        cw_triples = [(head, rel, tail) for head, rel, tail in self.cw_ow_triples
+        cw_triples = [(head, rel, tail) for head, rel, tail in self.cw_triples
                       if head == cw_ent or tail == cw_ent]
 
         pred_triples = [(ow_ent if head == cw_ent else head,
