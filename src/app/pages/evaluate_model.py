@@ -28,8 +28,6 @@ def render_evaluate_model_page():
 
     dataset = load_dataset()
 
-    id2ent = dataset.id2ent
-
     ow_entities: Set[int] = dataset.ow_valid.owe
     ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
 
@@ -44,8 +42,6 @@ def render_evaluate_model_page():
     model_selection = st.sidebar.selectbox('Model', ['Baseline 10', 'Baseline 100'])
 
     ow_contexts_db = st.sidebar.text_input('OW Contexts DB', value='data/ow-contexts-v7-enwiki-20200920-100-500.db')
-
-    limit_entities = st.sidebar.number_input('Limit entities', value=10)
 
     random_seed = st.sidebar.number_input('Random seed', value=0)
     random.seed(random_seed)
@@ -79,11 +75,8 @@ def render_evaluate_model_page():
 
     st.title('Evaluate model')
 
-    if limit_entities:
-        shuffled_ow_entities = random.sample(ow_entities, limit_entities)
-    else:
-        shuffled_ow_entities = list(ow_entities)
-        random.shuffle(shuffled_ow_entities)
+    shuffled_ow_entities = list(ow_entities)
+    random.shuffle(shuffled_ow_entities)
 
     # total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
 

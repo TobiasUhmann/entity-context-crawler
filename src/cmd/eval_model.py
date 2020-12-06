@@ -7,6 +7,7 @@ from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
 from ryn.graphs.split import Dataset
 
+from eval.custom_evaluator import CustomEvaluator, TotalResult
 from models.baseline_model import BaselineModel
 from util.log import log
 
@@ -19,6 +20,7 @@ def add_parser_args(parser: ArgumentParser):
         --baseline-es-host
         --baseline-es-index
         --baseline-ow-db
+        --eval-mode
     """
 
     model_choices = ['baseline']
@@ -38,6 +40,11 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('--baseline-ow-db', dest='baseline_ow_db', metavar='STR',
                         help='Path to (input) open world contexts DB')
 
+    eval_mode_choices = ['custom', 'pykeen']
+    default_eval_mode = 'pykeen'
+    parser.add_argument('--eval-mode', dest='eval_mode', choices=eval_mode_choices, default=default_eval_mode,
+                        help='One of {} (default: {})'.format(eval_mode_choices, default_eval_mode))
+
 
 def run(args: Namespace):
     """
@@ -52,6 +59,7 @@ def run(args: Namespace):
     baseline_es_host = args.baseline_es_host
     baseline_es_index = args.baseline_es_index
     baseline_ow_db = args.baseline_ow_db
+    eval_mode = args.eval_mode
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
 
@@ -66,6 +74,7 @@ def run(args: Namespace):
     print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
     print('    {:20} {}'.format('--baseline-es-index', baseline_es_index))
     print('    {:20} {}'.format('--baseline-ow-db', baseline_ow_db))
+    print('    {:20} {}'.format('--eval-mode', eval_mode))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
@@ -108,11 +117,11 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _eval_model(model, dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
+    _eval_model(model, dataset_dir, baseline_es, baseline_es_index, baseline_ow_db, eval_mode)
 
 
 def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str,
-                baseline_ow_db: str):
+                baseline_ow_db: str, eval_mode: str):
     """
     - Load dataset
     - Build model
@@ -141,28 +150,18 @@ def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsear
     # Evaluate model
     #
 
-    evaluator = RankBasedEvaluator()
-    ow_triples_tensor: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
-    result: RankBasedMetricResults = evaluator.evaluate(model, ow_triples_tensor, batch_size=1024)
+    if eval_mode == 'custom':
+        evaluator = CustomEvaluator(model, ow_triples, ow_ents)
+        result: TotalResult = evaluator.run()
 
-    print(result)
+        print(result.map)
 
-    #
-    # Print results
-    #
+    elif eval_mode == 'pykeen':
+        evaluator = RankBasedEvaluator()
+        ow_triples_tensor: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
+        result: RankBasedMetricResults = evaluator.evaluate(model, ow_triples_tensor, batch_size=1024)
 
-    # results, mean_ap = total_result.results, total_result.map
-    #
-    # print()
-    # print('{:24} {:>8} {:>8} {:>8} {:>8}'.format('ENTITY', 'PREC', 'RECALL', 'F1', 'AP'))
-    # print('-' * (24 + 4 * 9))
-    # for ow_entity, result in zip(shuffled_ow_entities, results):
-    #     label = truncate(id2ent[ow_entity], 24)
-    #     prec, recall, f1, ap = result.precision, result.recall, result.f1, result.ap
-    #     print('{:24} {:8.2f} {:8.2f} {:8.2f} {:8.2f}'.format(label, prec, recall, f1, ap))
-    #
-    # print()
-    # print('mAP = {:.4f}'.format(mean_ap))
+        print(result)
 
-# def truncate(text: str, max_len: int):
-#     return (text[:max_len - 3] + '...') if len(text) > max_len else text
+    else:
+        raise AssertionError()
