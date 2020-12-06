@@ -17,7 +17,7 @@ from torch import FloatTensor, LongTensor, tensor
 from tqdm import tqdm
 
 from dao.contexts_db import select_contexts
-from util.types import Entity, Triple
+from util.types import Triple
 
 
 class BaselineModel(Model):
@@ -67,7 +67,7 @@ class BaselineModel(Model):
         self.head_counter = Counter([head for head, _, _ in self.cw_ow_triples])
         self.tail_counter = Counter([tail for _, _, tail in self.cw_ow_triples])
 
-    def predict(self, ow_ent: Entity) -> Optional[List[Triple]]:
+    def predict(self, ow_ent: int) -> Optional[List[Triple]]:
         """
         Prediction for an OW entity:
 
@@ -124,7 +124,7 @@ class BaselineModel(Model):
     def score(self, triple):
         return self.head_counter[triple[0]] + self.tail_counter[triple[2]]
 
-    def calc_score_matrix(self, ow_ent_batch: List[Entity]):
+    def calc_score_matrix(self, ow_ent_batch: List[int]):
 
         # Create sparse DOK matrix (which is suitable for counting) containing all triple scores
         ent_count = len(self.id2ent)

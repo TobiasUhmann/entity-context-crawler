@@ -11,7 +11,6 @@ from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
 
 from app.util import load_dataset
 from models.baseline_model import BaselineModel
-from util.types import Entity
 
 
 def render_evaluate_model_page():
@@ -32,7 +31,7 @@ def render_evaluate_model_page():
 
     id2ent = dataset.id2ent
 
-    ow_entities: Set[Entity] = dataset.ow_valid.owe
+    ow_entities: Set[int] = dataset.ow_valid.owe
     ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
 
     #

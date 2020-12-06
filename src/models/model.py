@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 
-from util.types import Entity, Triple
+from util.types import Triple
 
 
 class Model:
@@ -16,8 +16,8 @@ class Model:
     def score(self, triple):
         raise NotImplementedError()
 
-    def predict(self, query_entity_batch: List[Entity]) \
-            -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
+    def predict(self, query_entity_batch: List[int]) \
+            -> Tuple[List[List[Triple]], List[Optional[int]]]:
         """
         Predict triples for a batch of open world entities.
 
