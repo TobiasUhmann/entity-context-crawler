@@ -6,9 +6,9 @@ import streamlit as st
 import torch
 from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
-from torch import LongTensor, tensor
 
 from app.util import load_dataset
+from eval.custom_evaluator import CustomEvaluator, TotalResult
 from models.baseline_model import BaselineModel
 
 
@@ -48,6 +48,8 @@ def render_evaluate_model_page():
 
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
+    eval_mode = st.sidebar.selectbox('Eval Mode', ['Custom', 'Pykeen'], index=1)
+
     #
     # Model dependent params
     #
@@ -78,23 +80,15 @@ def render_evaluate_model_page():
     shuffled_ow_entities = list(ow_entities)
     random.shuffle(shuffled_ow_entities)
 
-    # total_result = Evaluator(model, ow_triples, shuffled_ow_entities).run()
+    if eval_mode == 'Custom':
+        evaluator = CustomEvaluator(model, ow_triples, ow_entities)
+        result: TotalResult = evaluator.run()
 
-    evaluator = RankBasedEvaluator()
-    mapped_triples: LongTensor = tensor(ow_triples, dtype=torch.long)
-    total_result: RankBasedMetricResults = evaluator.evaluate(model, mapped_triples, batch_size=1024)
+        print(result.map)
 
-    print(total_result)
+    elif eval_mode == 'Pykeen':
+        evaluator = RankBasedEvaluator()
+        ow_triples_tensor: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
+        result: RankBasedMetricResults = evaluator.evaluate(model, ow_triples_tensor, batch_size=1024)
 
-    #
-    # Show results
-    #
-
-    # results, mean_ap = total_result.results, total_result.map
-    #
-    # data = [(id2ent[ow_entity], result.precision, result.recall, result.f1, result.ap)
-    #         for ow_entity, result in zip(shuffled_ow_entities, results)]
-    # data_frame = pd.DataFrame(data, columns=['Entity', 'Precision', 'Recall', 'F1', 'AP'])
-    # st.dataframe(data_frame)
-    #
-    # st.write('mAP = {:.4f}'.format(mean_ap))
+        print(result)
