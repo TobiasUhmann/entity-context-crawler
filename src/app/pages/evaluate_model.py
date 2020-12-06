@@ -1,13 +1,12 @@
 import os
 import random
-
-import torch
-from torch import LongTensor, tensor
 from typing import Set
 
 import streamlit as st
+import torch
 from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
+from torch import LongTensor, tensor
 
 from app.util import load_dataset
 from models.baseline_model import BaselineModel

@@ -1,7 +1,7 @@
+from typing import Set
+
 import pandas as pd
 import streamlit as st
-
-from typing import Set
 
 from app.util import load_dataset
 

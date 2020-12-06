@@ -1,13 +1,13 @@
 import os
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
-from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile, isdir
-from ryn.graphs.split import Dataset
 from typing import Set
+
+from elasticsearch import Elasticsearch
+from ryn.graphs.split import Dataset
 
 from dao.contexts_db import create_contexts_table, insert_context, select_contexts
 

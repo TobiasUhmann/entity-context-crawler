@@ -1,12 +1,12 @@
 import os
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
 from collections import defaultdict, Counter
-from elasticsearch import Elasticsearch
 from os.path import isfile
-from ryn.graphs.split import Dataset
 from typing import List
+
+from elasticsearch import Elasticsearch
+from ryn.graphs.split import Dataset
 
 from dao.contexts_db import select_contexts, select_distinct_entities
 

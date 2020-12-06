@@ -1,6 +1,5 @@
 import logging
 import sqlite3
-import sys
 from collections import Counter
 from typing import List, Set, Optional, Dict
 

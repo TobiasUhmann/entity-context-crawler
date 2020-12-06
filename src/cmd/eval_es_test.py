@@ -1,14 +1,14 @@
-import matplotlib.pyplot as plt
 import os
 import re
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
 from collections import Counter, defaultdict
-from elasticsearch import Elasticsearch
-from matplotlib.widgets import Slider
 from os import remove
 from os.path import isfile
+
+import matplotlib.pyplot as plt
+from elasticsearch import Elasticsearch
+from matplotlib.widgets import Slider
 
 
 def add_parser_args(parser: ArgumentParser):
