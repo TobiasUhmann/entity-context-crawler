@@ -36,6 +36,7 @@ def render_look_up_entities_and_relations_page():
     render_ent_by_id_section(dataset, ent_to_label, ents)
     render_ent_by_label_section(dataset, ent_to_label, ents)
     render_rel_by_id_section(rel_to_label, rels)
+    render_rel_by_label_section(rel_to_label, rels)
 
 
 def render_ent_by_id_section(dataset: split.Dataset, ent_to_label: Dict[int, str], ents: Set[int]) -> None:
@@ -74,6 +75,24 @@ def render_rel_by_id_section(rel_to_label: Dict[int, str], rels: Set[int]) -> No
     rel = cols[0].number_input('Relation ID', key='rbi-id',
                                min_value=min(rels), max_value=max(rels), value=min(rels))
     cols[1].text_input('Relation Label', key='rbi-label', value=rel_to_label[rel])
+
+
+def render_rel_by_label_section(rel_to_label: Dict[int, str], rels: Set[int]) -> None:
+    st.header('Relation by label')
+
+    cols = st.beta_columns([15, 70, 15])
+
+    infix = cols[0].text_input('Label contains', key='rbl-infix', value='/a')
+
+    all_rels_with_labels = [(rel, rel_to_label[rel]) for rel in rels]
+    filtered_rels_with_labels = [(rel, label) for rel, label in all_rels_with_labels if infix in label]
+    filtered_rels_with_labels.sort(key=lambda x: x[1])
+
+    rel = cols[1].selectbox('Relation label', key='rbl-label',
+                            options=[rel for rel, label in filtered_rels_with_labels],
+                            format_func=lambda option: rel_to_label[option])
+
+    cols[2].text_input('Relation ID', key='rbl-id', value=rel)
 
 
 def ent_type(dataset, ent) -> str:
