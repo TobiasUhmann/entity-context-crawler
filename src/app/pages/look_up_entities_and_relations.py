@@ -1,5 +1,5 @@
 import pickle
-from typing import Dict
+from typing import Dict, List, Set
 
 import streamlit as st
 from ryn.graphs import split
@@ -24,7 +24,8 @@ def render_look_up_entities_and_relations_page():
     ent_to_label: Dict[int, str] = dataset.id2ent
     rel_to_label: Dict[int, str] = dataset.id2rel
 
-    ents = ent_to_label.keys()
+    ents = set(ent_to_label.keys())
+    rels = set(rel_to_label.keys())
 
     #
     # Main
@@ -32,12 +33,13 @@ def render_look_up_entities_and_relations_page():
 
     st.title('Look up entities and relations')
 
-    render_entity_by_id_section(dataset, ent_to_label, ents)
-    render_entity_by_label_section(dataset, ent_to_label, ents)
+    render_ent_by_id_section(dataset, ent_to_label, ents)
+    render_ent_by_label_section(dataset, ent_to_label, ents)
+    render_rel_by_id_section(rel_to_label, rels)
 
 
-def render_entity_by_id_section(dataset, ent_to_label, ents):
-    st.header('Look up entity by ID')
+def render_ent_by_id_section(dataset: split.Dataset, ent_to_label: Dict[int, str], ents: Set[int]) -> None:
+    st.header('Entity by ID')
 
     cols = st.beta_columns([25, 65, 10])
     ent = cols[0].number_input('Entity ID', key='ebi-id',
@@ -46,8 +48,8 @@ def render_entity_by_id_section(dataset, ent_to_label, ents):
     cols[2].text_input('CW/OW', key='ebi-cwow', value=ent_type(dataset, ent))
 
 
-def render_entity_by_label_section(dataset, ent_to_label, ents):
-    st.header('Look up entity by label')
+def render_ent_by_label_section(dataset: split.Dataset, ent_to_label: Dict[int, str], ents: Set[int]) -> None:
+    st.header('Entity by label')
 
     cols = st.beta_columns([15, 60, 15, 10])
 
@@ -63,6 +65,15 @@ def render_entity_by_label_section(dataset, ent_to_label, ents):
 
     cols[2].text_input('Entity ID', key='ebl-id', value=ent)
     cols[3].text_input('CW/OW', key='ebl-cwow', value=ent_type(dataset, ent))
+
+
+def render_rel_by_id_section(rel_to_label: Dict[int, str], rels: Set[int]) -> None:
+    st.header('Relation by ID')
+
+    cols = st.beta_columns([25, 75])
+    rel = cols[0].number_input('Relation ID', key='rbi-id',
+                               min_value=min(rels), max_value=max(rels), value=min(rels))
+    cols[1].text_input('Relation Label', key='rbi-label', value=rel_to_label[rel])
 
 
 def ent_type(dataset, ent) -> str:
