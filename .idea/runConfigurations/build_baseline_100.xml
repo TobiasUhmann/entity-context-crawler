@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="build-baseline data/oke.fb15k237_30061990_50/ data/contexts-v7-enwiki-20200920-100-500.db cw-contexts-v7-enwiki-20200920-100-500 data/ow-contexts-v7-enwiki-20200920-100-500.db data/baseline-v1-enwiki-20200920-100-500.p --limit-contexts 100" />
+    <option name="PARAMETERS" value="build-baseline data/oke.fb15k237_30061990_50/ data/contexts-v7-enwiki-20200920-100-500.db cw-contexts-v7-enwiki-20200920-100-500 data/ow-contexts-v7-enwiki-20200920-100-500.db data/baseline-v1-enwiki-20200920-100-500.p --limit-contexts 100 --overwrite" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

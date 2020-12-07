@@ -11,6 +11,8 @@ from app.pages.show_relation_triples import render_show_relation_triples_page
 def render_index():
     """ Render the part that is common to all pages: The sidebar navigation """
 
+    st.sidebar.header('Navigation')
+
     navigate_to = st.sidebar.radio('', [
         'Model Overview',
         'Show entity contexts',

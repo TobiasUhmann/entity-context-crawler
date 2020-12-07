@@ -1,7 +1,8 @@
 import os
+import pickle
 import random
 import re
-from typing import Set
+from typing import Set, List
 
 import pandas as pd
 import streamlit as st
@@ -10,15 +11,15 @@ from elasticsearch import Elasticsearch
 from app.util import load_dataset
 from eval.custom_evaluator import CustomEvaluator
 from models.baseline_model import BaselineModel
+from util.types import Triple
 
 
 def render_predict_entity_triples_page():
-
     #
     # Sidebar: Input model independent params
     #
 
-    st.sidebar.markdown('---')
+    st.sidebar.header('Model independent params')
 
     model_selection = st.sidebar.selectbox('Model', ['Baseline'])
     dataset_dir = st.sidebar.text_input('Dataset directory', 'data/oke.fb15k237_30061990_50')
@@ -30,12 +31,14 @@ def render_predict_entity_triples_page():
     # Sidebar: Input model dependent params
     #
 
-    st.sidebar.markdown('---')
+    st.sidebar.header('Model dependent params')
 
     if model_selection == 'Baseline':
-        es_host = st.sidebar.text_input('Elasticsearch Host', value='localhost:9200')
-        es_index = st.sidebar.text_input('Elasticsearch Index Name', value='cw-contexts-v7-enwiki-20200920-100-500')
-        ow_db = st.sidebar.text_input('Open-World DB', value='data/ow-contexts-v7-enwiki-20200920-100-500.db')
+        baseline_es_host = st.sidebar.text_input('Elasticsearch Host', value='localhost:9200')
+        baseline_es_index = st.sidebar.text_input('Elasticsearch Index Name',
+                                                  value='cw-contexts-v7-enwiki-20200920-100-500')
+        baseline_ow_db = st.sidebar.text_input('Open-World DB', value='data/ow-contexts-v7-enwiki-20200920-100-500.db')
+        baseline_pickle_file = st.sidebar.text_input('Pickle File', value='data/baseline-v1-enwiki-20200920-100-500.p')
 
     else:
         raise AssertionError()
@@ -75,9 +78,11 @@ def render_predict_entity_triples_page():
     #
 
     if model_selection == 'Baseline':
-        es = Elasticsearch([es_host])
-        model = BaselineModel(dataset_dir, es, es_index, ow_db)
-        model.calc_score_matrix(ow_entities)
+        es = Elasticsearch([baseline_es_host])
+        model = BaselineModel(dataset_dir, es, baseline_es_index, baseline_ow_db)
+
+        with open(baseline_pickle_file, 'rb') as fh:
+            model.score_matrix = pickle.load(fh)
 
         pred_triples = model.predict(selected_entity)
 
@@ -98,6 +103,19 @@ def render_predict_entity_triples_page():
     #     else:
     #         return 'color: black; background-color: white'
 
+    def background_color(row):
+        if row.Head >= 8000:
+            return ['background-color: red'] * len(row)
+        elif row.Tail >= 5000:
+            return ['background-color: yellow'] * len(row)
+        else:
+            return [''] * len(row)
+
     df = pd.DataFrame(pred_triples, columns=['Head', 'Relation', 'Tail'])
-    # df = df.style.applymap(highlight)
+    df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
+
+
+def get_entity_triples(ow_entity: int, ow_triples: List[Triple]):
+    return [(head, rel, tail) for head, rel, tail in ow_triples
+            if head == ow_entity or tail == ow_entity]
