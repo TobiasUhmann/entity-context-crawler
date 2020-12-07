@@ -129,7 +129,9 @@ def render_predict_entity_triples_page():
     data = [(id2ent[head], id2rel[rel], id2ent[tail], model.score((head, rel, tail)), truth((head, rel, tail)))
             for head, rel, tail in pred_and_actual_triples]
 
-    df = pd.DataFrame(data, columns=['Head', 'Relation', 'Tail', 'Score', 'Truth'])
+    sorted_data = sorted(data, key=lambda tup: tup[3], reverse=True)
+
+    df = pd.DataFrame(sorted_data, columns=['Head', 'Relation', 'Tail', 'Score', 'Truth'])
     df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
 
