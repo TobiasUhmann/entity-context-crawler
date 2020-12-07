@@ -53,7 +53,7 @@ def add_parser_args(parser: ArgumentParser):
 def run(args: Namespace):
     """
     - Print applied config
-    - Check if files already exist
+    - Check if output files already exist
     - Run actual program
     """
 
@@ -88,7 +88,7 @@ def run(args: Namespace):
     print()
 
     #
-    # Check if files already exist
+    # Check if output files already exist
     #
 
     if not isfile(contexts_db):

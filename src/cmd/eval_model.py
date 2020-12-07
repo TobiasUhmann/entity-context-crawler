@@ -1,4 +1,5 @@
 import os
+import pickle
 from argparse import ArgumentParser, Namespace
 from os.path import isdir
 
@@ -20,6 +21,7 @@ def add_parser_args(parser: ArgumentParser):
         --baseline-es-host
         --baseline-es-index
         --baseline-ow-db
+        --baseline-pickle-file
         --eval-mode
     """
 
@@ -40,6 +42,9 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('--baseline-ow-db', dest='baseline_ow_db', metavar='STR',
                         help='Path to (input) open world contexts DB')
 
+    parser.add_argument('--baseline-pickle-file', dest='baseline_pickle_file', metavar='STR',
+                        help='Path to (inpt) pickle file')
+
     eval_mode_choices = ['custom', 'pykeen']
     default_eval_mode = 'pykeen'
     parser.add_argument('--eval-mode', dest='eval_mode', choices=eval_mode_choices, default=default_eval_mode,
@@ -49,7 +54,7 @@ def add_parser_args(parser: ArgumentParser):
 def run(args: Namespace):
     """
     - Print applied config
-    - Check if files already exist
+    - Check if output files already exist
     - Run actual program
     """
 
@@ -59,6 +64,7 @@ def run(args: Namespace):
     baseline_es_host = args.baseline_es_host
     baseline_es_index = args.baseline_es_index
     baseline_ow_db = args.baseline_ow_db
+    baseline_pickle_file = args.baseline_pickle_file
     eval_mode = args.eval_mode
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
@@ -74,6 +80,7 @@ def run(args: Namespace):
     print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
     print('    {:20} {}'.format('--baseline-es-index', baseline_es_index))
     print('    {:20} {}'.format('--baseline-ow-db', baseline_ow_db))
+    print('    {:20} {}'.format('--baseline-pickle-file', baseline_pickle_file))
     print('    {:20} {}'.format('--eval-mode', eval_mode))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
@@ -94,11 +101,15 @@ def run(args: Namespace):
             print('--baseline-ow-db must be specified')
             missing_params = True
 
+        if baseline_pickle_file is None:
+            print('--baseline-pickle-file must be specified')
+            missing_params = True
+
         if missing_params:
             exit()
 
     #
-    # Check if files already exist
+    # Check if output files already exist
     #
 
     if not isdir(dataset_dir):
@@ -117,11 +128,11 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _eval_model(model, dataset_dir, baseline_es, baseline_es_index, baseline_ow_db, eval_mode)
+    _eval_model(model, dataset_dir, baseline_es, baseline_es_index, baseline_ow_db, baseline_pickle_file, eval_mode)
 
 
 def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str,
-                baseline_ow_db: str, eval_mode: str):
+                baseline_ow_db: str, baseline_pickle_file: str, eval_mode: str):
     """
     - Load dataset
     - Build model
@@ -142,7 +153,10 @@ def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsear
 
     if model_selection == 'baseline':
         model = BaselineModel(dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
-        model.calc_score_matrix(ow_ents)
+
+        with open(baseline_pickle_file, 'rb') as fh:
+            model.score_matrix = pickle.load(fh)
+
     else:
         raise AssertionError()
 
