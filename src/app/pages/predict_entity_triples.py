@@ -104,14 +104,16 @@ def render_predict_entity_triples_page():
     #         return 'color: black; background-color: white'
 
     def background_color(row):
-        if row.Head >= 8000:
-            return ['background-color: red'] * len(row)
-        elif row.Tail >= 5000:
-            return ['background-color: yellow'] * len(row)
-        else:
-            return [''] * len(row)
+        if row.Truth == 'TP':
+            return ['background-color: #66bb6a'] * len(row)
+        elif row.Truth == 'FP':
+            return ['background-color: #ff7043'] * len(row)
+        elif row.Truth == 'FN':
+            return ['background-color: #ffee58'] * len(row)
 
-    df = pd.DataFrame(pred_triples, columns=['Head', 'Relation', 'Tail'])
+    data = [(head, rel, tail, 100, 'TP') for head, rel, tail in pred_triples]
+
+    df = pd.DataFrame(data, columns=['Head', 'Relation', 'Tail', 'Score', 'Truth'])
     df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
 
