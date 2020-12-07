@@ -2,14 +2,13 @@ import os
 import pickle
 import random
 import re
-from typing import Set, List
+from typing import List
 
 import pandas as pd
 import streamlit as st
 from elasticsearch import Elasticsearch
 
 from app.util import load_dataset
-from eval.custom_evaluator import CustomEvaluator
 from models.baseline_model import BaselineModel
 from util.types import Triple
 
@@ -126,7 +125,11 @@ def render_predict_entity_triples_page():
         else:
             raise AssertionError()
 
-    data = [(id2ent[head], id2rel[rel], id2ent[tail], model.score((head, rel, tail)), truth((head, rel, tail)))
+    data = [('{} ({})'.format(id2ent[head], head),
+             '{} ({})'.format(id2rel[rel], rel),
+             '{} ({})'.format(id2ent[tail], tail),
+             model.score((head, rel, tail)),
+             truth((head, rel, tail)))
             for head, rel, tail in pred_and_actual_triples]
 
     sorted_data = sorted(data, key=lambda tup: tup[3], reverse=True)
