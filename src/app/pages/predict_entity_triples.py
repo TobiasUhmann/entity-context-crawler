@@ -111,7 +111,23 @@ def render_predict_entity_triples_page():
         elif row.Truth == 'FN':
             return ['background-color: #ffee58'] * len(row)
 
-    data = [(head, rel, tail, 100, 'TP') for head, rel, tail in pred_triples]
+    actual_triples = get_entity_triples(selected_entity, ow_triples)
+    pred_and_actual_triples = list(set(pred_triples) | set(actual_triples))
+
+    def truth(triple: Triple):
+        if triple in pred_triples and triple in actual_triples:
+            return 'TP'
+        elif triple in pred_triples and triple not in actual_triples:
+            return 'FP'
+        elif triple not in pred_triples and triple in actual_triples:
+            return 'FN'
+        elif triple not in pred_triples and triple not in actual_triples:
+            return 'TN'
+        else:
+            raise AssertionError()
+
+    data = [(id2ent[head], id2rel[rel], id2ent[tail], model.score((head, rel, tail)), truth((head, rel, tail)))
+            for head, rel, tail in pred_and_actual_triples]
 
     df = pd.DataFrame(data, columns=['Head', 'Relation', 'Tail', 'Score', 'Truth'])
     df = df.style.apply(background_color, axis=1)
