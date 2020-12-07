@@ -3,6 +3,7 @@ import streamlit as st
 from app.pages.evaluate_model import render_evaluate_model_page
 from app.pages.model_overview import render_model_overview_page
 from app.pages.predict_entity_triples import render_predict_entity_triples_page
+from app.pages.rank_triple import render_rank_triple_page
 from app.pages.show_entity_contexts import render_show_entity_contexts_page
 from app.pages.show_entity_triples import render_show_entity_triples_page
 from app.pages.show_relation_triples import render_show_relation_triples_page
@@ -19,6 +20,7 @@ def render_index():
         'Show entity triples',
         'Show relation triples',
         'Predict entity triples',
+        'Rank triple',
         'Evaluate model'
     ])
 
@@ -32,5 +34,7 @@ def render_index():
         render_show_relation_triples_page()
     elif navigate_to == 'Predict entity triples':
         render_predict_entity_triples_page()
+    elif navigate_to == 'Rank triple':
+        render_rank_triple_page()
     elif navigate_to == 'Evaluate model':
         render_evaluate_model_page()
