@@ -1,7 +1,7 @@
 import os
+import pickle
 import sqlite3
 from argparse import ArgumentParser, Namespace
-from datetime import datetime
 from os import remove
 from os.path import isfile, isdir
 from typing import Set
@@ -10,6 +10,8 @@ from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 
 from dao.contexts_db import create_contexts_table, insert_context, select_contexts
+from models.baseline_model import BaselineModel
+from util.log import log
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -19,6 +21,7 @@ def add_parser_args(parser: ArgumentParser):
         contexts-db
         es-index
         ow-db
+        pickle-file
         --es-host
         --limit-contexts
         --overwrite
@@ -35,6 +38,9 @@ def add_parser_args(parser: ArgumentParser):
 
     parser.add_argument('ow_db', metavar='ow-db',
                         help='Path to (output) open world contexts DB')
+
+    parser.add_argument('pickle_file', metavar='pickle-file',
+                        help='Path to (output) pickle file')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
@@ -61,6 +67,7 @@ def run(args: Namespace):
     contexts_db = args.contexts_db
     es_index = args.es_index
     ow_db = args.ow_db
+    pickle_file = args.pickle_file
 
     es_host = args.es_host
     limit_contexts = args.limit_contexts
@@ -78,6 +85,7 @@ def run(args: Namespace):
     print('    {:20} {}'.format('contexts-db', contexts_db))
     print('    {:20} {}'.format('es-index', es_index))
     print('    {:20} {}'.format('ow-db', ow_db))
+    print('    {:20} {}'.format('pickle-file', pickle_file))
     print()
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-contexts', limit_contexts))
@@ -114,18 +122,26 @@ def run(args: Namespace):
             print('Open world DB already exists, use --overwrite to overwrite it')
             exit()
 
+    if isfile(pickle_file):
+        if overwrite:
+            remove(pickle_file)
+        else:
+            print('Pickle file already exists, use --overwrite to overwrite it')
+            exit()
+
     #
     # Run actual program
     #
 
-    _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_contexts)
+    _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, pickle_file, limit_contexts)
 
 
 #
 # BUILD
 #
 
-def _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_contexts):
+def _build_baseline(dataset_dir: str, es: Elasticsearch, contexts_db: str, es_index: str, ow_db: str, pickle_file: str,
+                    limit_contexts: int):
     """ Build closed world ES index and open world DB """
 
     with sqlite3.connect(contexts_db) as contexts_conn, \
@@ -134,28 +150,28 @@ def _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_context
         # Load data
         #
 
-        print('Read dataset...', end='')
+        log('Read dataset...')
 
-        dataset = Dataset.load(dataset_dir)
+        dataset = Dataset.load(path=dataset_dir)
 
         id2ent = dataset.id2ent
 
         cw_entities: Set[int] = dataset.cw_train.owe
         ow_entities: Set[int] = dataset.ow_valid.owe
 
-        print(' done')
+        log('Done')
 
         #
         # Build closed world ES index
         #
 
-        print()
-        print('Build closed world ES index...')
+        log()
+        log('Build closed world ES index...')
 
         for i, entity in enumerate(cw_entities):
             entity_label: str = id2ent[entity]
 
-            print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
+            log('{:,} closed world entities | {}'.format(i, entity_label))
 
             ow_contexts = [c.masked_context for c in select_contexts(contexts_conn, entity, limit_contexts)]
             ow_contexts = [masked_context.replace('#', '') for masked_context in ow_contexts]
@@ -168,21 +184,21 @@ def _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_context
 
         es.indices.refresh(index=es_index)
 
-        print('Done.')
+        log('Done')
 
         #
         # Build open world DB
         #
 
-        print()
-        print('Build open world DB...')
+        log()
+        log('Build open world DB...')
 
         create_contexts_table(ow_conn)
 
         for i, entity in enumerate(ow_entities):
             entity_label: str = id2ent[entity]
 
-            print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
+            log('{:,} open world entities | {}'.format(i, entity_label))
 
             ow_contexts = select_contexts(contexts_conn, entity, limit_contexts)
 
@@ -191,4 +207,19 @@ def _build_baseline(dataset_dir, es, contexts_db, es_index, ow_db, limit_context
 
         ow_conn.commit()
 
-        print('Done.')
+        log('Done')
+
+        #
+        # Calc and persist score matrix
+        #
+
+        log()
+        log('Calc and persist score matrix...')
+
+        model = BaselineModel(dataset_dir, es, es_index, ow_db)
+        model.calc_score_matrix(list(dataset.ow_valid.owe))
+
+        with open(pickle_file, 'wb') as fh:
+            pickle.dump(model.score_matrix, fh)
+
+        log('Done')
