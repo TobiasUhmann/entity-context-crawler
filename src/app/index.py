@@ -1,5 +1,6 @@
 import streamlit as st
 
+from app.pages.browse_triple_sets import render_browse_triple_sets_page
 from app.pages.evaluate_model import render_evaluate_model_page
 from app.pages.look_up_entities_and_relations import render_look_up_entities_and_relations_page
 from app.pages.model_overview import render_model_overview_page
@@ -18,6 +19,7 @@ def render_index():
     navigate_to = st.sidebar.radio('', [
         'Model Overview',
         'Look up entities and relations',
+        'Browse triple sets',
         'Show entity contexts',
         'Show entity triples',
         'Show relation triples',
@@ -30,6 +32,8 @@ def render_index():
         render_model_overview_page()
     elif navigate_to == 'Look up entities and relations':
         render_look_up_entities_and_relations_page()
+    elif navigate_to == 'Browse triple sets':
+        render_browse_triple_sets_page()
     elif navigate_to == 'Show entity contexts':
         render_show_entity_contexts_page()
     elif navigate_to == 'Show entity triples':

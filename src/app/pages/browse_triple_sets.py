@@ -5,7 +5,7 @@ import streamlit as st
 from ryn.graphs import split
 
 
-def render_look_up_entities_and_relations_page():
+def render_browse_triple_sets_page():
     #
     # Sidebar
     #
