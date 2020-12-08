@@ -1,9 +1,18 @@
 import pickle
-from typing import Dict, Set
+from typing import Dict
 
 import pandas as pd
 import streamlit as st
 from ryn.graphs import split
+
+blue_1 = 'background-color: #7986cb'
+blue_2 = 'background-color: #9fa8da'
+green_1 = 'background-color: #81c784'
+green_2 = 'background-color: #a5d6a7'
+yellow_1 = 'background-color: #fff176'
+yellow_2 = 'background-color: #fff59d'
+red_1 = 'background-color: #ff8a65'
+red_2 = 'background-color: #ffab91'
 
 
 def render_browse_triple_sets_page():
@@ -24,9 +33,6 @@ def render_browse_triple_sets_page():
     ent_to_label: Dict[int, str] = dataset.id2ent
     rel_to_label: Dict[int, str] = dataset.id2rel
 
-    ents: Set[int] = set(ent_to_label.keys())
-    rels: Set[int] = set(rel_to_label.keys())
-
     #
     # Main
     #
@@ -38,16 +44,16 @@ def render_browse_triple_sets_page():
     cols = st.beta_columns([25, 25, 25, 25])
 
     selected_cw_train = cols[0].checkbox('CW Train', value=True, key='ss-cwtrain')
-    cols[0].markdown('<div style="background-color: #42a5f5">&nbsp;</div>', unsafe_allow_html=True)
+    cols[0].markdown(f'<div style="{blue_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     selected_cw_valid = cols[1].checkbox('CW Valid', value=True, key='ss-cwvalid')
-    cols[1].markdown('<div style="background-color: #9ccc65">&nbsp;</div>', unsafe_allow_html=True)
+    cols[1].markdown(f'<div style="{green_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     selected_ow_valid = cols[2].checkbox('OW Valid', value=True, key='ss-owvalid')
-    cols[2].markdown('<div style="background-color: #ffee58">&nbsp;</div>', unsafe_allow_html=True)
+    cols[2].markdown(f'<div style="{yellow_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     selected_ow_test = cols[3].checkbox('OW Test', key='ss-owtest')
-    cols[3].markdown('<div style="background-color: #ff7043">&nbsp;</div>', unsafe_allow_html=True)
+    cols[3].markdown(f'<div style="{red_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     #
     # Limit triples
@@ -83,27 +89,25 @@ def render_browse_triple_sets_page():
     triples = triples[limit_from:limit_until:limit_step]
     print(len(triples))
 
-    # def truth(triple: Triple):
-    #     if triple in pred_triples and triple in actual_triples:
-    #         return 'TP'
-    #     elif triple in pred_triples and triple not in actual_triples:
-    #         return 'FP'
-    #     elif triple not in pred_triples and triple in actual_triples:
-    #         return 'FN'
-    #     elif triple not in pred_triples and triple not in actual_triples:
-    #         return 'TN'
-    #     else:
-    #         raise AssertionError()
-
     data = [(set,
              head, ent_type(dataset, head), ent_to_label[head],
              rel, rel_to_label[rel],
              tail, ent_type(dataset, tail), ent_to_label[tail])
             for set, head, rel, tail in triples]
 
-    columns = ['Set', 'Head', '', 'Head Label', 'Rel', 'Rel Label', 'Tail', '', 'Tail Label']
+    def background_color(row):
+        if row.Set == 'CW Train':
+            return [blue_1] + [blue_2] * 3 + [blue_1] * 2 + [blue_2] * 3
+        elif row.Set == 'CW Valid':
+            return [green_1] + [green_2] * 3 + [green_1] * 2 + [green_2] * 3
+        elif row.Set == 'OW Valid':
+            return [yellow_1] + [yellow_2] * 3 + [yellow_1] * 2 + [yellow_2] * 3
+        elif row.Set == 'OW Test':
+            return [red_1] + [red_2] * 3 + [red_1] * 2 + [red_2] * 3
+
+    columns = ['Set', 'Head', 'HW', 'Head Label', 'Rel', 'Rel Label', 'Tail', 'TW', 'Tail Label']
     df = pd.DataFrame(data, columns=columns)
-    # df = df.style.apply(background_color, axis=1)
+    df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
 
 
