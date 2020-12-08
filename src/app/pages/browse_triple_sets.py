@@ -1,6 +1,7 @@
 import pickle
-from typing import Dict, List, Set
+from typing import Dict, Set
 
+import pandas as pd
 import streamlit as st
 from ryn.graphs import split
 
@@ -43,7 +44,7 @@ def render_browse_triple_sets_page():
 
     selected_ow_valid = cols[2].checkbox('OW Valid', value=True)
     cols[2].markdown('<div style="background-color: #ffee58">&nbsp;</div>', unsafe_allow_html=True)
-    
+
     selected_ow_test = cols[3].checkbox('OW Test')
     cols[3].markdown('<div style="background-color: #ff7043">&nbsp;</div>', unsafe_allow_html=True)
 
@@ -51,8 +52,40 @@ def render_browse_triple_sets_page():
     # Filter
     #
 
+    st.write('')
     st.header('Filter triples')
     st.write('test')
+
+    #
+    # Show triples
+    #
+
+    triples = [(head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
+
+    # def truth(triple: Triple):
+    #     if triple in pred_triples and triple in actual_triples:
+    #         return 'TP'
+    #     elif triple in pred_triples and triple not in actual_triples:
+    #         return 'FP'
+    #     elif triple not in pred_triples and triple in actual_triples:
+    #         return 'FN'
+    #     elif triple not in pred_triples and triple not in actual_triples:
+    #         return 'TN'
+    #     else:
+    #         raise AssertionError()
+
+    data = [(head, ent_type(dataset, head), ent_to_label[head],
+             rel, rel_to_label[rel],
+             tail, ent_type(dataset, tail), ent_to_label[tail])
+            for head, rel, tail in triples]
+
+    df = pd.DataFrame(data, columns=['Head', '', 'Head Label', 'Rel', 'Rel Label', 'Tail', '', 'Tail Label'])
+    # df = df.style.apply(background_color, axis=1)
+    st.dataframe(df)
+
+
+def ent_type(dataset, ent) -> str:
+    return 'OW' if ent in dataset.ow_valid.owe else 'CW'
 
 
 @st.cache(allow_output_mutation=True)
