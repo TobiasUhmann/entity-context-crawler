@@ -60,7 +60,22 @@ def render_browse_triple_sets_page():
     # Show triples
     #
 
-    triples = [(head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
+    triples = []
+
+    if selected_cw_train:
+        triples += [('CW Train', head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
+
+    if selected_cw_valid:
+        triples += [('CW Valid', head, rel, tail) for head, tail, rel in dataset.cw_valid.triples]
+
+    if selected_ow_valid:
+        triples += [('OW Valid', head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+
+    if selected_ow_test:
+        triples += [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
+
+    triples = triples[::100]
+    print(len(triples))
 
     # def truth(triple: Triple):
     #     if triple in pred_triples and triple in actual_triples:
@@ -74,12 +89,14 @@ def render_browse_triple_sets_page():
     #     else:
     #         raise AssertionError()
 
-    data = [(head, ent_type(dataset, head), ent_to_label[head],
+    data = [(set,
+             head, ent_type(dataset, head), ent_to_label[head],
              rel, rel_to_label[rel],
              tail, ent_type(dataset, tail), ent_to_label[tail])
-            for head, rel, tail in triples]
+            for set, head, rel, tail in triples]
 
-    df = pd.DataFrame(data, columns=['Head', '', 'Head Label', 'Rel', 'Rel Label', 'Tail', '', 'Tail Label'])
+    columns = ['Set', 'Head', '', 'Head Label', 'Rel', 'Rel Label', 'Tail', '', 'Tail Label']
+    df = pd.DataFrame(data, columns=columns)
     # df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
 
