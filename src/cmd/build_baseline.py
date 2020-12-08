@@ -217,7 +217,7 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, contexts_db: str, es_in
         log('Calc and persist score matrix...')
 
         model = BaselineModel(dataset_dir, es, es_index, ow_db)
-        model.calc_score_matrix(list(dataset.ow_valid.owe))
+        model.calc_score_matrix(list(dataset.ow_valid.owe | dataset.ow_test.owe))
 
         with open(pickle_file, 'wb') as fh:
             pickle.dump(model.score_matrix, fh)
