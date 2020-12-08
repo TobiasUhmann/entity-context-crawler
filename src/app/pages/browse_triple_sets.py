@@ -176,14 +176,19 @@ def render_browse_triple_sets_page():
         elif row.Set == 'OW Test':
             return [red_1] + [red_2] * 3 + [red_1] * 2 + [red_2] * 3
 
-    columns = ['Set', 'Head', 'HW', 'Head Label', 'Rel', 'Rel Label', 'Tail', 'TW', 'Tail Label']
+    columns = ['Set', 'Head', 'Head CW/OW', 'Head Label', 'Rel', 'Rel Label', 'Tail', 'Tail CW/OW', 'Tail Label']
     df = pd.DataFrame(data, columns=columns)
     df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
 
 
-def ent_type(dataset, ent) -> str:
-    return 'OW' if ent in dataset.ow_valid.owe else 'CW'
+def ent_type(dataset: split.Dataset, ent: int) -> str:
+    if ent in dataset.ow_test.owe:
+        return 'OW Test'
+    elif ent in dataset.ow_valid.owe:
+        return 'OW Valid'
+    else:
+        return 'CW'
 
 
 @st.cache(allow_output_mutation=True)

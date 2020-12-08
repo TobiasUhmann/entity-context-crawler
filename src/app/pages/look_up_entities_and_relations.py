@@ -41,7 +41,7 @@ def render_look_up_entities_and_relations_page():
 def render_ent_by_id_section(dataset: split.Dataset, ent_to_label: Dict[int, str], ents: Set[int]) -> None:
     st.header('Entity by ID')
 
-    cols = st.beta_columns([25, 65, 10])
+    cols = st.beta_columns([25, 60, 15])
     ent = cols[0].number_input('Entity ID', key='ebi-id',
                                min_value=min(ents), max_value=max(ents), value=min(ents))
     cols[1].text_input('Entity Label', key='ebi-label', value=ent_to_label[ent])
@@ -51,7 +51,7 @@ def render_ent_by_id_section(dataset: split.Dataset, ent_to_label: Dict[int, str
 def render_ent_by_label_section(dataset: split.Dataset, ent_to_label: Dict[int, str], ents: Set[int]) -> None:
     st.header('Entity by label')
 
-    cols = st.beta_columns([15, 60, 15, 10])
+    cols = st.beta_columns([15, 55, 15, 15])
 
     infix = cols[0].text_input('Label contains', key='ebl-infix', value='Ab')
 
@@ -94,8 +94,13 @@ def render_rel_by_label_section(rel_to_label: Dict[int, str], rels: Set[int]) ->
     cols[2].text_input('Relation ID', key='rbl-id', value=rel)
 
 
-def ent_type(dataset, ent) -> str:
-    return 'OW' if ent in dataset.ow_valid.owe else 'CW'
+def ent_type(dataset: split.Dataset, ent: int) -> str:
+    if ent in dataset.ow_test.owe:
+        return 'OW Test'
+    elif ent in dataset.ow_valid.owe:
+        return 'OW Valid'
+    else:
+        return 'CW'
 
 
 @st.cache(allow_output_mutation=True)
