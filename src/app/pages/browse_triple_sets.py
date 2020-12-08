@@ -1,6 +1,6 @@
 import pickle
 import random
-from typing import Dict
+from typing import Dict, Set
 
 import pandas as pd
 import streamlit as st
@@ -34,6 +34,11 @@ def render_browse_triple_sets_page():
     ent_to_label: Dict[int, str] = dataset.id2ent
     rel_to_label: Dict[int, str] = dataset.id2rel
 
+    ents: Set[int] = set(ent_to_label.keys())
+    rels: Set[int] = set(rel_to_label.keys())
+
+    triples = []
+
     #
     # Main
     #
@@ -47,17 +52,70 @@ def render_browse_triple_sets_page():
     selected_cw_train = cols[0].checkbox('CW Train', value=True, key='ss-cwtrain')
     cols[0].markdown(f'<div style="{blue_1}">&nbsp;</div>', unsafe_allow_html=True)
 
+    if selected_cw_train:
+        triples += [('CW Train', head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
+
     selected_cw_valid = cols[1].checkbox('CW Valid', value=True, key='ss-cwvalid')
     cols[1].markdown(f'<div style="{green_1}">&nbsp;</div>', unsafe_allow_html=True)
+
+    if selected_cw_valid:
+        triples += [('CW Valid', head, rel, tail) for head, tail, rel in dataset.cw_valid.triples]
 
     selected_ow_valid = cols[2].checkbox('OW Valid', value=True, key='ss-owvalid')
     cols[2].markdown(f'<div style="{yellow_1}">&nbsp;</div>', unsafe_allow_html=True)
 
+    if selected_ow_valid:
+        triples += [('OW Valid', head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+
     selected_ow_test = cols[3].checkbox('OW Test', key='ss-owtest')
     cols[3].markdown(f'<div style="{red_1}">&nbsp;</div>', unsafe_allow_html=True)
 
+    if selected_ow_test:
+        triples += [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
+
     #
-    # Limit & shuffle triples
+    # Filter triples
+    #
+
+    st.header('Filter triples')
+
+    cols = st.beta_columns([33, 33, 33])
+
+    filter_head = cols[0].radio('Filter by head', options=['Any head', 'Head ID', 'Head label contains'])
+    filter_head_id = cols[0].number_input('Head ID', min_value=min(ents), max_value=max(ents), value=min(ents))
+    filter_head_label = cols[0].text_input('Head label contains', value='Ab')
+
+    if filter_head == 'Head ID':
+        triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
+                   if head == filter_head_id]
+    elif filter_head == 'Head label contains':
+        triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
+                   if filter_head_label in ent_to_label[head]]
+
+    filter_rel = cols[1].radio('Filter by relation', options=['Any relation', 'Relation ID', 'Relation label contains'])
+    filter_rel_id = cols[1].number_input('Relation ID', min_value=min(rels), max_value=max(rels), value=min(rels))
+    filter_rel_label = cols[1].text_input('Relation label contains', value='/a')
+
+    if filter_rel == 'Relation ID':
+        triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
+                   if rel == filter_rel_id]
+    elif filter_rel == 'Relation label contains':
+        triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
+                   if filter_rel_label in rel_to_label[rel]]
+
+    filter_tail = cols[2].radio('Filter by tail', options=['Any tail', 'Tail ID', 'Tail label contains'])
+    filter_tail_id = cols[2].number_input('Tail ID', min_value=min(ents), max_value=max(ents), value=min(ents))
+    filter_tail_label = cols[2].text_input('Tail label contains', value='Ab')
+
+    if filter_tail == 'Tail ID':
+        triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
+                   if tail == filter_tail_id]
+    elif filter_tail == 'Tail label contains':
+        triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
+                   if filter_tail_label in ent_to_label[tail]]
+
+    #
+    # Limit triples
     #
 
     st.write('')
@@ -68,24 +126,6 @@ def render_browse_triple_sets_page():
     limit_from = cols[0].number_input('From', value=0, key='lt-from')
     limit_until = cols[1].number_input('Until', value=1000000, key='lt-until')
     limit_step = cols[2].number_input('Step', value=100, key='lt-step')
-
-    #
-    # Show triples
-    #
-
-    triples = []
-
-    if selected_cw_train:
-        triples += [('CW Train', head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
-
-    if selected_cw_valid:
-        triples += [('CW Valid', head, rel, tail) for head, tail, rel in dataset.cw_valid.triples]
-
-    if selected_ow_valid:
-        triples += [('OW Valid', head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
-
-    if selected_ow_test:
-        triples += [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
 
     triples = triples[limit_from:limit_until:limit_step]
 
