@@ -34,27 +34,33 @@ def render_browse_triple_sets_page():
     st.title('Browse triple sets')
 
     st.header('Select sets')
+
     cols = st.beta_columns([25, 25, 25, 25])
 
-    selected_cw_train = cols[0].checkbox('CW Train', value=True)
+    selected_cw_train = cols[0].checkbox('CW Train', value=True, key='ss-cwtrain')
     cols[0].markdown('<div style="background-color: #42a5f5">&nbsp;</div>', unsafe_allow_html=True)
 
-    selected_cw_valid = cols[1].checkbox('CW Valid', value=True)
+    selected_cw_valid = cols[1].checkbox('CW Valid', value=True, key='ss-cwvalid')
     cols[1].markdown('<div style="background-color: #9ccc65">&nbsp;</div>', unsafe_allow_html=True)
 
-    selected_ow_valid = cols[2].checkbox('OW Valid', value=True)
+    selected_ow_valid = cols[2].checkbox('OW Valid', value=True, key='ss-owvalid')
     cols[2].markdown('<div style="background-color: #ffee58">&nbsp;</div>', unsafe_allow_html=True)
 
-    selected_ow_test = cols[3].checkbox('OW Test')
+    selected_ow_test = cols[3].checkbox('OW Test', key='ss-owtest')
     cols[3].markdown('<div style="background-color: #ff7043">&nbsp;</div>', unsafe_allow_html=True)
 
     #
-    # Filter
+    # Limit triples
     #
 
     st.write('')
-    st.header('Filter triples')
-    st.write('test')
+    st.header('Limit triples')
+
+    cols = st.beta_columns([33, 33, 33])
+
+    limit_from = cols[0].number_input('From', value=0, key='lt-from')
+    limit_until = cols[1].number_input('Until', value=1000000, key='lt-until')
+    limit_step = cols[2].number_input('Step', value=100, key='lt-step')
 
     #
     # Show triples
@@ -74,7 +80,7 @@ def render_browse_triple_sets_page():
     if selected_ow_test:
         triples += [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
 
-    triples = triples[::100]
+    triples = triples[limit_from:limit_until:limit_step]
     print(len(triples))
 
     # def truth(triple: Triple):
