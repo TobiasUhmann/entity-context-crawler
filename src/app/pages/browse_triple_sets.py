@@ -32,7 +32,27 @@ def render_browse_triple_sets_page():
 
     st.title('Browse triple sets')
 
+    st.header('Select sets')
+    cols = st.beta_columns([25, 25, 25, 25])
+
+    selected_cw_train = cols[0].checkbox('CW Train', value=True)
+    cols[0].markdown('<div style="background-color: #42a5f5">&nbsp;</div>', unsafe_allow_html=True)
+
+    selected_cw_valid = cols[1].checkbox('CW Valid', value=True)
+    cols[1].markdown('<div style="background-color: #9ccc65">&nbsp;</div>', unsafe_allow_html=True)
+
+    selected_ow_valid = cols[2].checkbox('OW Valid', value=True)
+    cols[2].markdown('<div style="background-color: #ffee58">&nbsp;</div>', unsafe_allow_html=True)
     
+    selected_ow_test = cols[3].checkbox('OW Test')
+    cols[3].markdown('<div style="background-color: #ff7043">&nbsp;</div>', unsafe_allow_html=True)
+
+    #
+    # Filter
+    #
+
+    st.header('Filter triples')
+    st.write('test')
 
 
 @st.cache(allow_output_mutation=True)
