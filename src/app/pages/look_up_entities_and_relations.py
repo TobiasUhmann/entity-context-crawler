@@ -23,8 +23,8 @@ def render_look_up_entities_and_relations_page():
     ent_to_label: Dict[int, str] = dataset.id2ent
     rel_to_label: Dict[int, str] = dataset.id2rel
 
-    ents = set(ent_to_label.keys())
-    rels = set(rel_to_label.keys())
+    ents: Set[int] = set(ent_to_label.keys())
+    rels: Set[int] = set(rel_to_label.keys())
 
     #
     # Main
