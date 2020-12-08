@@ -7,7 +7,7 @@ from os.path import isfile, isdir
 from typing import Set
 
 from elasticsearch import Elasticsearch
-from ryn.graphs.split import Dataset
+from ryn.graphs import split
 
 from dao.contexts_db import create_contexts_table, insert_context, select_contexts
 from models.baseline_model import BaselineModel
@@ -152,12 +152,12 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, contexts_db: str, es_in
 
         log('Read dataset...')
 
-        dataset = Dataset.load(path=dataset_dir)
+        dataset = split.Dataset.load(path=dataset_dir)
 
         id2ent = dataset.id2ent
 
-        cw_entities: Set[int] = dataset.cw_train.owe
-        ow_entities: Set[int] = dataset.ow_valid.owe
+        cw_ents: Set[int] = dataset.cw_train.owe
+        ow_all_ents: Set[int] = dataset.ow_valid.owe | dataset.ow_test.owe
 
         log('Done')
 
@@ -168,7 +168,7 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, contexts_db: str, es_in
         log()
         log('Build closed world ES index...')
 
-        for i, entity in enumerate(cw_entities):
+        for i, entity in enumerate(cw_ents):
             entity_label: str = id2ent[entity]
 
             log('{:,} closed world entities | {}'.format(i, entity_label))
@@ -195,7 +195,7 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, contexts_db: str, es_in
 
         create_contexts_table(ow_conn)
 
-        for i, entity in enumerate(ow_entities):
+        for i, entity in enumerate(ow_all_ents):
             entity_label: str = id2ent[entity]
 
             log('{:,} open world entities | {}'.format(i, entity_label))
@@ -217,7 +217,7 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, contexts_db: str, es_in
         log('Calc and persist score matrix...')
 
         model = BaselineModel(dataset_dir, es, es_index, ow_db)
-        model.calc_score_matrix(list(dataset.ow_valid.owe | dataset.ow_test.owe))
+        model.calc_score_matrix(list(dataset.ow_test.owe))
 
         with open(pickle_file, 'wb') as fh:
             pickle.dump(model.score_matrix, fh)
