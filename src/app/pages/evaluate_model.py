@@ -7,7 +7,7 @@ import torch
 from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
 
-from app.util import load_dataset
+from app.common import load_dataset
 from eval.custom_evaluator import CustomEvaluator, TotalResult
 from models.baseline_model import BaselineModel
 

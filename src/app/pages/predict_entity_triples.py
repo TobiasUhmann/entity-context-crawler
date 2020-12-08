@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 from elasticsearch import Elasticsearch
 
-from app.util import load_dataset
+from app.common import load_dataset
 from models.baseline_model import BaselineModel
 from util.types import Triple
 

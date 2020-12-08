@@ -3,7 +3,7 @@ from typing import Set
 import pandas as pd
 import streamlit as st
 
-from app.util import load_dataset
+from app.common import load_dataset
 
 
 def render_show_entity_triples_page():

@@ -1,10 +1,11 @@
-import pickle
 import random
 from typing import Dict, Set
 
 import pandas as pd
 import streamlit as st
 from ryn.graphs import split
+
+from app.common import load_dataset_pickle, ent_type
 
 blue_1 = 'background-color: #7986cb'
 blue_2 = 'background-color: #9fa8da'
@@ -29,7 +30,7 @@ def render_browse_triple_sets_page():
     # Load dataset
     #
 
-    dataset: split.Dataset = load_dataset(dataset_pickle)
+    dataset: split.Dataset = load_dataset_pickle(dataset_pickle)
 
     ent_to_label: Dict[int, str] = dataset.id2ent
     rel_to_label: Dict[int, str] = dataset.id2rel
@@ -160,11 +161,11 @@ def render_browse_triple_sets_page():
     # Print triples
     #
 
-    data = [(set,
+    data = [(set_,
              head, ent_type(dataset, head), ent_to_label[head],
              rel, rel_to_label[rel],
              tail, ent_type(dataset, tail), ent_to_label[tail])
-            for set, head, rel, tail in triples]
+            for set_, head, rel, tail in triples]
 
     def background_color(row):
         if row.Set == 'CW Train':
@@ -180,20 +181,3 @@ def render_browse_triple_sets_page():
     df = pd.DataFrame(data, columns=columns)
     df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
-
-
-def ent_type(dataset: split.Dataset, ent: int) -> str:
-    if ent in dataset.ow_test.owe:
-        return 'OW Test'
-    elif ent in dataset.ow_valid.owe:
-        return 'OW Valid'
-    else:
-        return 'CW'
-
-
-@st.cache(allow_output_mutation=True)
-def load_dataset(dataset_pickle: str) -> split.Dataset:
-    with open(dataset_pickle, 'rb') as fh:
-        dataset = pickle.load(fh)
-
-    return dataset

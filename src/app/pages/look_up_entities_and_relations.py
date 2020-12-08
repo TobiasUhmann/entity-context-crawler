@@ -1,8 +1,9 @@
-import pickle
-from typing import Dict, List, Set
+from typing import Dict, Set
 
 import streamlit as st
 from ryn.graphs import split
+
+from app.common import ent_type, load_dataset_pickle
 
 
 def render_look_up_entities_and_relations_page():
@@ -18,7 +19,7 @@ def render_look_up_entities_and_relations_page():
     # Load dataset
     #
 
-    dataset: split.Dataset = load_dataset(dataset_pickle)
+    dataset: split.Dataset = load_dataset_pickle(dataset_pickle)
 
     ent_to_label: Dict[int, str] = dataset.id2ent
     rel_to_label: Dict[int, str] = dataset.id2rel
@@ -92,20 +93,3 @@ def render_rel_by_label_section(rel_to_label: Dict[int, str], rels: Set[int]) ->
                             format_func=lambda option: rel_to_label[option])
 
     cols[2].text_input('Relation ID', key='rbl-id', value=rel)
-
-
-def ent_type(dataset: split.Dataset, ent: int) -> str:
-    if ent in dataset.ow_test.owe:
-        return 'OW Test'
-    elif ent in dataset.ow_valid.owe:
-        return 'OW Valid'
-    else:
-        return 'CW'
-
-
-@st.cache(allow_output_mutation=True)
-def load_dataset(dataset_pickle: str) -> split.Dataset:
-    with open(dataset_pickle, 'rb') as fh:
-        dataset = pickle.load(fh)
-
-    return dataset
