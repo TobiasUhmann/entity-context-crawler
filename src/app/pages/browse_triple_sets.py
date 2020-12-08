@@ -53,25 +53,51 @@ def render_browse_triple_sets_page():
     cols[0].markdown(f'<div style="{blue_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     if selected_cw_train:
-        triples += [('CW Train', head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
+        cw_train_triples = [('CW Train', head, rel, tail) for head, tail, rel in dataset.cw_train.triples]
+    else:
+        cw_train_triples = []
 
     selected_cw_valid = cols[1].checkbox('CW Valid', value=True, key='ss-cwvalid')
     cols[1].markdown(f'<div style="{green_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     if selected_cw_valid:
-        triples += [('CW Valid', head, rel, tail) for head, tail, rel in dataset.cw_valid.triples]
+        cw_valid_triples = [('CW Valid', head, rel, tail) for head, tail, rel in dataset.cw_valid.triples]
+    else:
+        cw_valid_triples = []
 
     selected_ow_valid = cols[2].checkbox('OW Valid', value=True, key='ss-owvalid')
     cols[2].markdown(f'<div style="{yellow_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     if selected_ow_valid:
-        triples += [('OW Valid', head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+        ow_valid_triples = [('OW Valid', head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+    else:
+        ow_valid_triples = []
 
     selected_ow_test = cols[3].checkbox('OW Test', key='ss-owtest')
     cols[3].markdown(f'<div style="{red_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     if selected_ow_test:
-        triples += [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
+        ow_test_triples = [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
+    else:
+        ow_test_triples = []
+
+    #
+    # Limit triples
+    #
+
+    st.write('')
+    st.header('Limit triples (per set)')
+
+    cols = st.beta_columns([33, 33, 33])
+
+    limit_from = cols[0].number_input('From', value=0)
+    limit_until = cols[1].number_input('Until', value=100)
+    limit_step = cols[2].number_input('Step', value=1)
+
+    triples = cw_train_triples[limit_from:limit_until:limit_step] + \
+              cw_valid_triples[limit_from:limit_until:limit_step] + \
+              ow_valid_triples[limit_from:limit_until:limit_step] + \
+              ow_test_triples[limit_from:limit_until:limit_step]
 
     #
     # Filter triples
@@ -113,21 +139,6 @@ def render_browse_triple_sets_page():
     elif filter_tail == 'Tail label contains':
         triples = [(set_, head, rel, tail) for set_, head, rel, tail in triples
                    if filter_tail_label in ent_to_label[tail]]
-
-    #
-    # Limit triples
-    #
-
-    st.write('')
-    st.header('Limit triples')
-
-    cols = st.beta_columns([33, 33, 33])
-
-    limit_from = cols[0].number_input('From', value=0, key='lt-from')
-    limit_until = cols[1].number_input('Until', value=1000000, key='lt-until')
-    limit_step = cols[2].number_input('Step', value=100, key='lt-step')
-
-    triples = triples[limit_from:limit_until:limit_step]
 
     #
     # Shuffle triples
