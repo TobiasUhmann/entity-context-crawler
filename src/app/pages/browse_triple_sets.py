@@ -177,7 +177,7 @@ def render_browse_triple_sets_page():
         elif row.Set == 'OW Test':
             return [red_1] + [red_2] * 3 + [red_1] * 2 + [red_2] * 3
 
-    columns = ['Set', 'Head', 'Head CW/OW', 'Head Label', 'Rel', 'Rel Label', 'Tail', 'Tail CW/OW', 'Tail Label']
+    columns = ['Set', 'Head', 'H CW/OW', 'H Label', 'Rel', 'R Label', 'Tail', 'T CW/OW', 'T Label']
     df = pd.DataFrame(data, columns=columns)
     df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
