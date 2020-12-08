@@ -1,4 +1,5 @@
 import pickle
+import random
 from typing import Dict
 
 import pandas as pd
@@ -56,7 +57,7 @@ def render_browse_triple_sets_page():
     cols[3].markdown(f'<div style="{red_1}">&nbsp;</div>', unsafe_allow_html=True)
 
     #
-    # Limit triples
+    # Limit & shuffle triples
     #
 
     st.write('')
@@ -87,7 +88,21 @@ def render_browse_triple_sets_page():
         triples += [('OW Test', head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
 
     triples = triples[limit_from:limit_until:limit_step]
-    print(len(triples))
+
+    #
+    # Shuffle triples
+    #
+
+    st.header('Shuffle triples')
+
+    shuffle = st.checkbox('Shuffle')
+
+    if shuffle:
+        random.shuffle(triples)
+
+    #
+    # Print triples
+    #
 
     data = [(set,
              head, ent_type(dataset, head), ent_to_label[head],
