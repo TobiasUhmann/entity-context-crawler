@@ -18,6 +18,7 @@ def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         ryn-dataset
+        baseline-name
         contexts-db
         es-index
         ow-db
@@ -29,6 +30,9 @@ def add_parser_args(parser: ArgumentParser):
 
     parser.add_argument('ryn_dataset', metavar='ryn-dataset',
                         help='Path to (input) Ryn dataset directory')
+
+    parser.add_argument('baseline_name', metavar='baseline-name',
+                        help='Name of (output) baseline model')
 
     parser.add_argument('contexts_db', metavar='contexts-db',
                         help='Path to (input) contexts DB')
@@ -64,6 +68,7 @@ def run(args: Namespace):
     """
 
     ryn_dataset = args.ryn_dataset
+    baseline_name = args.baseline_name
     contexts_db = args.contexts_db
     es_index = args.es_index
     ow_db = args.ow_db
@@ -82,6 +87,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('ryn-dataset', ryn_dataset))
+    print('    {:20} {}'.format('baseline-name', baseline_name))
     print('    {:20} {}'.format('contexts-db', contexts_db))
     print('    {:20} {}'.format('es-index', es_index))
     print('    {:20} {}'.format('ow-db', ow_db))
