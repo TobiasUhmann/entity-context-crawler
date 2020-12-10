@@ -25,6 +25,7 @@ def add_parser_args(parser: ArgumentParser):
         pickle-file
         --es-host
         --limit-contexts
+        --output-dir
         --overwrite
     """
 
@@ -56,6 +57,10 @@ def add_parser_args(parser: ArgumentParser):
                         help='Process only first ... contexts for each entity'
                              ' (default: {})'.format(default_limit_contexts))
 
+    parser.add_argument('--output-dir', dest='output_dir', metavar='STR',
+                        help='Output directory for OW DB and pickle file'
+                             ' (default: ./<baseline-name>/)')
+
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite Elasticsearch index and contexts DB if they already exist')
 
@@ -76,6 +81,7 @@ def run(args: Namespace):
 
     es_host = args.es_host
     limit_contexts = args.limit_contexts
+    output_dir = args.output_dir
     overwrite = args.overwrite
     random_seed = args.random_seed
 
@@ -95,6 +101,7 @@ def run(args: Namespace):
     print()
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--output-dir', output_dir))
     print('    {:20} {}'.format('--overwrite', overwrite))
     print('    {:20} {}'.format('--random-seed', random_seed))
     print()

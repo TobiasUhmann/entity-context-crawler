@@ -9,4 +9,5 @@ nohup python -u src/sam.py build-baseline \
   data/ow-contexts-v7-enwiki-20200920-10-500.db \
   data/baseline-v1-enwiki-20200920-10-500.p \
   --limit-contexts 10 \
+  --output-dir 'data/oke.fb15k237_30061990_50/' \
 > log/build-baseline-10_$(date +'%Y-%m-%d_%H-%M-%S').stdout &

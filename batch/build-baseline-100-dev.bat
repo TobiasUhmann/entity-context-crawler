@@ -8,5 +8,6 @@ python -u src\sam.py build-baseline ^
   data\ow-contexts-v7-enwiki-20200920-100-500-dev.db ^
   data\baseline-v1-enwiki-20200920-10-500-dev.p ^
   --limit-contexts 100 ^
+  --output-dir 'data\oke.fb15k237_30061990_50\' ^
   --overwrite ^
   --random-seed 0
