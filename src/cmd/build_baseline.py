@@ -19,10 +19,6 @@ def add_parser_args(parser: ArgumentParser):
     Add arguments to arg parser:
         ryn-dataset
         baseline-name
-        contexts-db
-        es-index
-        ow-db
-        pickle-file
         --es-host
         --limit-contexts
         --output-dir
@@ -35,18 +31,6 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('baseline_name', metavar='baseline-name',
                         help='Name of (output) baseline model')
 
-    parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to (input) contexts DB')
-
-    parser.add_argument('es_index', metavar='es-index',
-                        help='Name of (output) closed world Elasticsearch index')
-
-    parser.add_argument('ow_db', metavar='ow-db',
-                        help='Path to (output) open world contexts DB')
-
-    parser.add_argument('pickle_file', metavar='pickle-file',
-                        help='Path to (output) pickle file')
-
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
                         help='Elasticsearch host (default: {})'.format(default_es_host))
@@ -58,8 +42,7 @@ def add_parser_args(parser: ArgumentParser):
                              ' (default: {})'.format(default_limit_contexts))
 
     parser.add_argument('--output-dir', dest='output_dir', metavar='STR',
-                        help='Output directory for OW DB and pickle file'
-                             ' (default: ./<baseline-name>/)')
+                        help='Path to (output) baseline directory (default: ./<baseline-name>/)')
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite Elasticsearch index and contexts DB if they already exist')
@@ -74,10 +57,6 @@ def run(args: Namespace):
 
     ryn_dataset = args.ryn_dataset
     baseline_name = args.baseline_name
-    contexts_db = args.contexts_db
-    es_index = args.es_index
-    ow_db = args.ow_db
-    pickle_file = args.pickle_file
 
     es_host = args.es_host
     limit_contexts = args.limit_contexts
@@ -94,10 +73,6 @@ def run(args: Namespace):
     print('Applied config:')
     print('    {:20} {}'.format('ryn-dataset', ryn_dataset))
     print('    {:20} {}'.format('baseline-name', baseline_name))
-    print('    {:20} {}'.format('contexts-db', contexts_db))
-    print('    {:20} {}'.format('es-index', es_index))
-    print('    {:20} {}'.format('ow-db', ow_db))
-    print('    {:20} {}'.format('pickle-file', pickle_file))
     print()
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-contexts', limit_contexts))
@@ -116,11 +91,8 @@ def run(args: Namespace):
         print('Ryn dataset directory not found')
         exit()
 
-    if not isfile(contexts_db):
-        print('Contexts DB not found')
-        exit()
-
     es = Elasticsearch([es_host])
+    es_index = baseline_name
     if es.indices.exists(index=es_index):
         if overwrite:
             es.indices.delete(index=es_index, ignore=[400, 404])
@@ -128,6 +100,7 @@ def run(args: Namespace):
             print('Closed world Elasticsearch index already exists, use --overwrite to overwrite it')
             exit()
 
+    ow_db = baseline_name + '.db'
     if isfile(ow_db):
         if overwrite:
             remove(ow_db)
@@ -135,6 +108,7 @@ def run(args: Namespace):
             print('Open world DB already exists, use --overwrite to overwrite it')
             exit()
 
+    pickle_file = baseline_name + '.p'
     if isfile(pickle_file):
         if overwrite:
             remove(pickle_file)
@@ -146,7 +120,7 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_baseline(ryn_dataset, es, contexts_db, es_index, ow_db, pickle_file, limit_contexts)
+    _build_baseline(ryn_dataset, es, None, es_index, ow_db, pickle_file, limit_contexts)
 
 
 #
