@@ -99,8 +99,8 @@ def run(args: Namespace):
     baseline_dir = path.join(output_dir, baseline_name)
     makedirs(baseline_dir, exist_ok=True)
 
-    ow_db = path.join(baseline_dir, baseline_name + '.db')
-    score_matrix_pickle = path.join(baseline_dir, baseline_name + '.p')
+    ow_db = path.join(baseline_dir, 'ow.db')
+    score_matrix_pickle = path.join(baseline_dir, 'score_matrix.p')
 
     if isfile(ow_db):
         if overwrite:
