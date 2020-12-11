@@ -1,7 +1,7 @@
 import random
 from argparse import ArgumentParser, HelpFormatter
 
-from cmd import build_baseline_old, build_contexts_db, build_es_test, eval_es_test, eval_model, query_es_test, \
+from cmd import build_baseline, build_contexts_db, build_es_test, eval_es_test, eval_model, query_es_test, \
     build_matches_db
 
 
@@ -93,8 +93,8 @@ def main():
         'build-baseline', formatter_class=get_formatter, parents=[common_parser],
         description='Build closed world ES index and open world DB')
 
-    build_baseline_old.add_parser_args(build_baseline_parser)
-    build_baseline_parser.set_defaults(func=build_baseline_old.run)
+    build_baseline.add_parser_args(build_baseline_parser)
+    build_baseline_parser.set_defaults(func=build_baseline.run)
 
     #
     # Add eval-model sub command

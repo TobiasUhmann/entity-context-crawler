@@ -34,5 +34,17 @@
         </library>
       </libraries>
     </data-source>
+    <data-source source="LOCAL" name="baseline-100-dev-oke.fb15k237_30061990_50" uuid="e6861dd1-d604-4fd8-a4e0-601cb182e31c">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:C:\Users\Tobias\Documents\Master\Hiwi\sentence-sampler\data\baseline-100-dev-oke.fb15k237_30061990_50\baseline-100-dev-oke.fb15k237_30061990_50.db</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+      <libraries>
+        <library>
+          <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.31.1/sqlite-jdbc-3.31.1.jar</url>
+        </library>
+      </libraries>
+    </data-source>
   </component>
 </project>

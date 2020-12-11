@@ -22,6 +22,12 @@ from util.types import Triple
 class BaselineModel(Model):
     """ Partial implementation of :class:`pykeen.Model` (so that Pykeen evaluation works) """
 
+    def _reset_parameters_(self):
+        pass
+
+    def score_hrt(self, hrt_batch: torch.LongTensor) -> torch.FloatTensor:
+        pass
+
     def __init__(self, dataset_dir: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
 
         #
@@ -38,7 +44,7 @@ class BaselineModel(Model):
 
         cw_text_triples = np.concatenate((cw_train_1_text_triples, cw_train_2_text_triples, cw_valid_text_triples))
 
-        super().__init__(triples_factory=TriplesFactory(triples=cw_text_triples))
+        super().__init__(triples_factory=TriplesFactory.from_labeled_triples(cw_text_triples))
 
         #
         # Save params and dataset elements for later usage

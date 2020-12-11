@@ -1,8 +1,8 @@
 import os
 import sqlite3
 from argparse import ArgumentParser, Namespace
-from os import remove
-from os.path import isdir
+from os import path, makedirs, remove
+from os.path import isdir, isfile
 from typing import Set
 
 from elasticsearch import Elasticsearch
@@ -44,7 +44,7 @@ def add_parser_args(parser: ArgumentParser):
 
     default_output_dir = './'
     parser.add_argument('--output-dir', dest='output_dir', metavar='STR',
-                        help='Path to (output) baseline directory (default: {})'.format(default_output_dir))
+                        help='Path to (output) output directory (default: {})'.format(default_output_dir))
 
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite Elasticsearch index and contexts DB if they already exist')
@@ -85,7 +85,7 @@ def run(args: Namespace):
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
 
     #
-    # Assert that input files exist
+    # Assert that (input) Ryn dataset dir exists
     #
 
     if not isdir(ryn_dataset):
@@ -93,18 +93,31 @@ def run(args: Namespace):
         exit()
 
     #
-    # Assert that output files do not exist
+    # Assert that (output) OW DB and score matrix pickle do not already exist
     #
 
-    if isdir(output_dir):
+    baseline_dir = path.join(output_dir, baseline_name)
+    makedirs(baseline_dir, exist_ok=True)
+
+    ow_db = path.join(baseline_dir, baseline_name + '.db')
+    score_matrix_pickle = path.join(baseline_dir, baseline_name + '.p')
+
+    if isfile(ow_db):
         if overwrite:
-            remove(output_dir)
+            remove(ow_db)
         else:
-            print('Baseline directory already exists, use --overwrite to overwrite it')
+            print('OW DB already exists, use --overwrite to overwrite it')
+            exit()
+
+    if isfile(score_matrix_pickle):
+        if overwrite:
+            remove(score_matrix_pickle)
+        else:
+            print('Score matrix pickle already exists, use --overwrite to overwrite it')
             exit()
 
     #
-    # Assert that output ES index does not exist
+    # Assert that (output) ES index does not already exist
     #
 
     es = Elasticsearch([es_host])
@@ -120,7 +133,7 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_baseline(ryn_dataset, baseline_name, es, es_index, limit_contexts, output_dir)
+    _build_baseline(ryn_dataset, baseline_name, es, es_index, limit_contexts, ow_db, score_matrix_pickle)
 
 
 #
@@ -128,7 +141,7 @@ def run(args: Namespace):
 #
 
 def _build_baseline(dataset_dir: str, baseline_name: str, es: Elasticsearch, es_index: str, limit_contexts: int,
-                    output_dir: str):
+                    ow_db: str, score_matrix_pickle: str):
     """ Use Ryn dataset to build baseline (consisting of ES index, OW DB, and score matrix pickle """
 
     #
@@ -138,7 +151,8 @@ def _build_baseline(dataset_dir: str, baseline_name: str, es: Elasticsearch, es_
     log()
     log('Load split...')
 
-    dataset = split.Dataset.load(path=dataset_dir)
+    split_dir = path.join(dataset_dir, 'split')
+    dataset = split.Dataset.load(path=split_dir)
 
     ent_to_lbl = dataset.id2ent
     ow_all_ents: Set[int] = dataset.ow_valid.owe | dataset.ow_test.owe
@@ -160,7 +174,7 @@ def _build_baseline(dataset_dir: str, baseline_name: str, es: Elasticsearch, es_
     valid_contexts = load_contexts(valid_contexts_file)
     test_contexts = load_contexts(test_contexts_file)
 
-    valid_test_contexts = valid_contexts | test_contexts
+    valid_test_contexts = {**valid_contexts, **test_contexts}
 
     log('Done')
 
@@ -193,7 +207,6 @@ def _build_baseline(dataset_dir: str, baseline_name: str, es: Elasticsearch, es_
     log()
     log('Build OW DB...')
 
-    ow_db = f'{output_dir}/{baseline_name}.db'
     with sqlite3.connect(ow_db) as ow_conn:
         create_contexts_table(ow_conn)
 
@@ -218,10 +231,9 @@ def _build_baseline(dataset_dir: str, baseline_name: str, es: Elasticsearch, es_
     log()
     log('Calc and save score matrix...')
 
-    model = BaselineModel(dataset_dir, es, es_index, ow_db)
+    model = BaselineModel(split_dir, es, es_index, ow_db)
     model.calc_score_matrix(ow_all_ents)
 
-    score_matrix_p = f'{output_dir}/{baseline_name}/{baseline_name}.p'
-    save_score_matrix(score_matrix_p, model.score_matrix)
+    save_score_matrix(score_matrix_pickle, model.score_matrix)
 
     log('Done')
