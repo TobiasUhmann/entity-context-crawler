@@ -10,7 +10,7 @@ from ryn.graphs import split
 
 from dao.contexts_db import create_contexts_table, insert_context, Context
 from dao.contexts_txt import load_contexts
-from dao.score_matrix_pickle import save_score_matrix
+from dao.score_matrix_pkl import save_score_matrix
 from models.baseline_model import BaselineModel
 from util.log import log
 
@@ -94,14 +94,14 @@ def run(args: Namespace):
         exit()
 
     #
-    # Assert that (output) OW DB and score matrix pickle do not already exist
+    # Assert that (output) OW DB and score matrix PKL do not already exist
     #
 
     baseline_dir = path.join(output_dir, baseline_name)
     makedirs(baseline_dir, exist_ok=True)
 
     ow_db = path.join(baseline_dir, 'ow.db')
-    score_matrix_pickle = path.join(baseline_dir, 'score_matrix.p')
+    score_matrix_pkl = path.join(baseline_dir, 'score_matrix.pkl')
 
     if isfile(ow_db):
         if overwrite:
@@ -110,11 +110,11 @@ def run(args: Namespace):
             print('OW DB already exists, use --overwrite to overwrite it')
             exit()
 
-    if isfile(score_matrix_pickle):
+    if isfile(score_matrix_pkl):
         if overwrite:
-            remove(score_matrix_pickle)
+            remove(score_matrix_pkl)
         else:
-            print('Score matrix pickle already exists, use --overwrite to overwrite it')
+            print('Score matrix PKL already exists, use --overwrite to overwrite it')
             exit()
 
     #
@@ -134,7 +134,7 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_baseline(ryn_dataset_dir, es, es_index, limit_contexts, ow_db, score_matrix_pickle)
+    _build_baseline(ryn_dataset_dir, es, es_index, limit_contexts, ow_db, score_matrix_pkl)
 
 
 #
@@ -142,14 +142,14 @@ def run(args: Namespace):
 #
 
 def _build_baseline(dataset_dir: str, es: Elasticsearch, es_index: str, limit_contexts: int, ow_db: str,
-                    score_matrix_pickle: str):
-    """ Use Ryn dataset to build baseline (consisting of ES index, OW DB, and score matrix pickle """
+                    score_matrix_pkl: str):
+    """ Use Ryn dataset to build baseline (consisting of ES index, OW DB, and score matrix PKL """
 
     #
-    # Load split
+    # Load split dataset
     #
 
-    log('Load split...')
+    log('Load split dataset...')
 
     split_dir = path.join(dataset_dir, 'split')
     dataset = split.Dataset.load(path=split_dir)
@@ -234,6 +234,6 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, es_index: str, limit_co
     model = BaselineModel(split_dir, es, es_index, ow_db)
     model.calc_score_matrix(ow_all_ents)
 
-    save_score_matrix(score_matrix_pickle, model.score_matrix)
+    save_score_matrix(score_matrix_pkl, model.score_matrix)
 
     log('Done')
