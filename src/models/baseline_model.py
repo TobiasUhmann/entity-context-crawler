@@ -28,7 +28,7 @@ class BaselineModel(Model):
     def score_hrt(self, hrt_batch: torch.LongTensor) -> torch.FloatTensor:
         pass
 
-    def __init__(self, dataset_dir: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
+    def __init__(self, ryn_dataset_dir: str, es: Elasticsearch, es_index: str, ow_contexts_db: str):
 
         #
         # Init super class with TriplesFactory used for target filtering during evaluation
@@ -36,7 +36,7 @@ class BaselineModel(Model):
 
         split_dataset: split.Dataset
         keen_dataset: keen.Dataset
-        split_dataset, keen_dataset = load_datasets(path=dataset_dir)
+        split_dataset, keen_dataset = load_datasets(path=ryn_dataset_dir)
 
         cw_train_1_text_triples: np.ndarray = keen_dataset.training.triples
         cw_train_2_text_triples: np.ndarray = keen_dataset.validation.triples

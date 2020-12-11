@@ -100,7 +100,7 @@ def run(args: Namespace):
     baseline_dir = path.join(output_dir, baseline_name)
     makedirs(baseline_dir, exist_ok=True)
 
-    ow_db = path.join(baseline_dir, 'ow.db')
+    ow_db = path.join(baseline_dir, 'open_world_contexts.db')
     score_matrix_pkl = path.join(baseline_dir, 'score_matrix.pkl')
 
     if isfile(ow_db):

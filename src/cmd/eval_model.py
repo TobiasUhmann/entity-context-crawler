@@ -9,6 +9,7 @@ from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
 from ryn.graphs import split
 
+from dao import score_matrix_pkl
 from eval.custom_evaluator import CustomEvaluator, TotalResult
 from models.baseline_model import BaselineModel
 from util.log import log
@@ -106,7 +107,7 @@ def run(args: Namespace):
             print('Elasticsearch index not found')
             exit()
 
-        baseline_ow_db = path.join(baseline_dir, 'ow.db')
+        baseline_ow_db = path.join(baseline_dir, 'open_world_contexts.db')
         if not isfile(baseline_ow_db):
             print('Open world DB not found')
             exit()
@@ -138,7 +139,8 @@ def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch
 
     log('Load Ryn dataset...')
 
-    dataset: split.Dataset = split.Dataset.load(path=ryn_dataset_dir)
+    split_dataset_dir = path.join(ryn_dataset_dir, 'split')
+    dataset: split.Dataset = split.Dataset.load(path=split_dataset_dir)
 
     ow_ents = list(dataset.ow_valid.owe)
     ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
@@ -150,10 +152,8 @@ def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch
     #
 
     if model_str == 'baseline':
-        model = BaselineModel(ryn_dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
-
-        with open(baseline_score_matrix_pkl, 'rb') as fh:
-            model.score_matrix = pickle.load(fh)
+        model = BaselineModel(split_dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
+        model.score_matrix = score_matrix_pkl.load_score_matrix(baseline_score_matrix_pkl)
 
     else:
         raise AssertionError()
