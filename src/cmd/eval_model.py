@@ -1,6 +1,5 @@
 import json
 import os
-import pickle
 from argparse import ArgumentParser, Namespace
 from os import path
 from os.path import isdir, isfile
@@ -25,6 +24,7 @@ def add_parser_args(parser: ArgumentParser):
         --baseline-es-host
         --baseline-name
         --eval-mode
+        --test
     """
 
     model_choices = ['baseline']
@@ -50,6 +50,9 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('--eval-mode', dest='eval_mode', choices=eval_mode_choices, default=default_eval_mode,
                         help='One of {} (default: {})'.format(eval_mode_choices, default_eval_mode))
 
+    parser.add_argument('--test', dest='test', action='store_true',
+                    help='Evaluate on test set')
+
 
 def run(args: Namespace):
     """
@@ -65,6 +68,7 @@ def run(args: Namespace):
     baseline_es_host = args.baseline_es_host
     baseline_name = args.baseline_name
     eval_mode = args.eval_mode
+    test = args.test
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
 
@@ -80,6 +84,7 @@ def run(args: Namespace):
     print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
     print('    {:20} {}'.format('--baseline-name', baseline_name))
     print('    {:20} {}'.format('--eval-mode', eval_mode))
+    print('    {:20} {}'.format('--test', test))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
@@ -126,11 +131,11 @@ def run(args: Namespace):
     #
 
     _eval_model(model, ryn_dataset_dir, baseline_es, baseline_es_index, baseline_ow_db, baseline_score_matrix_pkl,
-                eval_mode)
+                eval_mode, test)
 
 
 def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str,
-                baseline_ow_db: str, baseline_score_matrix_pkl: str, eval_mode: str):
+                baseline_ow_db: str, baseline_score_matrix_pkl: str, eval_mode: str, test: bool):
     """
     - Load dataset
     - Build model
@@ -143,8 +148,12 @@ def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch
     split_dataset_dir = path.join(ryn_dataset_dir, 'split')
     dataset: split.Dataset = split.Dataset.load(path=split_dataset_dir)
 
-    ow_ents = list(dataset.ow_valid.owe)
-    ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+    if test:
+        ow_ents = list(dataset.ow_valid.owe)
+        ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+    else:
+        ow_ents = list(dataset.ow_test.owe)
+        ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_test.triples]
 
     log('Done')
 
