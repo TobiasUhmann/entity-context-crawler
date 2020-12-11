@@ -2,8 +2,8 @@
 
 PYTHONPATH=src/ PYTHONHASHSEED=0 \
 nohup python -u src/sam.py build-baseline \
-  data/oke.fb15k237_26041992_100/ \
-  baseline-v1-26041992-10-dev \
+  data/oke.fb15k237_26041992_100_masked/ \
+  baseline-v1-26041992-10-masked-dev \
   --limit-contexts 10 \
   --output-dir 'data/' \
   --overwrite \
