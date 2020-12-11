@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from sqlite3 import Connection
-from typing import List
+from typing import List, Optional
 
 
 @dataclass
 class Context:
     entity: int
     entity_label: str
-    mention: str
-    page_title: str
-    context: str
+    mention: Optional[str]
+    page_title: Optional[str]
+    context: Optional[str]
     masked_context: str
 
 

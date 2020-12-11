@@ -120,7 +120,7 @@ class BaselineModel(Model):
     def score(self, triple):
         return self.head_counter[triple[0]] + self.tail_counter[triple[2]]
 
-    def calc_score_matrix(self, ow_ent_batch: List[int]):
+    def calc_score_matrix(self, ow_ent_batch: Set[int]):
 
         # Create sparse DOK matrix (which is suitable for counting) containing all triple scores
         ent_count = len(self.id2ent)
