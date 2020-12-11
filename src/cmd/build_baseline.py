@@ -18,7 +18,7 @@ from util.log import log
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        ryn-dataset
+        ryn-dataset-dir
         baseline-name
         --es-host
         --limit-contexts
@@ -26,7 +26,7 @@ def add_parser_args(parser: ArgumentParser):
         --overwrite
     """
 
-    parser.add_argument('ryn_dataset', metavar='ryn-dataset',
+    parser.add_argument('ryn_dataset_dir', metavar='ryn-dataset-dir',
                         help='Path to (input) Ryn dataset directory')
 
     parser.add_argument('baseline_name', metavar='baseline-name',
@@ -57,7 +57,7 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    ryn_dataset = args.ryn_dataset
+    ryn_dataset_dir = args.ryn_dataset_dir
     baseline_name = args.baseline_name
 
     es_host = args.es_host
@@ -73,7 +73,7 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('ryn-dataset', ryn_dataset))
+    print('    {:20} {}'.format('ryn-dataset-dir', ryn_dataset_dir))
     print('    {:20} {}'.format('baseline-name', baseline_name))
     print()
     print('    {:20} {}'.format('--es-host', es_host))
@@ -83,12 +83,13 @@ def run(args: Namespace):
     print('    {:20} {}'.format('--random-seed', random_seed))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
+    print()
 
     #
     # Assert that (input) Ryn dataset dir exists
     #
 
-    if not isdir(ryn_dataset):
+    if not isdir(ryn_dataset_dir):
         print('Ryn dataset directory not found')
         exit()
 
@@ -133,22 +134,21 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_baseline(ryn_dataset, baseline_name, es, es_index, limit_contexts, ow_db, score_matrix_pickle)
+    _build_baseline(ryn_dataset_dir, es, es_index, limit_contexts, ow_db, score_matrix_pickle)
 
 
 #
 # BUILD
 #
 
-def _build_baseline(dataset_dir: str, baseline_name: str, es: Elasticsearch, es_index: str, limit_contexts: int,
-                    ow_db: str, score_matrix_pickle: str):
+def _build_baseline(dataset_dir: str, es: Elasticsearch, es_index: str, limit_contexts: int, ow_db: str,
+                    score_matrix_pickle: str):
     """ Use Ryn dataset to build baseline (consisting of ES index, OW DB, and score matrix pickle """
 
     #
     # Load split
     #
 
-    log()
     log('Load split...')
 
     split_dir = path.join(dataset_dir, 'split')

@@ -1,12 +1,13 @@
 import os
 import pickle
 from argparse import ArgumentParser, Namespace
-from os.path import isdir
+from os import path
+from os.path import isdir, isfile
 
 import torch
 from elasticsearch import Elasticsearch
 from pykeen.evaluation import RankBasedEvaluator, RankBasedMetricResults
-from ryn.graphs.split import Dataset
+from ryn.graphs import split
 
 from eval.custom_evaluator import CustomEvaluator, TotalResult
 from models.baseline_model import BaselineModel
@@ -18,10 +19,9 @@ def add_parser_args(parser: ArgumentParser):
     Add arguments to arg parser:
         model
         dataset-dir
+        --baseline-dir
         --baseline-es-host
-        --baseline-es-index
-        --baseline-ow-db
-        --baseline-pickle-file
+        --baseline-name
         --eval-mode
     """
 
@@ -29,21 +29,19 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('model', metavar='model', choices=model_choices,
                         help='One of {}'.format(model_choices))
 
-    parser.add_argument('dataset_dir', metavar='dataset-dir',
-                        help='Path to (input) OpenKE dataset directory')
+    parser.add_argument('ryn_dataset_dir', metavar='ryn-dataset-dir',
+                        help='Path to (input) Ryn dataset directory')
+
+    default_baseline_dir = './'
+    parser.add_argument('--baseline-dir', dest='baseline_dir', metavar='STR', default=default_baseline_dir,
+                        help='Path to (input) baseline directory (default: {})'.format(default_baseline_dir))
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--baseline-es-host', dest='baseline_es_host', metavar='STR', default=default_es_host,
                         help='Elasticsearch host (default: {})'.format(default_es_host))
 
-    parser.add_argument('--baseline-es-index', dest='baseline_es_index', metavar='STR',
-                        help='Name of (input) closed world Elasticsearch index')
-
-    parser.add_argument('--baseline-ow-db', dest='baseline_ow_db', metavar='STR',
-                        help='Path to (input) open world contexts DB')
-
-    parser.add_argument('--baseline-pickle-file', dest='baseline_pickle_file', metavar='STR',
-                        help='Path to (inpt) pickle file')
+    parser.add_argument('--baseline-name', dest='baseline_name', metavar='STR',
+                        help='Name of (output) baseline model')
 
     eval_mode_choices = ['custom', 'pykeen']
     default_eval_mode = 'pykeen'
@@ -59,12 +57,11 @@ def run(args: Namespace):
     """
 
     model = args.model
-    dataset_dir = args.dataset_dir
+    ryn_dataset_dir = args.ryn_dataset_dir
 
+    baseline_dir = args.baseline_dir
     baseline_es_host = args.baseline_es_host
-    baseline_es_index = args.baseline_es_index
-    baseline_ow_db = args.baseline_ow_db
-    baseline_pickle_file = args.baseline_pickle_file
+    baseline_name = args.baseline_name
     eval_mode = args.eval_mode
 
     python_hash_seed = os.getenv('PYTHONHASHSEED')
@@ -75,93 +72,94 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('model', model))
-    print('    {:20} {}'.format('dataset-dir', dataset_dir))
+    print('    {:20} {}'.format('ryn-dataset-dir', ryn_dataset_dir))
     print()
+    print('    {:20} {}'.format('--baseline-dir', baseline_dir))
     print('    {:20} {}'.format('--baseline-es-host', baseline_es_host))
-    print('    {:20} {}'.format('--baseline-es-index', baseline_es_index))
-    print('    {:20} {}'.format('--baseline-ow-db', baseline_ow_db))
-    print('    {:20} {}'.format('--baseline-pickle-file', baseline_pickle_file))
+    print('    {:20} {}'.format('--baseline-name', baseline_name))
     print('    {:20} {}'.format('--eval-mode', eval_mode))
     print()
     print('    {:20} {}'.format('PYTHONHASHSEED', python_hash_seed))
     print()
 
     #
-    # Check mandatory params
+    # Assert that Ryn dataset dir exists
+    #
+
+    if not isdir(ryn_dataset_dir):
+        print('Ryn dataset directory not found')
+        exit()
+
+    #
+    # Model dependent checks
     #
 
     if model == 'baseline':
-        missing_params = False
 
-        if baseline_es_index is None:
-            print('--baseline-es-index must be specified')
-            missing_params = True
-
-        if baseline_ow_db is None:
-            print('--baseline-ow-db must be specified')
-            missing_params = True
-
-        if baseline_pickle_file is None:
-            print('--baseline-pickle-file must be specified')
-            missing_params = True
-
-        if missing_params:
+        if baseline_name is None:
+            print('--baseline-name must be specified')
             exit()
 
-    #
-    # Check if output files already exist
-    #
-
-    if not isdir(dataset_dir):
-        print('OpenKE dataset directory not found')
-        exit()
-
-    if baseline_es_index:
         baseline_es = Elasticsearch([baseline_es_host])
+        baseline_es_index = baseline_name
         if not baseline_es.indices.exists(index=baseline_es_index):
-            print('Closed world Elasticsearch index not found')
+            print('Elasticsearch index not found')
             exit()
+
+        baseline_ow_db = path.join(baseline_dir, 'ow.db')
+        if not isfile(baseline_ow_db):
+            print('Open world DB not found')
+            exit()
+
+        baseline_score_matrix_pkl = path.join(baseline_dir, 'score_matrix.pkl')
+        if not isfile(baseline_score_matrix_pkl):
+            print('Score matrix PKL not found')
+            exit()
+
     else:
-        baseline_es = None
+        raise AssertionError()
 
     #
     # Run actual program
     #
 
-    _eval_model(model, dataset_dir, baseline_es, baseline_es_index, baseline_ow_db, baseline_pickle_file, eval_mode)
+    _eval_model(model, ryn_dataset_dir, baseline_es, baseline_es_index, baseline_ow_db, baseline_score_matrix_pkl,
+                eval_mode)
 
 
-def _eval_model(model_selection: str, dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str,
-                baseline_ow_db: str, baseline_pickle_file: str, eval_mode: str):
+def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch, baseline_es_index: str,
+                baseline_ow_db: str, baseline_score_matrix_pkl: str, eval_mode: str):
     """
     - Load dataset
     - Build model
-    - Evaluate model
+    - Eval model
     - Print results
     """
 
-    log('Read dataset...')
-    dataset = Dataset.load(path=dataset_dir)
-    log('Done')
+    log('Load Ryn dataset...')
+
+    dataset: split.Dataset = split.Dataset.load(path=ryn_dataset_dir)
 
     ow_ents = list(dataset.ow_valid.owe)
     ow_triples = [(head, rel, tail) for head, tail, rel in dataset.ow_valid.triples]
+
+    log('Done')
 
     #
     # Build model
     #
 
-    if model_selection == 'baseline':
-        model = BaselineModel(dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
+    if model_str == 'baseline':
+        model = BaselineModel(ryn_dataset_dir, baseline_es, baseline_es_index, baseline_ow_db)
 
-        with open(baseline_pickle_file, 'rb') as fh:
+        with open(baseline_score_matrix_pkl, 'rb') as fh:
             model.score_matrix = pickle.load(fh)
 
     else:
         raise AssertionError()
 
     #
-    # Evaluate model
+    # Eval model & Print results
     #
 
     if eval_mode == 'custom':
