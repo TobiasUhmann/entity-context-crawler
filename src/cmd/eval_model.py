@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 from argparse import ArgumentParser, Namespace
@@ -159,7 +160,7 @@ def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch
         raise AssertionError()
 
     #
-    # Eval model & Print results
+    # Eval model & Output results
     #
 
     if eval_mode == 'custom':
@@ -173,7 +174,15 @@ def _eval_model(model_str: str, ryn_dataset_dir: str, baseline_es: Elasticsearch
         ow_triples_tensor: torch.LongTensor = torch.tensor(ow_triples, dtype=torch.long)
         result: RankBasedMetricResults = evaluator.evaluate(model, ow_triples_tensor, batch_size=1024)
 
-        print(result)
+        result_dict = {
+            'mean_rank': result.mean_rank,
+            'mean_reciprocal_rank': result.mean_reciprocal_rank,
+            'hits_at_k': result.hits_at_k,
+            'adjusted_mean_rank': result.adjusted_mean_rank
+        }
+
+        with open('data/result.json', 'w') as fh:
+            json.dump(result_dict, fh, sort_keys=True)
 
     else:
         raise AssertionError()
