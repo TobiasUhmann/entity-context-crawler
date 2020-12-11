@@ -1,0 +1,5 @@
+set PYTHONPATH=src\
+python -u src\sam.py build-baseline ^
+  data\oke.fb15k237_26041992_100_clean\ ^
+  baseline-v1-26041992-100-clean ^
+  --output-dir 'data\'

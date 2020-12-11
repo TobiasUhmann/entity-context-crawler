@@ -1,11 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build-baseline-100-dev" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="build-baseline-clean" type="PythonConfigurationType" factoryName="Python">
     <module name="sentence-sampler" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
-      <env name="PYTHONHASHSEED" value="0" />
     </envs>
     <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/" />
@@ -14,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="build-baseline data/oke.fb15k237_26041992_100_masked/ baseline-v1-26041992-100-masked-dev --limit-contexts 100 --output-dir data/ --overwrite --random-seed 0" />
+    <option name="PARAMETERS" value="build-baseline data/oke.fb15k237_26041992_100_clean/ baseline-v1-26041992-100-clean --output-dir data/" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
