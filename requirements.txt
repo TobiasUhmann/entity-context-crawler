@@ -1,4 +1,4 @@
-Ryn~=0.1
+Ryn~=0.3
 elasticsearch~=7.10.0
 lxml~=4.6.2
 matplotlib~=3.3.3
