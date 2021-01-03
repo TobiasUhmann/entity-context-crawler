@@ -3,7 +3,7 @@ import sqlite3
 from argparse import ArgumentParser, Namespace
 from os import path, makedirs, remove
 from os.path import isdir, isfile
-from typing import Set
+from typing import Set, Dict
 
 from elasticsearch import Elasticsearch
 from ryn.graphs import split
@@ -170,9 +170,9 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, es_index: str, limit_co
     valid_contexts_file = f'{dataset_dir}/text/ow.valid-sentences.txt'
     test_contexts_file = f'{dataset_dir}/text/ow.test-sentences.txt'
 
-    train_contexts = load_contexts(train_contexts_file)
-    valid_contexts = load_contexts(valid_contexts_file)
-    test_contexts = load_contexts(test_contexts_file)
+    train_contexts: Dict[int, Set[str]] = load_contexts(train_contexts_file)
+    valid_contexts: Dict[int, Set[str]] = load_contexts(valid_contexts_file)
+    test_contexts: Dict[int, Set[str]] = load_contexts(test_contexts_file)
 
     valid_test_contexts = {**valid_contexts, **test_contexts}
 
