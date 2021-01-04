@@ -7,7 +7,7 @@ from typing import Set
 import pandas as pd
 import streamlit as st
 
-from app.util import load_dataset
+from app.common import load_dataset
 from dao.contexts_db import select_contexts
 
 

@@ -1,13 +1,13 @@
 import os
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
-from elasticsearch import Elasticsearch
 from os import remove
 from os.path import isfile
-from ryn.graphs.split import Dataset
 from typing import List
+
+from elasticsearch import Elasticsearch
+from ryn.graphs.split import Dataset
 
 from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities, Context
 
@@ -53,7 +53,7 @@ def add_parser_args(parser: ArgumentParser):
 def run(args: Namespace):
     """
     - Print applied config
-    - Check if files already exist
+    - Check if output files already exist
     - Run actual program
     """
 
@@ -88,7 +88,7 @@ def run(args: Namespace):
     print()
 
     #
-    # Check if files already exist
+    # Check if output files already exist
     #
 
     if not isfile(contexts_db):

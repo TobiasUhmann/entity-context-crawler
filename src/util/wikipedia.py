@@ -1,5 +1,3 @@
-# https://stackoverflow.com/a/55147982/4540114
-
 from lxml import etree
 
 

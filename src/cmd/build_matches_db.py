@@ -17,7 +17,7 @@ from spacy.matcher import PhraseMatcher
 
 from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
     Page, create_pages_table, create_mentions_table, PageStats
-from util.util import log
+from util.log import log
 from util.wikipedia import Wikipedia
 
 
@@ -55,7 +55,7 @@ def add_parser_args(parser: ArgumentParser):
 def run(args: Namespace):
     """
     - Print applied config
-    - Check if files already exist
+    - Check if output files already exist
     - Run actual program
     """
 
@@ -86,7 +86,7 @@ def run(args: Namespace):
     print()
 
     #
-    # Check if files already exist
+    # Check if output files already exist
     #
 
     if not isfile(wiki_xml):

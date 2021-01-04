@@ -1,40 +1,36 @@
 import os
 import sqlite3
-
 from argparse import ArgumentParser, Namespace
-from datetime import datetime
-from elasticsearch import Elasticsearch
-from os import remove
-from os.path import isfile, isdir
-from ryn.graphs.split import Dataset
-from typing import Set
+from os import path, makedirs, remove
+from os.path import isdir, isfile
+from typing import Set, Dict
 
-from dao.contexts_db import create_contexts_table, insert_context, select_contexts
+from elasticsearch import Elasticsearch
+from ryn.graphs import split
+
+from dao.contexts_db import create_contexts_table, insert_context, Context
+from dao.contexts_txt import load_contexts
+from dao.score_matrix_pkl import save_score_matrix
+from models.baseline_model import BaselineModel
+from util.log import log
 
 
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        contexts-db
-        dataset-dir
-        cw-es-index
-        ow-contexts-db
+        ryn-dataset-dir
+        baseline-name
         --es-host
         --limit-contexts
+        --output-dir
         --overwrite
     """
 
-    parser.add_argument('contexts_db', metavar='contexts-db',
-                        help='Path to (input) contexts DB')
+    parser.add_argument('ryn_dataset_dir', metavar='ryn-dataset-dir',
+                        help='Path to (input) Ryn dataset directory')
 
-    parser.add_argument('dataset_dir', metavar='dataset-dir',
-                        help='Path to (input) OpenKE dataset directory')
-
-    parser.add_argument('cw_es_index', metavar='cw-es-index',
-                        help='Name of (output) closed world Elasticsearch index')
-
-    parser.add_argument('ow_contexts_db', metavar='ow-contexts-db',
-                        help='Path to (output) open world contexts DB')
+    parser.add_argument('baseline_name', metavar='baseline-name',
+                        help='Name of (output) baseline model')
 
     default_es_host = 'localhost:9200'
     parser.add_argument('--es-host', dest='es_host', metavar='STR', default=default_es_host,
@@ -46,6 +42,10 @@ def add_parser_args(parser: ArgumentParser):
                         help='Process only first ... contexts for each entity'
                              ' (default: {})'.format(default_limit_contexts))
 
+    default_output_dir = './'
+    parser.add_argument('--output-dir', dest='output_dir', metavar='STR',
+                        help='Path to (output) output directory (default: {})'.format(default_output_dir))
+
     parser.add_argument('--overwrite', dest='overwrite', action='store_true',
                         help='Overwrite Elasticsearch index and contexts DB if they already exist')
 
@@ -53,17 +53,16 @@ def add_parser_args(parser: ArgumentParser):
 def run(args: Namespace):
     """
     - Print applied config
-    - Check if files already exist
+    - Check if output files already exist
     - Run actual program
     """
 
-    contexts_db = args.contexts_db
-    dataset_dir = args.dataset_dir
-    cw_es_index = args.cw_es_index
-    ow_contexts_db = args.ow_contexts_db
+    ryn_dataset_dir = args.ryn_dataset_dir
+    baseline_name = args.baseline_name
 
     es_host = args.es_host
     limit_contexts = args.limit_contexts
+    output_dir = args.output_dir
     overwrite = args.overwrite
     random_seed = args.random_seed
 
@@ -74,13 +73,12 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('contexts-db', contexts_db))
-    print('    {:20} {}'.format('dataset-dir', dataset_dir))
-    print('    {:20} {}'.format('cw-es-index', cw_es_index))
-    print('    {:20} {}'.format('ow-contexts-db', ow_contexts_db))
+    print('    {:20} {}'.format('ryn-dataset-dir', ryn_dataset_dir))
+    print('    {:20} {}'.format('baseline-name', baseline_name))
     print()
     print('    {:20} {}'.format('--es-host', es_host))
     print('    {:20} {}'.format('--limit-contexts', limit_contexts))
+    print('    {:20} {}'.format('--output-dir', output_dir))
     print('    {:20} {}'.format('--overwrite', overwrite))
     print('    {:20} {}'.format('--random-seed', random_seed))
     print()
@@ -88,107 +86,154 @@ def run(args: Namespace):
     print()
 
     #
-    # Check if files already exist
+    # Assert that (input) Ryn dataset dir exists
     #
 
-    if not isfile(contexts_db):
-        print('Contexts DB not found')
+    if not isdir(ryn_dataset_dir):
+        print('Ryn dataset directory not found')
         exit()
 
-    if not isdir(dataset_dir):
-        print('OpenKE dataset directory not found')
-        exit()
+    #
+    # Assert that (output) OW DB and score matrix PKL do not already exist
+    #
 
-    es = Elasticsearch([es_host])
-    if es.indices.exists(index=cw_es_index):
+    baseline_dir = path.join(output_dir, baseline_name)
+    makedirs(baseline_dir, exist_ok=True)
+
+    ow_db = path.join(baseline_dir, 'open_world_contexts.db')
+    score_matrix_pkl = path.join(baseline_dir, 'score_matrix.pkl')
+
+    if isfile(ow_db):
         if overwrite:
-            es.indices.delete(index=cw_es_index, ignore=[400, 404])
+            remove(ow_db)
         else:
-            print('Closed world Elasticsearch index already exists, use --overwrite to overwrite it')
+            print('OW DB already exists, use --overwrite to overwrite it')
             exit()
 
-    if isfile(ow_contexts_db):
+    if isfile(score_matrix_pkl):
         if overwrite:
-            remove(ow_contexts_db)
+            remove(score_matrix_pkl)
         else:
-            print('Open world DB already exists, use --overwrite to overwrite it')
+            print('Score matrix PKL already exists, use --overwrite to overwrite it')
+            exit()
+
+    #
+    # Assert that (output) ES index does not already exist
+    #
+
+    es = Elasticsearch([es_host])
+    es_index = baseline_name
+    if es.indices.exists(index=es_index):
+        if overwrite:
+            es.indices.delete(index=es_index, ignore=[400, 404])
+        else:
+            print('ES index already exists, use --overwrite to overwrite it')
             exit()
 
     #
     # Run actual program
     #
 
-    _build_baseline(es, contexts_db, dataset_dir, cw_es_index, ow_contexts_db, limit_contexts)
+    _build_baseline(ryn_dataset_dir, es, es_index, limit_contexts, ow_db, score_matrix_pkl)
 
 
 #
 # BUILD
 #
 
-def _build_baseline(es, contexts_db, dataset_dir, cw_index, ow_db, limit_contexts):
-    """ Build closed world ES index and open world DB """
+def _build_baseline(dataset_dir: str, es: Elasticsearch, es_index: str, limit_contexts: int, ow_db: str,
+                    score_matrix_pkl: str):
+    """ Use Ryn dataset to build baseline (consisting of ES index, OW DB, and score matrix PKL """
 
-    with sqlite3.connect(contexts_db) as contexts_conn, \
-            sqlite3.connect(ow_db) as ow_conn:
-        #
-        # Load data
-        #
+    #
+    # Load split dataset
+    #
 
-        print('Read dataset...', end='')
+    log('Load split dataset...')
 
-        dataset = Dataset.load(dataset_dir)
+    split_dir = path.join(dataset_dir, 'split')
+    dataset = split.Dataset.load(path=split_dir)
 
-        id2ent = dataset.id2ent
+    ent_to_lbl = dataset.id2ent
+    ow_all_ents: Set[int] = dataset.ow_valid.owe | dataset.ow_test.owe
 
-        cw_entities: Set[int] = dataset.cw_train.owe
-        ow_entities: Set[int] = dataset.ow_valid.owe
+    log('Done')
 
-        print(' done')
+    #
+    # Load sentences
+    #
 
-        #
-        # Build closed world ES index
-        #
+    log()
+    log('Load contexts...')
 
-        print()
-        print('Build closed world ES index...')
+    train_contexts_file = f'{dataset_dir}/text/cw.train-sentences.txt'
+    valid_contexts_file = f'{dataset_dir}/text/ow.valid-sentences.txt'
+    test_contexts_file = f'{dataset_dir}/text/ow.test-sentences.txt'
 
-        for i, entity in enumerate(cw_entities):
-            entity_label: str = id2ent[entity]
+    train_contexts: Dict[int, Set[str]] = load_contexts(train_contexts_file)
+    valid_contexts: Dict[int, Set[str]] = load_contexts(valid_contexts_file)
+    test_contexts: Dict[int, Set[str]] = load_contexts(test_contexts_file)
 
-            print('{} | {:,} closed world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
+    valid_test_contexts = {**valid_contexts, **test_contexts}
 
-            ow_contexts = [c.masked_context for c in select_contexts(contexts_conn, entity, limit_contexts)]
-            ow_contexts = [masked_context.replace('#', '') for masked_context in ow_contexts]
+    log('Done')
 
-            es_doc = {'entity': entity,
-                      'context': '\n'.join(ow_contexts),
-                      'entity_label': entity_label}
+    #
+    # Build ES index
+    #
 
-            es.index(index=cw_index, body=es_doc)
+    log()
+    log('Build ES index...')
 
-        es.indices.refresh(index=cw_index)
+    for i, ent in enumerate(train_contexts):
+        ent_lbl = ent_to_lbl[ent]
 
-        print('Done.')
+        log('CW entity {:,} | {}'.format(i, ent_lbl))
 
-        #
-        # Build open world DB
-        #
+        contexts = list(train_contexts[ent])[:limit_contexts]
+        joined_contexts = '\n'.join(contexts)
 
-        print()
-        print('Build open world DB...')
+        es_doc = {'entity': ent, 'context': joined_contexts, 'entity_label': ent_lbl}
+        es.index(index=es_index, body=es_doc)
 
+    es.indices.refresh(index=es_index)
+
+    log('Done')
+
+    #
+    # Build OW DB
+    #
+
+    log()
+    log('Build OW DB...')
+
+    with sqlite3.connect(ow_db) as ow_conn:
         create_contexts_table(ow_conn)
 
-        for i, entity in enumerate(ow_entities):
-            entity_label: str = id2ent[entity]
+        for i, ent in enumerate(valid_test_contexts):
+            ent_lbl = ent_to_lbl[ent]
 
-            print('{} | {:,} open world entities | {}'.format(datetime.now().strftime("%H:%M:%S"), i, entity_label))
+            log('OW entity {:,} | {}'.format(i, ent_lbl))
 
-            ow_contexts = select_contexts(contexts_conn, entity, limit_contexts)
+            contexts = list(valid_test_contexts[ent])[:limit_contexts]
+            joined_contexts = '\n'.join(contexts)
 
-            for ow_context in ow_contexts:
-                insert_context(ow_conn, ow_context)
+            insert_context(ow_conn, Context(ent, ent_lbl, None, None, None, joined_contexts))
 
         ow_conn.commit()
 
-        print('Done.')
+    log('Done')
+
+    #
+    # Calc and save score matrix
+    #
+
+    log()
+    log('Calc and save score matrix...')
+
+    model = BaselineModel(split_dir, es, es_index, ow_db)
+    model.calc_score_matrix(ow_all_ents)
+
+    save_score_matrix(score_matrix_pkl, model.score_matrix)
+
+    log('Done')

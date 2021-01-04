@@ -1,9 +1,11 @@
 from typing import List, Optional, Tuple
 
-from util.custom_types import Entity, Triple
+from util.types import Triple
 
 
 class Model:
+    train_triples: List[Triple]
+
     def train(self, batch: List[Triple]):
         """
         :param batch: List of (head, tail, rel) triples
@@ -11,8 +13,11 @@ class Model:
 
         raise NotImplementedError()
 
-    def predict(self, query_entity_batch: List[Entity]) \
-            -> Tuple[List[List[Triple]], List[Optional[Entity]]]:
+    def score(self, triple):
+        raise NotImplementedError()
+
+    def predict(self, query_entity_batch: List[int]) \
+            -> Tuple[List[List[Triple]], List[Optional[int]]]:
         """
         Predict triples for a batch of open world entities.
 
@@ -22,3 +27,6 @@ class Model:
         """
 
         raise NotImplementedError()
+
+    def predict_all_head_scores(self, rel: int, tail: int) -> List[float]:
+        pass

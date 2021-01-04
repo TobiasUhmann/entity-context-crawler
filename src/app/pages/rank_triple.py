@@ -6,6 +6,7 @@ from typing import List
 
 import pandas as pd
 import streamlit as st
+import torch
 from elasticsearch import Elasticsearch
 
 from app.common import load_dataset
@@ -13,7 +14,7 @@ from models.baseline_model import BaselineModel
 from util.types import Triple
 
 
-def render_predict_entity_triples_page():
+def render_rank_triple_page():
     #
     # Sidebar: Input model independent params
     #
@@ -60,17 +61,11 @@ def render_predict_entity_triples_page():
     # Main: Title & Input entity
     #
 
-    st.title('Predict entity triples')
+    st.title('Rank triple')
 
-    prefix = st.text_input('Entity prefix', value='Ab')
-
-    options = ['%s (%d)' % (id2ent[entity], entity) for entity in ow_entities]
-    filtered_ent_names = [opt for opt in options if opt.startswith(prefix)]
-    filtered_ent_names.sort()
-
-    selected_option = st.selectbox('Entity (ID)', filtered_ent_names)
-    regex = r'^.+ \((\d+)\)$'  # any string followed by space and number in parentheses, e.g. "Foo bar (123)"
-    selected_entity = int(re.match(regex, selected_option).group(1))  # get number, e.g. 123
+    head = st.number_input('Head', value=1)
+    rel = st.number_input('Relation', value=1)
+    tail = st.number_input('Tail', value=1)
 
     #
     # Create model & Predict
@@ -83,7 +78,13 @@ def render_predict_entity_triples_page():
         with open(baseline_pickle_file, 'rb') as fh:
             model.score_matrix = pickle.load(fh)
 
-        pred_triples = model.predict(selected_entity)
+        head_scores = model.predict_scores_all_heads(torch.tensor([[rel, tail]], dtype=torch.long))
+        head_triples = [(h, rel, tail) for h in head_scores.numpy().nonzero()[1].tolist()]
+
+        tail_scores = model.predict_scores_all_tails(torch.tensor([[head, rel]], dtype=torch.long))
+        tail_triples = [(head, rel, t) for t in tail_scores.numpy().nonzero()[1].tolist()]
+
+        pred_triples = list(set(head_triples) | set(tail_triples))
 
     else:
         raise AssertionError()
@@ -110,7 +111,7 @@ def render_predict_entity_triples_page():
         elif row.Truth == 'FN':
             return ['background-color: #ffee58'] * len(row)
 
-    actual_triples = get_entity_triples(selected_entity, ow_triples)
+    actual_triples = [(head, rel, tail)]
     pred_and_actual_triples = list(set(pred_triples) | set(actual_triples))
 
     def truth(triple: Triple):
@@ -125,11 +126,7 @@ def render_predict_entity_triples_page():
         else:
             raise AssertionError()
 
-    data = [('{} ({})'.format(id2ent[head], head),
-             '{} ({})'.format(id2rel[rel], rel),
-             '{} ({})'.format(id2ent[tail], tail),
-             model.score((head, rel, tail)),
-             truth((head, rel, tail)))
+    data = [(id2ent[head], id2rel[rel], id2ent[tail], model.score((head, rel, tail)), truth((head, rel, tail)))
             for head, rel, tail in pred_and_actual_triples]
 
     sorted_data = sorted(data, key=lambda tup: tup[3], reverse=True)
@@ -137,8 +134,3 @@ def render_predict_entity_triples_page():
     df = pd.DataFrame(sorted_data, columns=['Head', 'Relation', 'Tail', 'Score', 'Truth'])
     df = df.style.apply(background_color, axis=1)
     st.dataframe(df)
-
-
-def get_entity_triples(ow_entity: int, ow_triples: List[Triple]):
-    return [(head, rel, tail) for head, rel, tail in ow_triples
-            if head == ow_entity or tail == ow_entity]

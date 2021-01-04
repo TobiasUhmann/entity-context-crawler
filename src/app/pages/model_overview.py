@@ -18,3 +18,9 @@ def render_model_overview_page():
 
     df = pd.DataFrame(data, columns=['Model', 'mAP', 'Info'])
     st.table(df)
+
+    st.header('OW Valid')
+    st.json(open('data/ow_valid.json').read())
+
+    st.header('OW Test')
+    st.json(open('data/ow_test.json').read())
