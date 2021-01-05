@@ -1,11 +1,11 @@
 from unittest import TestCase
 
-from dao.mid2rid_txt import load_mid2rid
+from dao.qid_to_rid_txt import load_qid_to_rid
 
 
 class Test(TestCase):
     def test_load_mid2rid_1(self):
-        mid2rid = load_mid2rid('test/dao/test_mid2rid_txt_file.txt')
+        mid2rid = load_qid_to_rid('test/dao/test_mid2rid_txt_file.txt')
 
         self.assertEqual(len(mid2rid), 6)
         self.assertEqual(mid2rid['/m/027rn'], 0)

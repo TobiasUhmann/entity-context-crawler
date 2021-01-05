@@ -16,7 +16,7 @@ from spacy.tokens import Doc
 
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
 from dao.matches_db import select_contexts, select_entity_mentions
-from dao.mid2rid_txt import load_mid2rid
+from dao.qid_to_rid_txt import load_qid_to_rid
 from util.log import log, log_start, log_end
 
 
@@ -176,7 +176,7 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
         freebase_data: Dict[str, Dict] = json.load(open(freebase_json, 'r'))
 
         log('Load mid2rid TXT')
-        mid2rid: Dict[str, int] = load_mid2rid(mid2rid_txt)
+        mid2rid: Dict[str, int] = load_qid_to_rid(mid2rid_txt)
 
         log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
