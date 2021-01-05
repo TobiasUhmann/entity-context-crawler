@@ -1,7 +1,7 @@
 set PYTHONPATH=src\
 set PYTHONHASHSEED=0
 python -u src\sam.py build-contexts-db ^
-  data\entity2wikidata.json ^
+  data\wikidata-v1-2020-12-31.json ^
   data\entity2id.txt ^
   data\matches-v5-enwiki-20200920.db ^
   data\contexts-v7-enwiki-20200920-100-500-dev.db ^
