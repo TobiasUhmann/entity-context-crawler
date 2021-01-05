@@ -24,7 +24,7 @@ def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         wikidata-json
-        mid2rid-txt
+        qid-to-rid-txt
         matches-db
         contexts-db
         --context-size
@@ -38,8 +38,8 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('wikidata_json', metavar='wikidata-json',
                         help='Path to (input) Wikidata JSON')
 
-    parser.add_argument('mid2rid_txt', metavar='mid2rid-txt',
-                        help='Path to (input) mid2rid TXT')
+    parser.add_argument('qid_to_rid_txt', metavar='qid-to-rid-txt',
+                        help='Path to (input) QID-to-RID TXT')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to (input) matches DB')
@@ -82,7 +82,7 @@ def run(args: Namespace):
     """
 
     wikidata_json = args.wikidata_json
-    mid2rid_txt = args.mid2rid_txt
+    qid_to_rid_txt = args.qid_to_rid_txt
     matches_db = args.matches_db
     contexts_db = args.contexts_db
 
@@ -102,7 +102,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('wikidata-json', wikidata_json))
-    print('    {:20} {}'.format('mid2rid-txt', mid2rid_txt))
+    print('    {:20} {}'.format('qid-to-rid-txt', qid_to_rid_txt))
     print('    {:20} {}'.format('matches-db', matches_db))
     print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
@@ -125,8 +125,8 @@ def run(args: Namespace):
         print('Wikidata JSON not found')
         exit()
 
-    if not isfile(mid2rid_txt):
-        print('mid2rid TXT not found')
+    if not isfile(qid_to_rid_txt):
+        print('QID-to-RID TXT not found')
         exit()
 
     if not isfile(matches_db):
@@ -151,11 +151,11 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_contexts_db(wikidata_json, mid2rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+    _build_contexts_db(wikidata_json, qid_to_rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
                        limit_contexts, limit_entities)
 
 
-def _build_contexts_db(wikidata_json: str, mid2rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
+def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
     - Load Wikidata JSON
@@ -176,7 +176,7 @@ def _build_contexts_db(wikidata_json: str, mid2rid_txt: str, matches_db: str, co
         qid_to_wikidata: Dict[str, Dict] = load_qid_to_wikidata(wikidata_json)
 
         log('Load QID-to-RID TXT')
-        qid_to_rid: Dict[str, int] = load_qid_to_rid(mid2rid_txt)
+        qid_to_rid: Dict[str, int] = load_qid_to_rid(qid_to_rid_txt)
 
         log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
