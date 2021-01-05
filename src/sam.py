@@ -36,7 +36,7 @@ def main():
 
     build_matches_db_parser = sub_parsers.add_parser(
         'build-matches-db', formatter_class=get_formatter, parents=[common_parser],
-        description='Match the Freebase entities (considering the link graph)')
+        description='Match the entities (considering the link graph)')
 
     build_matches_db.add_parser_args(build_matches_db_parser)
     build_matches_db_parser.set_defaults(func=build_matches_db.run)

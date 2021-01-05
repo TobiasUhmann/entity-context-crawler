@@ -80,7 +80,7 @@ class Match:
 def create_matches_table(conn: Connection):
     sql = '''
         CREATE TABLE matches (
-            qid TEXT,           -- QID = Freebase ID, e.g. '/m/012s1d'
+            qid TEXT,           -- QID = Wikidata ID, e.g. 'Q1234'
             entity_label TEXT,  -- Wikidata label for QID, not unique, e.g. 'Spider-Man'
             mention TEXT,       -- Matched mention in Wikipedia, e.g. 'Spidey'
             page TEXT,          -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'

@@ -67,9 +67,9 @@ The following diagram gives an overview how the available commands (yellow) are 
 
 ![Commands Overview](doc/commands_overview.png)
 
-The upper part of the pipeline samples the Freebase entities' contexts in two steps:
+The upper part of the pipeline samples the entities' contexts in two steps:
 
-- [`build-matches-db`](../../wikis/Commands/build-matches-db) takes the `Wiki XML dump` and the `Freebase JSON `containing the mapping from the entities' Freebase QIDs to the respective Wikidata and produces the `Matches DB` that stores all matches of Freebase entities in the Wikipedia.
+- [`build-matches-db`](../../wikis/Commands/build-matches-db) takes the `Wiki XML dump` and the `Wikidata JSON `containing the mapping from the entities' QIDs to the respective Wikidata and produces the `Matches DB` that stores all matches of entities in the Wikipedia.
 - [`build-contexts-db`](../../wikis/Commands/build-contexts-db) takes the matches from the `Matches DB` and samples a limited number of contexts for each entity. It also requires the `QID -> ryn ID TXT` mapping as it also stores the entities' ryn IDs. The result is the `Contexts DB`.
 
 The expressiveness of the contexts in the `Contexts DB` can be tested by building and subsequently quering the "Elasticsearch test":
@@ -94,12 +94,12 @@ data/
     contexts-v7-enwiki-20200920-100-500.db      # Contexts DB
     enwiki-20200920.xml                         # Wiki XML dump
     matches-v5-enwiki-20200920.db               # Matches DB
-    wikidata-v1-2020-12-31.json                 # Freebase JSON
+    wikidata-v1-2020-12-31.json                 # Wikidata JSON
 ```
 
 Further details can be found in the wiki:
 - [OpenKE Dataset Directory](../../wikis/Data-Files/OpenKE-Dataset-Directory)
 - [Contexts DB](../../wikis/Data-Files/Contexts-DB)
-- [Freebase JSON](../../wikis/Data-Files/Freebase-JSON)
+- [Wikidata JSON](../../wikis/Data-Files/Wikidata-JSON)
 - [Wiki XML Dump](../../wikis/Data-Files/Wiki-XML-Dump)
 - [Matches DB](../../wikis/Data-Files/Matches-DB)
