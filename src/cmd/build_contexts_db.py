@@ -1,5 +1,4 @@
 import csv
-import json
 import os
 import random
 import sqlite3
@@ -17,6 +16,7 @@ from spacy.tokens import Doc
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
 from dao.matches_db import select_contexts, select_entity_mentions
 from dao.qid_to_rid_txt import load_qid_to_rid
+from dao.wikidata_json import load_qid_to_wikidata
 from util.log import log, log_start, log_end
 
 
@@ -173,7 +173,7 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             sqlite3.connect(contexts_db) as contexts_conn:
 
         log('Load Freebase JSON')
-        freebase_data: Dict[str, Dict] = json.load(open(freebase_json, 'r'))
+        freebase_data: Dict[str, Dict] = load_qid_to_wikidata(freebase_json)
 
         log('Load QID-to-RID TXT')
         qid_to_rid: Dict[str, int] = load_qid_to_rid(mid2rid_txt)

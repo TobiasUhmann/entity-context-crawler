@@ -1,4 +1,3 @@
-import json
 import os
 import sqlite3
 import time
@@ -17,6 +16,7 @@ from spacy.matcher import PhraseMatcher
 
 from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
     Page, create_pages_table, create_mentions_table, PageStats
+from dao.wikidata_json import load_qid_to_wikidata
 from util.log import log
 from util.wikipedia import Wikipedia
 
@@ -152,7 +152,7 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     create_matches_table(matches_conn)
     create_mentions_table(matches_conn)
 
-    freebase_data = json.load(open(freebase_json, 'r'))
+    freebase_data = load_qid_to_wikidata(freebase_json)
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, limit_pages)
