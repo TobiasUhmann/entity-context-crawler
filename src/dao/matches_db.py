@@ -68,7 +68,7 @@ def insert_page(conn: Connection, page: Page):
 
 @dataclass
 class Match:
-    mid: str
+    qid: str
     entity_label: str
     mention: str
     page: str
@@ -80,8 +80,8 @@ class Match:
 def create_matches_table(conn: Connection):
     sql = '''
         CREATE TABLE matches (
-            mid TEXT,           -- MID = Freebase ID, e.g. '/m/012s1d'
-            entity_label TEXT,  -- Wikidata label for MID, not unique, e.g. 'Spider-Man'
+            qid TEXT,           -- QID = Freebase ID, e.g. '/m/012s1d'
+            entity_label TEXT,  -- Wikidata label for QID, not unique, e.g. 'Spider-Man'
             mention TEXT,       -- Matched mention in Wikipedia, e.g. 'Spidey'
             page TEXT,          -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
             start_char INT,     -- Start char position of entity match within document
@@ -89,7 +89,7 @@ def create_matches_table(conn: Connection):
             context TEXT,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
 
             FOREIGN KEY (page) REFERENCES pages (title),
-            PRIMARY KEY (mid, page, start_char, mention)
+            PRIMARY KEY (qid, page, start_char, mention)
         )
     '''
 
@@ -100,12 +100,12 @@ def create_matches_table(conn: Connection):
 
 def insert_match(conn: Connection, match: Match):
     sql = '''
-        INSERT INTO matches (mid, entity_label, mention, page, start_char, end_char, context)
+        INSERT INTO matches (qid, entity_label, mention, page, start_char, end_char, context)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     '''
 
     cursor = conn.cursor()
-    row = (match.mid, match.entity_label, match.mention, match.page, match.start_char, match.end_char, match.context)
+    row = (match.qid, match.entity_label, match.mention, match.page, match.start_char, match.end_char, match.context)
     cursor.execute(sql, row)
     cursor.close()
 
@@ -116,7 +116,7 @@ def insert_match(conn: Connection, match: Match):
 
 @dataclass
 class Mention:
-    mid: str
+    qid: str
     entity_label: str
     mention: str
 
@@ -124,45 +124,45 @@ class Mention:
 def create_mentions_table(conn: Connection):
     create_table_sql = '''
         CREATE TABLE mentions (
-            mid TEXT,
+            qid TEXT,
             entity_label TEXT,
             mention TEXT,
 
-            UNIQUE (mid, mention)
+            UNIQUE (qid, mention)
         )
     '''
 
-    create_mid_index_sql = '''
-        CREATE INDEX mid_index
-        ON mentions(mid)
+    create_qid_index_sql = '''
+        CREATE INDEX qid_index
+        ON mentions(qid)
     '''
 
     cursor = conn.cursor()
     cursor.execute(create_table_sql)
-    cursor.execute(create_mid_index_sql)
+    cursor.execute(create_qid_index_sql)
     cursor.close()
 
 
 def insert_or_ignore_mention(conn: Connection, mention: Mention):
     sql = '''
-        INSERT OR IGNORE INTO mentions (mid, entity_label, mention)
+        INSERT OR IGNORE INTO mentions (qid, entity_label, mention)
         VALUES (?, ?, ?)
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (mention.mid, mention.entity_label, mention.mention))
+    cursor.execute(sql, (mention.qid, mention.entity_label, mention.mention))
     cursor.close()
 
 
-def select_entity_mentions(conn: Connection, mid: str) -> List[str]:
+def select_entity_mentions(conn: Connection, qid: str) -> List[str]:
     sql = '''
         SELECT DISTINCT mention
         FROM mentions
-        WHERE mid = ?
+        WHERE qid = ?
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (mid,))
+    cursor.execute(sql, (qid,))
     rows = cursor.fetchall()
     cursor.close()
 
@@ -173,7 +173,7 @@ def select_entity_mentions(conn: Connection, mid: str) -> List[str]:
 # Pages x Matches
 #
 
-def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, str, str]]:
+def select_contexts(conn: Connection, qid: str, size: int) -> List[Tuple[str, str, str]]:
     """
     :param size: maximum chars before and after match, respectively
 
@@ -189,11 +189,11 @@ def select_contexts(conn: Connection, mid: str, size: int) -> List[Tuple[str, st
                pages.title,
                matches.mention
         FROM pages INNER JOIN matches ON pages.title = matches.page
-        WHERE mid = ?
+        WHERE qid = ?
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql, (size, size, size, mid))
+    cursor.execute(sql, (size, size, size, qid))
     rows = cursor.fetchall()
     cursor.close()
 
