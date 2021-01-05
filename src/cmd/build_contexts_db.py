@@ -175,8 +175,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
         log('Load Freebase JSON')
         freebase_data: Dict[str, Dict] = json.load(open(freebase_json, 'r'))
 
-        log('Load mid2rid TXT')
-        mid2rid: Dict[str, int] = load_qid_to_rid(mid2rid_txt)
+        log('Load QID-to-RID TXT')
+        qid_to_rid: Dict[str, int] = load_qid_to_rid(mid2rid_txt)
 
         log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
@@ -218,7 +218,7 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             masked_context_rows = mask_contexts(nlp, cropped_context_rows, entity_matcher)
 
             # Persist contexts
-            db_contexts = [Context(mid2rid[mid], entity_label, mention, page_title, unmasked_context, masked_context)
+            db_contexts = [Context(qid_to_rid[mid], entity_label, mention, page_title, unmasked_context, masked_context)
                            for masked_context, unmasked_context, page_title, mention in masked_context_rows]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()
