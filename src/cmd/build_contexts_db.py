@@ -23,7 +23,7 @@ from util.log import log, log_start, log_end
 def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
-        freebase-json
+        wikidata-json
         mid2rid-txt
         matches-db
         contexts-db
@@ -35,8 +35,8 @@ def add_parser_args(parser: ArgumentParser):
         --overwrite
     """
 
-    parser.add_argument('freebase_json', metavar='freebase-json',
-                        help='Path to (input) Freebase JSON')
+    parser.add_argument('wikidata_json', metavar='wikidata-json',
+                        help='Path to (input) Wikidata JSON')
 
     parser.add_argument('mid2rid_txt', metavar='mid2rid-txt',
                         help='Path to (input) mid2rid TXT')
@@ -81,7 +81,7 @@ def run(args: Namespace):
     - Run actual program
     """
 
-    freebase_json = args.freebase_json
+    wikidata_json = args.wikidata_json
     mid2rid_txt = args.mid2rid_txt
     matches_db = args.matches_db
     contexts_db = args.contexts_db
@@ -101,7 +101,7 @@ def run(args: Namespace):
     #
 
     print('Applied config:')
-    print('    {:20} {}'.format('freebase-json', freebase_json))
+    print('    {:20} {}'.format('wikidata-json', wikidata_json))
     print('    {:20} {}'.format('mid2rid-txt', mid2rid_txt))
     print('    {:20} {}'.format('matches-db', matches_db))
     print('    {:20} {}'.format('contexts_db', contexts_db))
@@ -121,8 +121,8 @@ def run(args: Namespace):
     # Check if output files already exist
     #
 
-    if not isfile(freebase_json):
-        print('Freebase JSON not found')
+    if not isfile(wikidata_json):
+        print('Wikidata JSON not found')
         exit()
 
     if not isfile(mid2rid_txt):
@@ -151,14 +151,14 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_contexts_db(freebase_json, mid2rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+    _build_contexts_db(wikidata_json, mid2rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
                        limit_contexts, limit_entities)
 
 
-def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
+def _build_contexts_db(wikidata_json: str, mid2rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
-    - Load Freebase JSON
+    - Load Wikidata JSON
     - Load spaCy model
     - Create contexts DB
     - For each entity in matches DB
@@ -172,8 +172,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
     with sqlite3.connect(matches_db) as matches_conn, \
             sqlite3.connect(contexts_db) as contexts_conn:
 
-        log('Load Freebase JSON')
-        freebase_data: Dict[str, Dict] = load_qid_to_wikidata(freebase_json)
+        log('Load Wikidata JSON')
+        qid_to_wikidata: Dict[str, Dict] = load_qid_to_wikidata(wikidata_json)
 
         log('Load QID-to-RID TXT')
         qid_to_rid: Dict[str, int] = load_qid_to_rid(mid2rid_txt)
@@ -184,10 +184,10 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
         create_contexts_table(contexts_conn)
 
-        freebase_items = list(freebase_data.items())
-        random.shuffle(freebase_items)
-        for entity_count, freebase_item in enumerate(freebase_items):
-            mid, entity_data = freebase_item
+        wikidata_items = list(qid_to_wikidata.items())
+        random.shuffle(wikidata_items)
+        for entity_count, wikidata_item in enumerate(wikidata_items):
+            qid, entity_data = wikidata_item
 
             # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
@@ -203,12 +203,12 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             log_start('{:,} | {}'.format(entity_count, entity_label))
 
             # Sample contexts
-            all_context_rows = select_contexts(matches_conn, mid, context_size)
+            all_context_rows = select_contexts(matches_conn, qid, context_size)
             random.shuffle(all_context_rows)
             some_context_rows = all_context_rows[:limit_contexts]
 
             # Build entity PhraseMatcher
-            entity_mentions = select_entity_mentions(matches_conn, mid)
+            entity_mentions = select_entity_mentions(matches_conn, qid)
             entity_patterns = list({entity_label} | set(entity_mentions))
             entity_matcher = PhraseMatcher(nlp.vocab)
             entity_matcher.add('', None, *list(nlp.pipe(entity_patterns)))
@@ -218,7 +218,7 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             masked_context_rows = mask_contexts(nlp, cropped_context_rows, entity_matcher)
 
             # Persist contexts
-            db_contexts = [Context(qid_to_rid[mid], entity_label, mention, page_title, unmasked_context, masked_context)
+            db_contexts = [Context(qid_to_rid[qid], entity_label, mention, page_title, unmasked_context, masked_context)
                            for masked_context, unmasked_context, page_title, mention in masked_context_rows]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()

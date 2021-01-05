@@ -25,7 +25,7 @@ def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         wiki-xml
-        freebase-json
+        wikidata-json
         matches-db
         --in-memory
         --limit-pages
@@ -35,8 +35,8 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('wiki_xml', metavar='wiki-xml',
                         help='Path to (input) Wikipedia XML')
 
-    parser.add_argument('freebase_json', metavar='freebase-json',
-                        help='Path to (input) Freebase JSON')
+    parser.add_argument('wikidata_json', metavar='wikidata-json',
+                        help='Path to (input) Wikidata JSON')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to (output) matches DB')
@@ -60,7 +60,7 @@ def run(args: Namespace):
     """
 
     wiki_xml = args.wiki_xml
-    freebase_json = args.freebase_json
+    wikidata_json = args.wikidata_json
     matches_db = args.matches_db
 
     in_memory = args.in_memory
@@ -75,7 +75,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('wiki-xml', wiki_xml))
-    print('    {:20} {}'.format('freebase-json', freebase_json))
+    print('    {:20} {}'.format('wikidata-json', wikidata_json))
     print('    {:20} {}'.format('matches-db', matches_db))
     print()
     print('    {:20} {}'.format('--in-memory', in_memory))
@@ -93,8 +93,8 @@ def run(args: Namespace):
         print('Wikipedia XML not found')
         exit()
 
-    if not isfile(freebase_json):
-        print('Freebase JSON not found')
+    if not isfile(wikidata_json):
+        print('Wikidata JSON not found')
         exit()
 
     if isfile(matches_db):
@@ -108,27 +108,27 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_matches_db(wiki_xml, freebase_json, matches_db, in_memory, limit_pages)
+    _build_matches_db(wiki_xml, wikidata_json, matches_db, in_memory, limit_pages)
 
 
-def _build_matches_db(wiki_xml, freebase_json, matches_db, in_memory, limit_pages):
+def _build_matches_db(wiki_xml, wikidata_json, matches_db, in_memory, limit_pages):
     if in_memory:
-        _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages)
+        _run_in_memory(wiki_xml, wikidata_json, matches_db, limit_pages)
     else:
-        _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages)
+        _run_on_disk(wiki_xml, wikidata_json, matches_db, limit_pages)
 
 
-def _run_on_disk(wiki_xml, freebase_json, matches_db, limit_pages):
+def _run_on_disk(wiki_xml, wikidata_json, matches_db, limit_pages):
     with sqlite3.connect(matches_db) as matches_conn:
-        _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages)
+        _process_wiki_xml(wiki_xml, wikidata_json, matches_conn, limit_pages)
 
         log()
         log('Finished successfully')
 
 
-def _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages):
+def _run_in_memory(wiki_xml, wikidata_json, matches_db, limit_pages):
     with sqlite3.connect(':memory:') as memory_matches_conn:
-        _process_wiki_xml(wiki_xml, freebase_json, memory_matches_conn, limit_pages)
+        _process_wiki_xml(wiki_xml, wikidata_json, memory_matches_conn, limit_pages)
 
         log()
         log('Persist...')
@@ -141,9 +141,9 @@ def _run_in_memory(wiki_xml, freebase_json, matches_db, limit_pages):
         log('Done')
 
 
-def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
+def _process_wiki_xml(wiki_xml, wikidata_json, matches_conn, limit_pages):
     """
-    Iterate through all Freebase entities. For each entity, get its Wikipedia page as well
+    Iterate through all entities. For each entity, get its Wikipedia page as well
     as the directly linked pages. On those pages, search for the entity label and its aliases.
     Persist the matches in the matches DB.
     """
@@ -152,12 +152,12 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     create_matches_table(matches_conn)
     create_mentions_table(matches_conn)
 
-    freebase_data = load_qid_to_wikidata(freebase_json)
+    qid_to_wikidata = load_qid_to_wikidata(wikidata_json)
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, limit_pages)
 
-        init_args = (freebase_data,)
+        init_args = (qid_to_wikidata,)
         with Pool(cpu_count() // 2, initializer=_init_worker, initargs=init_args) as pool:
             for page_count, page_result in enumerate(pool.imap_unordered(_process_page, wikipedia)):
 
@@ -211,19 +211,19 @@ def log_page_info(page_count: int, page_title: str, stats: PageStats, duration: 
 worker_globals: Tuple
 
 
-def _init_worker(freebase_data):
+def _init_worker(qid_to_wikidata):
     global worker_globals
 
-    entity_page_title_to_mid = _get_entity_page_title_to_mid(freebase_data)
+    entity_page_title_to_mid = _get_entity_page_title_to_mid(qid_to_wikidata)
 
     nlp = spacy.load('en_core_web_lg')
 
-    worker_globals = (freebase_data, entity_page_title_to_mid, nlp)
+    worker_globals = (qid_to_wikidata, entity_page_title_to_mid, nlp)
 
 
-def _get_entity_page_title_to_mid(freebase_data):
+def _get_entity_page_title_to_mid(qid_to_wikidata):
     entity_page_title_to_mid = {}
-    for mid, entity_data in freebase_data.items():
+    for mid, entity_data in qid_to_wikidata.items():
         page_url = entity_data['wikipedia']
         if page_url:
             decoded_page_url = urllib.parse.unquote(page_url)
@@ -235,7 +235,7 @@ def _get_entity_page_title_to_mid(freebase_data):
 
 def _process_page(page: dict):
     global worker_globals
-    freebase_data, entity_page_title_to_mid, nlp = worker_globals
+    qid_to_wikidata, entity_page_title_to_mid, nlp = worker_globals
 
     try:
         start_time = time.time()
@@ -246,7 +246,7 @@ def _process_page(page: dict):
         # Parse markup -> AST
         parsed = wtp.parse(page_markup)
 
-        # Get links that refer to Wiki pages of Freebase entities
+        # Get links that refer to Wiki pages of entities
         links = parsed.wikilinks
         entity_links = [link for link in links if link.title in entity_page_title_to_mid]
 
@@ -266,7 +266,7 @@ def _process_page(page: dict):
 
         # Prepare DB mentions. Will be returned to the main thread
         mentions = list(nlp.pipe(mention_to_mid.keys()))
-        db_mentions = [Mention(mid, freebase_data[mid]['label'], mention)
+        db_mentions = [Mention(mid, qid_to_wikidata[mid]['label'], mention)
                        for mention, mid in mention_to_mid.items()]
 
         matcher = PhraseMatcher(nlp.vocab)
@@ -286,7 +286,7 @@ def _process_page(page: dict):
             mention = match_span.text  # mention which matched (from the whole mention set)
 
             mid = mention_to_mid[mention]
-            entity_label = freebase_data[mid]['label']
+            entity_label = qid_to_wikidata[mid]['label']
 
             start_char = match_span.start_char
             end_char = match_span.end_char
