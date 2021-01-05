@@ -93,7 +93,7 @@ data/
     oke.fb15k237_30061990_50/                   # OpenKE dataset directory
     contexts-v7-enwiki-20200920-100-500.db      # Contexts DB
     enwiki-20200920.xml                         # Wiki XML dump
-    matches-v6-enwiki-20200920.db               # Matches DB
+    matches-v6-2020-12-31.db                    # Matches DB
     wikidata-v1-2020-12-31.json                 # Wikidata JSON
 ```
 
