@@ -251,7 +251,7 @@ def _process_page(page: dict):
         entity_links = [link for link in links if link.title in entity_page_title_to_qid]
 
         # Get mention -> QID mapping from links, e.g.:
-        # { 'Berlin' -> ['/m/abc'], 'Bonn' -> ['/m/xyz'], 'capital' -> ['/m/abc', '/m/xyz'] }
+        # { 'Berlin' -> ['Q100'], 'Bonn' -> ['Q200'], 'capital' -> ['Q300', 'Q400'] }
         #
         # Note: Multiple links with the same text that link different pages
         #       should not occur according to Wikipedia standards
