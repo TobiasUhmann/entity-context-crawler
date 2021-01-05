@@ -35,8 +35,8 @@ def render_predict_entity_triples_page():
     if model_selection == 'Baseline':
         baseline_es_host = st.sidebar.text_input('Elasticsearch Host', value='localhost:9200')
         baseline_es_index = st.sidebar.text_input('Elasticsearch Index Name',
-                                                  value='cw-contexts-v7-enwiki-20200920-100-500')
-        baseline_ow_db = st.sidebar.text_input('Open-World DB', value='data/ow-contexts-v7-enwiki-20200920-100-500.db')
+                                                  value='cw-contexts-v7-2020-12-31')
+        baseline_ow_db = st.sidebar.text_input('Open-World DB', value='data/ow-contexts-v7-2020-12-31.db')
         baseline_pickle_file = st.sidebar.text_input('Pickle File', value='data/baseline-v1-enwiki-20200920-100-500.p')
 
     else:
