@@ -1,4 +1,5 @@
 import os
+import signal
 import sqlite3
 import time
 import urllib
@@ -220,6 +221,11 @@ def _init_worker(qid_to_wikidata):
 
     worker_globals = (qid_to_wikidata, entity_page_title_to_qid, nlp)
 
+    def handler(signum, frame):
+        raise Exception('timeout')
+
+    signal.signal(signal.SIGALRM, handler)
+
 
 def _get_entity_page_title_to_qid(qid_to_wikidata):
     entity_page_title_to_qid = {}
@@ -238,85 +244,83 @@ def _process_page(page: dict):
     qid_to_wikidata, entity_page_title_to_qid, nlp = worker_globals
 
     try:
-        start_time = time.time()
+        signal.alarm(3)
 
-        page_title = page['title']
-        page_markup = page['text']
-
-        # Parse markup -> AST
-        parsed = wtp.parse(page_markup)
-
-        # Get links that refer to Wiki pages of entities
-        links = parsed.wikilinks
-        entity_links = [link for link in links if link.title in entity_page_title_to_qid]
-
-        # Get mention -> QID mapping from links, e.g.:
-        # { 'Berlin' -> ['Q100'], 'Bonn' -> ['Q200'], 'capital' -> ['Q300', 'Q400'] }
-        #
-        # Note: Multiple links with the same text that link different pages
-        #       should not occur according to Wikipedia standards
-        mention_to_qids = defaultdict(set)
-        for link in entity_links:
-            mention = link.text if link.text else link.title
-            mention_to_qids[mention].add(entity_page_title_to_qid[link.title])
-
-        # Remove non-unique mentions
-        mention_to_qid = {mention: list(qids)[0] for mention, qids in mention_to_qids.items()
-                          if len(qids) == 1}
-
-        # Prepare DB mentions. Will be returned to the main thread
-        mentions = list(nlp.pipe(mention_to_qid.keys()))
-        db_mentions = [Mention(qid, qid_to_wikidata[qid]['label'], mention)
-                       for mention, qid in mention_to_qid.items()]
-
-        matcher = PhraseMatcher(nlp.vocab)
-        matcher.add('Patterns', None, *mentions)
-
-        # Markup -> plain text, clean up plain text
-        page_text = parsed.plain_text()
-        clean_page_text = clean_up_text(nlp, page_text)
-
-        # Search mentions
-        spacy_doc = nlp.make_doc(clean_page_text)
-        matches = matcher(spacy_doc)
-
-        db_matches = []
-        for _, start, end in matches:
-            match_span = spacy_doc[start:end]
-            mention = match_span.text  # mention which matched (from the whole mention set)
-
-            qid = mention_to_qid[mention]
-            entity_label = qid_to_wikidata[qid]['label']
-
-            start_char = match_span.start_char
-            end_char = match_span.end_char
-
-            context_start = max(match_span.start_char - 20, 0)
-            context_end = min(match_span.end_char + 20, len(clean_page_text))
-            context = clean_page_text[context_start:context_end]
-
-            db_match = Match(qid, entity_label, mention, page_title, start_char, end_char, context)
-            db_matches.append(db_match)
-
-        stop_time = time.time()
-        duration = stop_time - start_time
-
-        stats = PageStats(
-            len(links),
-            len(entity_links),
-            len(mention_to_qids),
-            len(mention_to_qid),
-            len(page_text),
-            len(clean_page_text),
-            len(db_matches),
-        )
-
-        db_page = Page(page_title, clean_page_text, stats)
+        db_matches, db_mentions, db_page, duration = _process_page_2(entity_page_title_to_qid, nlp, page,
+                                                                     qid_to_wikidata)
 
         return db_page, db_matches, db_mentions, duration, None
 
     except Exception as e:
+        signal.alarm(0)
+
         return None, None, None, None, e
+
+
+def _process_page_2(entity_page_title_to_qid, nlp, page, qid_to_wikidata):
+    start_time = time.time()
+    page_title = page['title']
+    page_markup = page['text']
+    # Parse markup -> AST
+    parsed = wtp.parse(page_markup)
+    # Get links that refer to Wiki pages of entities
+    links = parsed.wikilinks
+    entity_links = [link for link in links if link.title in entity_page_title_to_qid]
+    # Get mention -> QID mapping from links, e.g.:
+    # { 'Berlin' -> ['Q100'], 'Bonn' -> ['Q200'], 'capital' -> ['Q300', 'Q400'] }
+    #
+    # Note: Multiple links with the same text that link different pages
+    #       should not occur according to Wikipedia standards
+    mention_to_qids = defaultdict(set)
+    for link in entity_links:
+        mention = link.text if link.text else link.title
+        mention_to_qids[mention].add(entity_page_title_to_qid[link.title])
+    # Remove non-unique mentions
+    mention_to_qid = {mention: list(qids)[0] for mention, qids in mention_to_qids.items()
+                      if len(qids) == 1}
+    # Prepare DB mentions. Will be returned to the main thread
+    mentions = list(nlp.pipe(mention_to_qid.keys()))
+    db_mentions = [Mention(qid, qid_to_wikidata[qid]['label'], mention)
+                   for mention, qid in mention_to_qid.items()]
+    matcher = PhraseMatcher(nlp.vocab)
+    matcher.add('Patterns', None, *mentions)
+    # Markup -> plain text, clean up plain text
+    page_text = parsed.plain_text()
+    clean_page_text = clean_up_text(nlp, page_text)
+    # Search mentions
+    spacy_doc = nlp.make_doc(clean_page_text)
+    matches = matcher(spacy_doc)
+    db_matches = []
+    for _, start, end in matches:
+        match_span = spacy_doc[start:end]
+        mention = match_span.text  # mention which matched (from the whole mention set)
+
+        qid = mention_to_qid[mention]
+        entity_label = qid_to_wikidata[qid]['label']
+
+        start_char = match_span.start_char
+        end_char = match_span.end_char
+
+        context_start = max(match_span.start_char - 20, 0)
+        context_end = min(match_span.end_char + 20, len(clean_page_text))
+        context = clean_page_text[context_start:context_end]
+
+        db_match = Match(qid, entity_label, mention, page_title, start_char, end_char, context)
+        db_matches.append(db_match)
+    stop_time = time.time()
+    duration = stop_time - start_time
+    stats = PageStats(
+        len(links),
+        len(entity_links),
+        len(mention_to_qids),
+        len(mention_to_qid),
+        len(page_text),
+        len(clean_page_text),
+        len(db_matches),
+    )
+    db_page = Page(page_title, clean_page_text, stats)
+    
+    return db_matches, db_mentions, db_page, duration
 
 
 def clean_up_text(nlp: Language, page_text: str) -> str:
