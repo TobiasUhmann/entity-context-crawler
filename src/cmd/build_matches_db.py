@@ -244,7 +244,7 @@ def _process_page(page: dict):
     qid_to_wikidata, entity_page_title_to_qid, nlp = worker_globals
 
     try:
-        signal.alarm(3)
+        signal.alarm(300)
         db_matches, db_mentions, db_page, duration = _process_page_2(entity_page_title_to_qid, nlp, page,
                                                                      qid_to_wikidata)
         signal.alarm(0)
