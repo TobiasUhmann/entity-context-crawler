@@ -245,15 +245,13 @@ def _process_page(page: dict):
 
     try:
         signal.alarm(3)
-
         db_matches, db_mentions, db_page, duration = _process_page_2(entity_page_title_to_qid, nlp, page,
                                                                      qid_to_wikidata)
+        signal.alarm(0)
 
         return db_page, db_matches, db_mentions, duration, None
 
     except Exception as e:
-        signal.alarm(0)
-
         return None, None, None, None, e
 
 
@@ -319,7 +317,7 @@ def _process_page_2(entity_page_title_to_qid, nlp, page, qid_to_wikidata):
         len(db_matches),
     )
     db_page = Page(page_title, clean_page_text, stats)
-    
+
     return db_matches, db_mentions, db_page, duration
 
 
