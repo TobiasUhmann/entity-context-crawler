@@ -189,6 +189,9 @@ def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str,
         for entity_count, wikidata_item in enumerate(wikidata_items):
             qid, entity_data = wikidata_item
 
+            if qid not in qid_to_rid:
+                continue
+
             # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
                 break
