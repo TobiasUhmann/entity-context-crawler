@@ -15,8 +15,8 @@ from spacy.tokens import Doc
 
 from dao.contexts_db import create_contexts_table, insert_contexts, Context
 from dao.matches_db import select_contexts, select_entity_mentions
-from dao.qid_to_rid_txt import load_qid_to_rid
-from dao.wikidata_json import load_qid_to_wikidata
+from dao.oid_to_rid_txt import load_oid_to_rid
+from dao.wikidata_json import load_oid_to_wikidata
 from util.log import log, log_start, log_end
 
 
@@ -24,7 +24,7 @@ def add_parser_args(parser: ArgumentParser):
     """
     Add arguments to arg parser:
         wikidata-json
-        qid-to-rid-txt
+        oid-to-rid-txt
         matches-db
         contexts-db
         --context-size
@@ -38,8 +38,8 @@ def add_parser_args(parser: ArgumentParser):
     parser.add_argument('wikidata_json', metavar='wikidata-json',
                         help='Path to (input) Wikidata JSON')
 
-    parser.add_argument('qid_to_rid_txt', metavar='qid-to-rid-txt',
-                        help='Path to (input) QID-to-RID TXT')
+    parser.add_argument('oid_to_rid_txt', metavar='oid-to-rid-txt',
+                        help='Path to (input) OID-to-RID TXT')
 
     parser.add_argument('matches_db', metavar='matches-db',
                         help='Path to (input) matches DB')
@@ -82,7 +82,7 @@ def run(args: Namespace):
     """
 
     wikidata_json = args.wikidata_json
-    qid_to_rid_txt = args.qid_to_rid_txt
+    oid_to_rid_txt = args.oid_to_rid_txt
     matches_db = args.matches_db
     contexts_db = args.contexts_db
 
@@ -102,7 +102,7 @@ def run(args: Namespace):
 
     print('Applied config:')
     print('    {:20} {}'.format('wikidata-json', wikidata_json))
-    print('    {:20} {}'.format('qid-to-rid-txt', qid_to_rid_txt))
+    print('    {:20} {}'.format('oid-to-rid-txt', oid_to_rid_txt))
     print('    {:20} {}'.format('matches-db', matches_db))
     print('    {:20} {}'.format('contexts_db', contexts_db))
     print()
@@ -125,8 +125,8 @@ def run(args: Namespace):
         print('Wikidata JSON not found')
         exit()
 
-    if not isfile(qid_to_rid_txt):
-        print('QID-to-RID TXT not found')
+    if not isfile(oid_to_rid_txt):
+        print('OID-to-RID TXT not found')
         exit()
 
     if not isfile(matches_db):
@@ -151,11 +151,11 @@ def run(args: Namespace):
     # Run actual program
     #
 
-    _build_contexts_db(wikidata_json, qid_to_rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
+    _build_contexts_db(wikidata_json, oid_to_rid_txt, matches_db, contexts_db, context_size, crop_sentences, csv_file,
                        limit_contexts, limit_entities)
 
 
-def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
+def _build_contexts_db(wikidata_json: str, oid_to_rid_txt: str, matches_db: str, contexts_db: str, context_size: int,
                        crop_sentences: bool, csv_file: str, limit_contexts: int, limit_entities: int):
     """
     - Load Wikidata JSON
@@ -173,10 +173,10 @@ def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str,
             sqlite3.connect(contexts_db) as contexts_conn:
 
         log('Load Wikidata JSON')
-        qid_to_wikidata: Dict[str, Dict] = load_qid_to_wikidata(wikidata_json)
+        oid_to_wikidata: Dict[str, Dict] = load_oid_to_wikidata(wikidata_json)
 
-        log('Load QID-to-RID TXT')
-        qid_to_rid: Dict[str, int] = load_qid_to_rid(qid_to_rid_txt)
+        log('Load OID-to-RID TXT')
+        oid_to_rid: Dict[str, int] = load_oid_to_rid(oid_to_rid_txt)
 
         log('Load spaCy model')
         nlp: English = spacy.load('en_core_web_lg')
@@ -184,12 +184,12 @@ def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str,
 
         create_contexts_table(contexts_conn)
 
-        wikidata_items = list(qid_to_wikidata.items())
+        wikidata_items = list(oid_to_wikidata.items())
         random.shuffle(wikidata_items)
         for entity_count, wikidata_item in enumerate(wikidata_items):
-            qid, entity_data = wikidata_item
+            oid, entity_data = wikidata_item
 
-            if qid not in qid_to_rid:
+            if oid not in oid_to_rid:
                 continue
 
             # Early stop after ... entities
@@ -206,12 +206,12 @@ def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str,
             log_start('{:,} | {}'.format(entity_count, entity_label))
 
             # Sample contexts
-            all_context_rows = select_contexts(matches_conn, qid, context_size)
+            all_context_rows = select_contexts(matches_conn, oid, context_size)
             random.shuffle(all_context_rows)
             some_context_rows = all_context_rows[:limit_contexts]
 
             # Build entity PhraseMatcher
-            entity_mentions = select_entity_mentions(matches_conn, qid)
+            entity_mentions = select_entity_mentions(matches_conn, oid)
             entity_patterns = list({entity_label} | set(entity_mentions))
             entity_matcher = PhraseMatcher(nlp.vocab)
             entity_matcher.add('', None, *list(nlp.pipe(entity_patterns)))
@@ -221,7 +221,7 @@ def _build_contexts_db(wikidata_json: str, qid_to_rid_txt: str, matches_db: str,
             masked_context_rows = mask_contexts(nlp, cropped_context_rows, entity_matcher)
 
             # Persist contexts
-            db_contexts = [Context(qid_to_rid[qid], entity_label, mention, page_title, unmasked_context, masked_context)
+            db_contexts = [Context(oid_to_rid[oid], entity_label, mention, page_title, unmasked_context, masked_context)
                            for masked_context, unmasked_context, page_title, mention in masked_context_rows]
             insert_contexts(contexts_conn, db_contexts)
             contexts_conn.commit()

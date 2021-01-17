@@ -69,8 +69,8 @@ The following diagram gives an overview how the available commands (yellow) are 
 
 The upper part of the pipeline samples the entities' contexts in two steps:
 
-- [`build-matches-db`](../../wikis/Commands/build-matches-db) takes the `Wiki XML dump` and the `Wikidata JSON `containing the mapping from the entities' QIDs to the respective Wikidata and produces the `Matches DB` that stores all matches of entities in the Wikipedia.
-- [`build-contexts-db`](../../wikis/Commands/build-contexts-db) takes the matches from the `Matches DB` and samples a limited number of contexts for each entity. It also requires the `QID -> ryn ID TXT` mapping as it also stores the entities' ryn IDs. The result is the `Contexts DB`.
+- [`build-matches-db`](../../wikis/Commands/build-matches-db) takes the `Wiki XML dump` and the `Wikidata JSON `containing the mapping from the entities' OIDs to the respective Wikidata and produces the `Matches DB` that stores all matches of entities in the Wikipedia.
+- [`build-contexts-db`](../../wikis/Commands/build-contexts-db) takes the matches from the `Matches DB` and samples a limited number of contexts for each entity. It also requires the `OID -> ryn ID TXT` mapping as it also stores the entities' ryn IDs. The result is the `Contexts DB`.
 
 The expressiveness of the contexts in the `Contexts DB` can be tested by building and subsequently quering the "Elasticsearch test":
 
