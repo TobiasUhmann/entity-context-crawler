@@ -13,11 +13,12 @@ class Context:
     masked_context: str
 
 
-def create_contexts_table(conn: Connection):
-    pragma_version_sql = '''
-        PRAGMA user_version = 8
-    '''
+def version_contexts_db(conn: Connection):
+    with conn:
+        conn.execute('PRAGMA user_version = 8')
 
+
+def create_contexts_table(conn: Connection):
     create_table_sql = '''
         CREATE TABLE contexts (
             id              INT,
@@ -39,7 +40,6 @@ def create_contexts_table(conn: Connection):
     '''
 
     cursor = conn.cursor()
-    cursor.execute(pragma_version_sql)
     cursor.execute(create_table_sql)
     cursor.execute(create_entity_index_sql)
     cursor.close()

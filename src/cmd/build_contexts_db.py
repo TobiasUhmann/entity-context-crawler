@@ -13,7 +13,7 @@ from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 from spacy.tokens import Doc
 
-from dao.contexts_db import create_contexts_table, insert_contexts, Context
+from dao.contexts_db import create_contexts_table, insert_contexts, Context, version_contexts_db
 from dao.matches_db import select_contexts, select_entity_mentions
 from dao.oid_to_rid_txt import load_oid_to_rid
 from dao.wikidata_json import load_oid_to_wikidata
@@ -182,6 +182,7 @@ def _build_contexts_db(wikidata_json: str, oid_to_rid_txt: str, matches_db: str,
         nlp: English = spacy.load('en_core_web_lg')
         log()
 
+        version_contexts_db(contexts_db)
         create_contexts_table(contexts_conn)
 
         wikidata_items = list(oid_to_wikidata.items())

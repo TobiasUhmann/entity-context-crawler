@@ -25,12 +25,13 @@ class Page:
     stats: PageStats
 
 
-def create_pages_table(conn: Connection):
-    pragma_version_sql = '''
-        PRAGMA user_version = 6
-    '''
+def version_matches_db(conn: Connection):
+    with conn:
+        conn.execute('PRAGMA user_version = 7')
 
-    create_table_sql = '''
+
+def create_pages_table(conn: Connection):
+    sql = '''
         CREATE TABLE pages (
             title TEXT,
             text TEXT,
@@ -48,8 +49,7 @@ def create_pages_table(conn: Connection):
     '''
 
     cursor = conn.cursor()
-    cursor.execute(pragma_version_sql)
-    cursor.execute(create_table_sql)
+    cursor.execute(sql)
     cursor.close()
 
 

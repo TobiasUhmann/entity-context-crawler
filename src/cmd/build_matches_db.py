@@ -16,7 +16,7 @@ from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
 from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
-    Page, create_pages_table, create_mentions_table, PageStats
+    Page, create_pages_table, create_mentions_table, PageStats, version_matches_db
 from dao.wikidata_json import load_oid_to_wikidata
 from util.log import log
 from util.wikipedia import Wikipedia
@@ -149,6 +149,7 @@ def _process_wiki_xml(wiki_xml, wikidata_json, matches_conn, limit_pages):
     Persist the matches in the matches DB.
     """
 
+    version_matches_db(matches_conn)
     create_pages_table(matches_conn)
     create_matches_table(matches_conn)
     create_mentions_table(matches_conn)

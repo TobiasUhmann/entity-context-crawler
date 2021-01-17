@@ -9,7 +9,8 @@ from typing import List
 from elasticsearch import Elasticsearch
 from ryn.graphs.split import Dataset
 
-from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities, Context
+from dao.contexts_db import create_contexts_table, insert_context, select_contexts, select_distinct_entities, Context, \
+    version_contexts_db
 
 
 def add_parser_args(parser: ArgumentParser):
@@ -125,6 +126,7 @@ def _build_es_test(es, contexts_db, index_name, test_contexts_db, limit_contexts
     with sqlite3.connect(contexts_db) as contexts_conn, \
             sqlite3.connect(test_contexts_db) as test_contexts_conn:
 
+        version_contexts_db(test_contexts_conn)
         create_contexts_table(test_contexts_conn)
 
         entities: List[int] = select_distinct_entities(contexts_conn)

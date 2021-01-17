@@ -8,7 +8,7 @@ from typing import Set, Dict
 from elasticsearch import Elasticsearch
 from ryn.graphs import split
 
-from dao.contexts_db import create_contexts_table, insert_context, Context
+from dao.contexts_db import create_contexts_table, insert_context, Context, version_contexts_db
 from dao.contexts_txt import load_contexts
 from dao.score_matrix_pkl import save_score_matrix
 from models.baseline_model import BaselineModel
@@ -208,6 +208,7 @@ def _build_baseline(dataset_dir: str, es: Elasticsearch, es_index: str, limit_co
     log('Build OW DB...')
 
     with sqlite3.connect(ow_db) as ow_conn:
+        version_contexts_db(ow_conn)
         create_contexts_table(ow_conn)
 
         for i, ent in enumerate(valid_test_contexts):
