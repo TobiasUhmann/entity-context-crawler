@@ -34,7 +34,7 @@ def render_show_entity_contexts_page():
 
     st.sidebar.markdown('PYTHONHASHSEED = %s' % os.getenv('PYTHONHASHSEED'))
 
-    contexts_db = st.sidebar.text_input('Contexts DB', value='data/contexts-v7-2020-12-31.db')
+    contexts_db = st.sidebar.text_input('Contexts DB', value='data/contexts-v7-codex.db')
 
     #
     # Entity prefix input & Entity name selection

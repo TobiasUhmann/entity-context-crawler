@@ -90,16 +90,18 @@ The example used in this documentation assume the following structure of the dat
 
 ```
 data/
-    oke.fb15k237_30061990_50/                   # OpenKE dataset directory
-    contexts-v7-2020-12-31.db      # Contexts DB
-    enwiki-20200920.xml                         # Wiki XML dump
-    matches-v6-2020-12-31.db                    # Matches DB
-    wikidata-v1-2020-12-31.json                 # Wikidata JSON
+   baseline-v1-irt-fb-irt-30-clean        # Baseline Directory
+   contexts-v7-codex.db                   # Contexts DB
+   enwiki-20200920.xml                    # Wiki XML dump
+   irt.fb.irt.30.clean/                   # Ryn Dataset Directory
+   matches-v6-codex.db                    # Matches DB
+   wikidata-v1-codex.json                 # Wikidata JSON
 ```
 
 Further details can be found in the wiki:
-- [OpenKE Dataset Directory](../../wikis/Data-Files/OpenKE-Dataset-Directory)
+- [Baseline Directory](../../wikis/Data-Files/Baseline-Directory)
 - [Contexts DB](../../wikis/Data-Files/Contexts-DB)
-- [Wikidata JSON](../../wikis/Data-Files/Wikidata-JSON)
-- [Wiki XML Dump](../../wikis/Data-Files/Wiki-XML-Dump)
 - [Matches DB](../../wikis/Data-Files/Matches-DB)
+- [Ryn Dataset Directory](../../wikis/Data-Files/Ryn-Dataset-Directory)
+- [Wiki XML Dump](../../wikis/Data-Files/Wiki-XML-Dump)
+- [Wikidata JSON](../../wikis/Data-Files/Wikidata-JSON)
