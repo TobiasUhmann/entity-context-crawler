@@ -104,7 +104,11 @@ class BaselineModel(Model):
         es_result = self.es.search(index=self.es_index,
                                    body={'query': {'match': {'context': ow_context[:1024]}}})
 
-        es_hit = es_result['hits']['hits'][0]  # Only consider top 1 hit
+        es_hits = es_result['hits']['hits']
+        if len(es_hits) == 0:
+            return None
+
+        es_hit = es_hits[0]  # Only consider top 1 hit
 
         cw_ent = es_hit['_source']['entity']
         logging.info('OW "{}" -> CW "{}"'.format(self.id2ent[ow_ent], self.id2ent[cw_ent]).encode('utf-8'))
