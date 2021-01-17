@@ -99,9 +99,9 @@ data/
 ```
 
 Further details can be found in the wiki:
-- [Baseline Directory](../../wikis/Data-Files/Baseline-Directory)
-- [Contexts DB](../../wikis/Data-Files/Contexts-DB)
-- [Matches DB](../../wikis/Data-Files/Matches-DB)
-- [Ryn Dataset Directory](../../wikis/Data-Files/Ryn-Dataset-Directory)
-- [Wiki XML Dump](../../wikis/Data-Files/Wiki-XML-Dump)
-- [Wikidata JSON](../../wikis/Data-Files/Wikidata-JSON)
+- [Baseline Directory](../../wikis/Files/Baseline-Directory)
+- [Contexts DB](../../wikis/Files/Contexts-DB)
+- [Matches DB](../../wikis/Files/Matches-DB)
+- [Ryn Dataset Directory](../../wikis/Files/Ryn-Dataset-Directory)
+- [Wiki XML Dump](../../wikis/Files/Wiki-XML-Dump)
+- [Wikidata JSON](../../wikis/Files/Wikidata-JSON)
