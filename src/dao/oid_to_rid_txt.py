@@ -13,7 +13,7 @@ def load_oid_to_rid(path: str) -> Dict[str, int]:
         next(f)  # Skip first line
 
         for line in f.readlines():
-            oid, rid = line.split(' ')
+            oid, rid = line.split()
             oid_to_rid[oid] = int(rid)
 
     return oid_to_rid
