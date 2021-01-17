@@ -14,14 +14,22 @@ class Context:
 
 
 def create_contexts_table(conn: Connection):
+    pragma_version_sql = '''
+        PRAGMA user_version = 8
+    '''
+
     create_table_sql = '''
         CREATE TABLE contexts (
-            entity INT,
-            entity_label TEXT,
-            mention TEXT,
-            page_title TEXT,
-            context TEXT,
-            masked_context TEXT
+            id              INT,
+            
+            entity          INT,
+            entity_label    TEXT,
+            mention         TEXT,
+            page_title      TEXT,
+            context         TEXT,
+            masked_context  TEXT,
+            
+            PRIMARY KEY (id)
         )
     '''
 
@@ -31,6 +39,7 @@ def create_contexts_table(conn: Connection):
     '''
 
     cursor = conn.cursor()
+    cursor.execute(pragma_version_sql)
     cursor.execute(create_table_sql)
     cursor.execute(create_entity_index_sql)
     cursor.close()

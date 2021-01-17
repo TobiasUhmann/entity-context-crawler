@@ -26,7 +26,11 @@ class Page:
 
 
 def create_pages_table(conn: Connection):
-    sql = '''
+    pragma_version_sql = '''
+        PRAGMA user_version = 6
+    '''
+
+    create_table_sql = '''
         CREATE TABLE pages (
             title TEXT,
             text TEXT,
@@ -44,7 +48,8 @@ def create_pages_table(conn: Connection):
     '''
 
     cursor = conn.cursor()
-    cursor.execute(sql)
+    cursor.execute(pragma_version_sql)
+    cursor.execute(create_table_sql)
     cursor.close()
 
 
