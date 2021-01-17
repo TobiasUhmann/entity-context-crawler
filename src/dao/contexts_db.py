@@ -35,7 +35,7 @@ def create_contexts_table(conn: Connection):
     '''
 
     create_entity_index_sql = '''
-        CREATE INDEX entity_index
+        CREATE INDEX contexts_entity_index
         ON contexts(entity)
     '''
 

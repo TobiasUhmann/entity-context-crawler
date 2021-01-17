@@ -33,18 +33,20 @@ def version_matches_db(conn: Connection):
 def create_pages_table(conn: Connection):
     sql = '''
         CREATE TABLE pages (
-            title TEXT,
-            text TEXT,
+            id                      INT,
             
-            link_count INT,
-            entity_link_count INT,
-            mention_count INT,
-            unique_mention_count INT,
-            text_len INT,
-            clean_text_len INT,
-            match_count INT,
+            title                   TEXT,
+            text                    TEXT,
             
-            PRIMARY KEY (title)
+            link_count              INT,
+            entity_link_count       INT,
+            mention_count           INT,
+            unique_mention_count    INT,
+            text_len                INT,
+            clean_text_len          INT,
+            match_count             INT,
+            
+            PRIMARY KEY (id)
         )
     '''
 
@@ -85,16 +87,19 @@ class Match:
 def create_matches_table(conn: Connection):
     sql = '''
         CREATE TABLE matches (
-            oid TEXT,           -- OID = Wikidata ID, e.g. 'Q1234'
-            entity_label TEXT,  -- Wikidata label for OID, not unique, e.g. 'Spider-Man'
-            mention TEXT,       -- Matched mention in Wikipedia, e.g. 'Spidey'
-            page TEXT,          -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
-            start_char INT,     -- Start char position of entity match within document
-            end_char INT,       -- End char position (exclusive) of entity match within document
-            context TEXT,       -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
+            id              INT,
+            
+            page            TEXT,  -- Wikipedia page title, unique, e.g. 'Spider-Man (2002 film)'
 
-            FOREIGN KEY (page) REFERENCES pages (title),
-            PRIMARY KEY (oid, page, start_char, mention)
+            oid             TEXT,  -- OID = Wikidata ID, e.g. 'Q1234'
+            entity_label    TEXT,  -- Wikidata label for OID, not unique, e.g. 'Spider-Man'
+            mention         TEXT,  -- Matched mention in Wikipedia, e.g. 'Spidey'
+            start_char      INT,   -- Start char position of entity match within document
+            end_char        INT,   -- End char position (exclusive) of entity match within document
+            context         TEXT,  -- Text around match, e.g. 'Spider-Man is a 2002 American...', for debugging
+
+            PRIMARY KEY (id),
+            FOREIGN KEY (page) REFERENCES pages(title)
         )
     '''
 
@@ -129,16 +134,19 @@ class Mention:
 def create_mentions_table(conn: Connection):
     create_table_sql = '''
         CREATE TABLE mentions (
-            oid TEXT,
-            entity_label TEXT,
-            mention TEXT,
+            id              INT,
+            
+            oid             TEXT,
+            mention         TEXT,
+            entity_label    TEXT,
 
+            PRIMARY KEY (id),
             UNIQUE (oid, mention)
         )
     '''
 
     create_oid_index_sql = '''
-        CREATE INDEX oid_index
+        CREATE INDEX mentions_oid_index
         ON mentions(oid)
     '''
 
