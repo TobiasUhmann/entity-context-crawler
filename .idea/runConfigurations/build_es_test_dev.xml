@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="build-es-test data/contexts-v7-2020-12-31.db cw-contexts-v7-2020-12-31-dev data/ow-contexts-v7-2020-12-31-dev.db --limit-contexts 100 --overwrite --random-seed 0" />
+    <option name="PARAMETERS" value="build-es-test data/contexts-v7-codex.db cw-contexts-v7-codex-dev data/ow-contexts-v7-codex-dev.db --limit-contexts 100 --overwrite --random-seed 0" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

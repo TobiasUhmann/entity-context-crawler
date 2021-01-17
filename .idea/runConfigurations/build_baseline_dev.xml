@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="build-baseline data/irt.fb.30.26041992.clean/ baseline-v1-irt-fb-30-26041992-clean-dev --output-dir data/ --overwrite --random-seed 0" />
+    <option name="PARAMETERS" value="build-baseline data/irt.fb.irt.30.clean/ baseline-v1-irt-fb-irt-30-clean-dev --output-dir data/ --overwrite --random-seed 0" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

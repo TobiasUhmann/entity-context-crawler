@@ -13,7 +13,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
-    <option name="PARAMETERS" value="eval-model baseline data/irt.fb.30.26041992.clean/ --baseline-dir data/baseline-v1-irt-fb-30-26041992-clean/ --baseline-name baseline-v1-irt-fb-30-26041992-clean" />
+    <option name="PARAMETERS" value="eval-model baseline data/irt.fb.irt.30.clean/ --baseline-dir data/baseline-v1-irt-fb-irt-30-clean/ --baseline-name baseline-v1-irt-fb-irt-30-clean" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
