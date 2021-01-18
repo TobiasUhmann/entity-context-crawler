@@ -70,7 +70,7 @@ The following diagram gives an overview how the available commands (yellow) are 
 The upper part of the pipeline samples the entities' contexts in two steps:
 
 - [`build-matches-db`](../../wikis/Commands/build-matches-db) takes the `Wiki XML dump` and the `Wikidata JSON `containing the mapping from the entities' OIDs to the respective Wikidata and produces the `Matches DB` that stores all matches of entities in the Wikipedia.
-- [`build-contexts-db`](../../wikis/Commands/build-contexts-db) takes the matches from the `Matches DB` and samples a limited number of contexts for each entity. It also requires the `OID -> ryn ID TXT` mapping as it also stores the entities' ryn IDs. The result is the `Contexts DB`.
+- [`build-contexts-db`](../../wikis/Commands/build-contexts-db) takes the matches from the `Matches DB` and samples a limited number of contexts for each entity. It also requires the `OID-to-RID TXT` mapping as it also stores the entities' ryn IDs. The result is the `Contexts DB`.
 
 The expressiveness of the contexts in the `Contexts DB` can be tested by building and subsequently quering the "Elasticsearch test":
 
@@ -80,8 +80,8 @@ The expressiveness of the contexts in the `Contexts DB` can be tested by buildin
 
 The lower part of the actual pipeline builds the baseline model from the `Contexts DB` which can then be queried:
 
-- [`build-baseline`](../../wikis/Commands/build-baseline) splits the contexts from the `Contexts DB` into open and closed world entities using the information fromt the `OpenKE dataset`. As a result, the `OW Contexts DB` contains the contexts of the open world entities while the `CW Contexts ES Index` contains the contexts of the closed world entities.
-- [`eval-model`](../../wikis/Commands/eval-model) can be used to evaluate link prediction models, including the baseline model. `eval-model` generally requires the `OpenKE dataset` to differentiate between open and closed world entities. In order to be able to run the baseline model it furthermore requires the `OW Contexts DB` and the `CW Contexts ES Index` built by `build-baseline`.
+- [`build-baseline`](../../wikis/Commands/build-baseline) splits the contexts from the `Contexts DB` into open and closed world entities using the information fromt the `Ryn Dataset`. As a result, the `OW Contexts DB` contains the contexts of the open world entities while the `CW Contexts ES Index` contains the contexts of the closed world entities.
+- [`eval-model`](../../wikis/Commands/eval-model) can be used to evaluate link prediction models, including the baseline model. `eval-model` generally requires the `Ryn Dataset` to differentiate between open and closed world entities. In order to be able to run the baseline model it furthermore requires the `OW Contexts DB` and the `CW Contexts ES Index` built by `build-baseline`.
 
 
 # Data Files
@@ -91,7 +91,7 @@ The example used in this documentation assume the following structure of the dat
 ```
 data/
    baseline-v1-irt-fb-irt-30-clean        # Baseline Directory
-   contexts-v7-codex.db                   # Contexts DB
+   contexts-v8-codex.db                   # Contexts DB
    enwiki-20200920.xml                    # Wiki XML dump
    irt.fb.irt.30.clean/                   # Ryn Dataset Directory
    matches-v6-codex.db                    # Matches DB

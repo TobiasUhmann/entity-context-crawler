@@ -1,10 +1,10 @@
 set PYTHONPATH=src\
 python -u src\sam.py build-contexts-db ^
-  data\wikidata-codex.json ^
-  data\qid2rid-codex.txt ^
-  data\matches-codex.db ^
-  data\contexts-codex.db ^
+  data\wikidata-v1-codex.json ^
+  data\qid-to-rid-v1-codex.txt ^
+  data\matches-v6-codex.db ^
+  data\contexts-v8-codex.db ^
   --context-size 500 ^
   --crop-sentences ^
-  --csv-file data\contexts-codex.csv ^
+  --csv-file data\contexts-v8-codex.csv ^
   --limit-contexts 100
