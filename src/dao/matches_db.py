@@ -26,8 +26,9 @@ class Page:
 
 
 def version_matches_db(conn: Connection):
-    with conn:
-        conn.execute('PRAGMA user_version = 6')
+    cursor = conn.cursor()
+    cursor.execute('PRAGMA user_version = 6')
+    cursor.close()
 
 
 def create_pages_table(conn: Connection):

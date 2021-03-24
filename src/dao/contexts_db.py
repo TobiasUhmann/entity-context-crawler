@@ -14,8 +14,9 @@ class Context:
 
 
 def version_contexts_db(conn: Connection):
-    with conn:
-        conn.execute('PRAGMA user_version = 8')
+    cursor = conn.cursor()
+    cursor.execute('PRAGMA user_version = 8')
+    cursor.close()
 
 
 def create_contexts_table(conn: Connection):
