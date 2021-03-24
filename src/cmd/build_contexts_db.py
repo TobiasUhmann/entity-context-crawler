@@ -182,7 +182,7 @@ def _build_contexts_db(wikidata_json: str, oid_to_rid_txt: str, matches_db: str,
         nlp: English = spacy.load('en_core_web_lg')
         log()
 
-        version_contexts_db(contexts_db)
+        version_contexts_db(contexts_conn)
         create_contexts_table(contexts_conn)
 
         wikidata_items = list(oid_to_wikidata.items())
