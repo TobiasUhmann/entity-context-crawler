@@ -18,37 +18,37 @@ Furthermore, the project contains an evaluation framework for comparing other mo
 
 1. Make sure that you have at least 150GB of free disk space.
 
-1. Clone the `sentence-sampler` repository and mark the scripts as executable:
+1. Clone the `entity-context-crawler` repository and mark the scripts as executable:
    ```
-   ~$ git clone https://gitlab.cs.hs-rm.de/tuhma001/sentence-sampler.git
-   ~$ chmod +x sentence-sampler/bash/*.sh
+   ~$ git clone https://github.com/TobiasUhmann/entity-context-crawler.git
+   ~$ chmod +x entity-context-crawler/bash/*.sh
    ```
 
-1. Clone the `deepca` and the `ryn` repositories next to the `sentence-sampler` directory:
+1. Clone the `deepca` and the `ryn` repositories next to the `entity-context-crawler` directory:
    ```
    ~$ git clone https://git.ramlimit.de/deepca/deepca.git
    ~$ git clone https://git.ramlimit.de/deepkg/ryn.git
    ~$ ls
    deepca/
    ryn/
-   sentence-sampler/
+   entity-context-crawler/
    ```
 
 1. Optionally, set up a local Python environment. Run the following
    commands to set up a local Anaconda environment:
    ```
-   ~/sentence-sampler$ conda create -p conda/ python=3.8
-   ~/sentence-sampler$ conda activate conda/
+   ~/entity-context-crawler$ conda create -p conda/ python=3.8
+   ~/entity-context-crawler$ conda activate conda/
    ```
 
 1. Install the dependencies, including `deepca` from its editable
    source:
    ```
-   ~/sentence-sampler$ pip install -e ../deepca/
-   ~/sentence-sampler$ pip install -r ../deepca/requirements/all.txt
-   ~/sentence-sampler$ pip install -e ../ryn/
-   ~/sentence-sampler$ pip install -r ../ryn/requirements.txt
-   ~/sentence-sampler$ pip install -r requirements.txt
+   ~/entity-context-crawler$ pip install -e ../deepca/
+   ~/entity-context-crawler$ pip install -r ../deepca/requirements/all.txt
+   ~/entity-context-crawler$ pip install -e ../ryn/
+   ~/entity-context-crawler$ pip install -r ../ryn/requirements.txt
+   ~/entity-context-crawler$ pip install -r requirements.txt
    ```
 
 1. Download the spaCy model:

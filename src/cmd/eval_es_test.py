@@ -134,7 +134,7 @@ class EntityLinker:
 
     def run(self):
         es = Elasticsearch()
-        es.indices.delete(index='sentence-sampler-index', ignore=[400, 404])
+        es.indices.delete(index='entity-context-crawler-index', ignore=[400, 404])
         with sqlite3.connect(self.matches_db) as matches_conn, \
                 sqlite3.connect(self.contexts_db) as contexts_conn:
 
@@ -175,8 +175,8 @@ class EntityLinker:
                     insert_context(contexts_conn, entity, test_context)
 
                 es_doc = {'context': ' '.join(train_contexts), 'entity_label': entity}
-                es.index(index="sentence-sampler-index", id=ryn_id, body=es_doc)
-                es.indices.refresh(index="sentence-sampler-index")
+                es.index(index="entity-context-crawler-index", id=ryn_id, body=es_doc)
+                es.indices.refresh(index="entity-context-crawler-index")
 
             #
             # TESTING
@@ -189,7 +189,7 @@ class EntityLinker:
                 print(' {:5}  {:24}  {}'.format('QUERY', entity, repr(test_context[:100])))
                 print('-------------------------------------------------------------------')
 
-                res = es.search(index="sentence-sampler-index",
+                res = es.search(index="entity-context-crawler-index",
                                 body={"query": {"match": {'context': test_context}}})
 
                 hits = res['hits']['hits']
