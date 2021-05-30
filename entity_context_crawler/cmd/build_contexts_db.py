@@ -14,10 +14,10 @@ from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 from spacy.tokens import Doc
 
-from dao.contexts_db import create_contexts_table, insert_contexts, Context
-from dao.matches_db import select_contexts, select_entity_mentions
-from dao.mid2rid_txt import load_mid2rid
-from util.log import log, log_start, log_end
+from entity_context_crawler.dao.contexts_db import create_contexts_table, insert_contexts, Context
+from entity_context_crawler.dao.matches_db import select_contexts, select_entity_mentions
+from entity_context_crawler.dao.mid2rid_txt import load_mid2rid
+from entity_context_crawler.util.log import log, log_start, log_end
 
 
 def add_parser_args(parser: ArgumentParser):
