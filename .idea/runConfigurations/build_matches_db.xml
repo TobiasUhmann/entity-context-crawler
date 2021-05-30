@@ -12,7 +12,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
+    <option name="SCRIPT_NAME" value="C:\Users\Tobias\Documents\HSRM\Hiwi\entity-context-crawler\src\__main__.py" />
     <option name="PARAMETERS" value="build-matches-db data/enwiki-20200920.xml data/entity2wikidata.json data/matches-v5-enwiki-20200920.db --in-memory" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
