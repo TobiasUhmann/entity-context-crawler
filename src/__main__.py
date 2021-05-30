@@ -1,12 +1,14 @@
 import random
 from argparse import ArgumentParser, HelpFormatter
 
-from cmd import build_baseline, build_contexts_db, build_es_test, eval_es_test, eval_model, query_es_test, \
+from src.cmd import build_baseline, build_contexts_db, build_es_test, eval_es_test, eval_model, query_es_test, \
     build_matches_db
 
 
 def main():
     """ Parse arguments and run specified sub command """
+
+    print('Heyyyy')
 
     #
     # Build main arg parser

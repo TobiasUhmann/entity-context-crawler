@@ -12,7 +12,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/sam.py" />
+    <option name="SCRIPT_NAME" value="C:\Users\Tobias\Documents\HSRM\Hiwi\entity-context-crawler\src\__main__.py" />
     <option name="PARAMETERS" value="build-contexts-db data/entity2wikidata.json data/entity2id.txt data/matches-v5-enwiki-20200920.db data/contexts-v7-enwiki-20200920-100-500.db --context-size 500 --crop-sentences --csv-file data/contexts-v7-enwiki-20200920-100-500.csv --limit-contexts 100" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
