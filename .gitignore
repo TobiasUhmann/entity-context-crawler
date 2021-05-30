@@ -1,7 +1,3 @@
-conda/
-data/
-log/
-
 # Created by https://www.toptal.com/developers/gitignore/api/python,pycharm,venv
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,pycharm,venv
 
@@ -182,7 +178,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-doc/_build/
+../es-kgc-baseline/doc/_build/
 
 # PyBuilder
 target/

@@ -15,10 +15,10 @@ import wikitextparser as wtp
 from spacy.language import Language
 from spacy.matcher import PhraseMatcher
 
-from dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
+from entity_context_crawler.dao.matches_db import create_matches_table, Match, insert_match, Mention, insert_page, insert_or_ignore_mention, \
     Page, create_pages_table, create_mentions_table, PageStats
-from util.log import log
-from util.wikipedia import Wikipedia
+from entity_context_crawler.util.log import log
+from entity_context_crawler.util.wikipedia import Wikipedia
 
 
 def add_parser_args(parser: ArgumentParser):
