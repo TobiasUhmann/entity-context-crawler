@@ -252,7 +252,7 @@ def crop_contexts(
         context_doc: Doc = nlp(ragged_context)
 
         if crop_sentences:
-            raw_sents = [sent.string for sent in context_doc.sents]
+            raw_sents = [sent.text for sent in context_doc.sents]
 
             # - Split sentences containing '\n' into multiple sentences
             # - Flatten the groups of splitted sentences
@@ -282,7 +282,7 @@ def crop_contexts(
 
         else:
             # Remove first and last token because they might be incomplete
-            tokens = [token.string.strip() for token in context_doc if not token.is_space][1:-1]
+            tokens = [token.text.strip() for token in context_doc if not token.is_space][1:-1]
 
             # Note: No filtering of bad tokens here
 

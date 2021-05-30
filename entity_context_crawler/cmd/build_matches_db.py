@@ -338,7 +338,7 @@ def clean_up_text(nlp: Language, page_text: str) -> str:
             continue
 
         doc = nlp(paragraph)
-        sents = [sent.string for sent in doc.sents]
+        sents = [sent.text for sent in doc.sents]
 
         clean_sents = [sent for sent in sents if
                        len(sent) >= 40
