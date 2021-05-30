@@ -18,5 +18,5 @@ setup(
         'entity_context_crawler.dao',
         'entity_context_crawler.util',
     ],
-    version='0.2.1'
+    version='0.2.2'
 )

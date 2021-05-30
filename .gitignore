@@ -182,7 +182,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-doc/_build/
+../es-kgc-baseline/doc/_build/
 
 # PyBuilder
 target/
