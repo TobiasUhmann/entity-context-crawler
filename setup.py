@@ -1,3 +1,6 @@
 from distutils.core import setup
 
-setup(name='sentence-sampler', version='0.1.0')
+setup(
+    name='entity-context-crawler',
+    version='0.2.0'
+)
