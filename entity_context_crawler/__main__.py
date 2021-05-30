@@ -1,10 +1,12 @@
 import random
+import sys
 from argparse import ArgumentParser, HelpFormatter
+from typing import List
 
 from entity_context_crawler.cmd import build_contexts_db, build_matches_db
 
 
-def main():
+def main(argv: List[str]):
     """ Parse arguments and run specified sub command """
 
     #
@@ -55,7 +57,7 @@ def main():
     # Seed random generator & Run specified sub command
     #
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     if args.random_seed:
         random.seed(args.random_seed)
@@ -64,4 +66,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)

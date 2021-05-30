@@ -5,7 +5,7 @@ from dao.mid2rid_txt import load_mid2rid
 
 class Test(TestCase):
     def test_load_mid2rid_1(self):
-        mid2rid = load_mid2rid('test/dao/test_mid2rid_txt_file.txt')
+        mid2rid = load_mid2rid('tests/dao/test_mid2rid_txt_file.txt')
 
         self.assertEqual(len(mid2rid), 6)
         self.assertEqual(mid2rid['/m/027rn'], 0)
