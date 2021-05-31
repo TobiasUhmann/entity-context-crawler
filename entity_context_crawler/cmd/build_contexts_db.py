@@ -173,7 +173,8 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
             sqlite3.connect(contexts_db) as contexts_conn:
 
         log('Load Freebase JSON')
-        freebase_data: Dict[str, Dict] = json.load(open(freebase_json, 'r'))
+        with open(freebase_json, 'r', encoding='utf-8') as f:
+            freebase_data: Dict[str, Dict] = json.load(f)
 
         log('Load mid2rid TXT')
         mid2rid: Dict[str, int] = load_mid2rid(mid2rid_txt)
@@ -188,6 +189,9 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
         random.shuffle(freebase_items)
         for entity_count, freebase_item in enumerate(freebase_items):
             mid, entity_data = freebase_item
+
+            if mid not in mid2rid:
+                continue
 
             # Early stop after ... entities
             if limit_entities and entity_count == limit_entities:
@@ -228,7 +232,7 @@ def _build_contexts_db(freebase_json: str, mid2rid_txt: str, matches_db: str, co
 
             # Persist stats
             if csv_file:
-                with open(csv_file, 'a', newline='') as csv_fh:
+                with open(csv_file, 'a', encoding='utf-8', newline='') as csv_fh:
                     csv.writer(csv_fh).writerow([entity_label, len(all_context_rows)])
 
 
