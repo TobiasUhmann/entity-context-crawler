@@ -32,9 +32,9 @@ class TestSuite(unittest.TestCase):
         #
 
         args = ['ecc', 'build-matches-db',
-                'data/wikipedia.xml',
-                'data/entities.json',
-                'data/matches.db']
+                'tests/integration/data/wikipedia.xml',
+                'tests/integration/data/entities.json',
+                'tests/integration/data/matches.db']
 
         res = main(args)
 
@@ -46,7 +46,7 @@ class TestSuite(unittest.TestCase):
         self._check_matches_db()
 
         # Tidy up
-        os.remove('data/matches.db')
+        os.remove('tests/integration/data/matches.db')
 
     def test_build_matches_db_in_memory(self):
         #
@@ -55,9 +55,9 @@ class TestSuite(unittest.TestCase):
         #
 
         args = ['ecc', 'build-matches-db',
-                'data/wikipedia.xml',
-                'data/entities.json',
-                'data/matches.db',
+                'tests/integration/data/wikipedia.xml',
+                'tests/integration/data/entities.json',
+                'tests/integration/data/matches.db',
                 '--in-memory']
 
         res = main(args)
@@ -70,7 +70,7 @@ class TestSuite(unittest.TestCase):
         self._check_matches_db()
 
         # Tidy up
-        os.remove('data/matches.db')
+        os.remove('tests/integration/data/matches.db')
 
     def test_build_contexts_db(self):
         #
@@ -78,9 +78,9 @@ class TestSuite(unittest.TestCase):
         #
 
         args = ['ecc', 'build-matches-db',
-                'data/wikipedia.xml',
-                'data/entities.json',
-                'data/matches.db']
+                'tests/integration/data/wikipedia.xml',
+                'tests/integration/data/entities.json',
+                'tests/integration/data/matches.db']
 
         res = main(args)
 
@@ -92,13 +92,13 @@ class TestSuite(unittest.TestCase):
         #
 
         args = ['ecc', 'build-contexts-db',
-                'data/entities.json',
-                'data/qid-to-rid.txt',
-                'data/matches.db',
-                'data/contexts.db',
+                'tests/integration/data/entities.json',
+                'tests/integration/data/qid-to-rid.txt',
+                'tests/integration/data/matches.db',
+                'tests/integration/data/contexts.db',
                 '--context-size', '500',
                 '--crop-sentences',
-                '--csv-file', 'data/contexts.csv',
+                '--csv-file', 'tests/integration/data/contexts.csv',
                 '--limit-contexts', '100']
 
         res = main(args)
@@ -111,14 +111,14 @@ class TestSuite(unittest.TestCase):
         self._check_contexts_db()
 
         # Tidy up
-        os.remove('data/matches.db')
-        os.remove('data/contexts.db')
-        os.remove('data/contexts.csv')
+        os.remove('tests/integration/data/matches.db')
+        os.remove('tests/integration/data/contexts.db')
+        os.remove('tests/integration/data/contexts.csv')
 
     def _check_matches_db(self):
         """ Check that the Matches DB is not empty """
 
-        with sqlite3.connect('data/matches.db') as matches_conn:
+        with sqlite3.connect('tests/integration/data/matches.db') as matches_conn:
             pages_count = matches_conn.execute('SELECT COUNT(*) FROM pages').fetchone()[0]
             mentions_count = matches_conn.execute('SELECT COUNT(*) FROM mentions').fetchone()[0]
             matches_count = matches_conn.execute('SELECT COUNT(*) FROM matches').fetchone()[0]
@@ -130,7 +130,7 @@ class TestSuite(unittest.TestCase):
     def _check_contexts_db(self):
         """ Check that the Contexts DB is not empty """
 
-        with sqlite3.connect('data/contexts.db') as contexts_conn:
+        with sqlite3.connect('tests/integration/data/contexts.db') as contexts_conn:
             pages_count = contexts_conn.execute('SELECT COUNT(*) FROM contexts').fetchone()[0]
 
             self.assertGreater(pages_count, 0)
