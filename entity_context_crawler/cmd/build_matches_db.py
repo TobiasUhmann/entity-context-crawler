@@ -152,7 +152,8 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     create_matches_table(matches_conn)
     create_mentions_table(matches_conn)
 
-    freebase_data = json.load(open(freebase_json, 'r'))
+    with open(freebase_json, 'r', encoding='utf-8') as f:
+        freebase_data = json.load(f)
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, limit_pages)
@@ -338,7 +339,7 @@ def clean_up_text(nlp: Language, page_text: str) -> str:
             continue
 
         doc = nlp(paragraph)
-        sents = [sent.string for sent in doc.sents]
+        sents = [sent.text for sent in doc.sents]
 
         clean_sents = [sent for sent in sents if
                        len(sent) >= 40

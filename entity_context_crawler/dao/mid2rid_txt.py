@@ -9,10 +9,10 @@ def load_mid2rid(path: str) -> Dict[str, int]:
 
     mid2rid = dict()
 
-    with open(path) as fh:
+    with open(path, encoding='utf-8') as fh:
         next(fh)
         for line in fh.readlines():
-            mid, rid = line.split('\t')
+            mid, rid = line.split()
             mid2rid[mid] = int(rid)
 
     return mid2rid
