@@ -152,7 +152,8 @@ def _process_wiki_xml(wiki_xml, freebase_json, matches_conn, limit_pages):
     create_matches_table(matches_conn)
     create_mentions_table(matches_conn)
 
-    freebase_data = json.load(open(freebase_json, 'r'))
+    with open(freebase_json, 'r') as f:
+        freebase_data = json.load(f)
 
     with open(wiki_xml, 'rb') as wiki_xml_fh:
         wikipedia = Wikipedia(wiki_xml_fh, limit_pages)

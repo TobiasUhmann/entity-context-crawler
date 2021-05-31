@@ -6,7 +6,7 @@ from typing import List
 from entity_context_crawler.cmd import build_contexts_db, build_matches_db
 
 
-def main(argv: List[str]):
+def main(argv: List[str]) -> int:
     """ Parse arguments and run specified sub command """
 
     #
@@ -63,6 +63,8 @@ def main(argv: List[str]):
         random.seed(args.random_seed)
 
     args.func(args)
+
+    return 0
 
 
 if __name__ == '__main__':
