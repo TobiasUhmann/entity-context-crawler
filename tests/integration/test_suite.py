@@ -1,3 +1,4 @@
+import logging
 import os
 import sqlite3
 import unittest
@@ -93,7 +94,7 @@ class TestSuite(unittest.TestCase):
 
         args = ['ecc', 'build-contexts-db',
                 'tests/integration/data/entities.json',
-                'tests/integration/data/qid-to-rid.txt',
+                'tests/integration/data/irt-ids.txt',
                 'tests/integration/data/matches.db',
                 'tests/integration/data/contexts.db',
                 '--context-size', '500',

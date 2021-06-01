@@ -19,10 +19,10 @@ def main():
         elif event == 'end' and node.tag.endswith('page'):
             root.append(node)
             page_count += 1
-            if page_count == 1000:
+            if page_count == 100:
                 break
 
-    with open('wikipedia-1000.xml', 'wb') as f:
+    with open('wikipedia-100.xml', 'wb') as f:
         f.write(etree.tostring(root))
 
 
